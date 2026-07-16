@@ -1,32 +1,18 @@
-# Skin Powers Tasarım Kapsamı
+# Skin Powers 0.3.2 Tasarım Özeti
 
-Bu dosya, 0.3.0 sürümüne uygulanan ana gereksinimleri kısa biçimde izler.
+## Warden
+1. Warden Zırhı — uzun süre güç, direnç ve emilim.
+2. Yer Sarsıntısı — geniş alan hasarı, savurma, yavaşlık ve zayıflık.
+3. Sonik Patlama — uzun menzilli ve yüksek hasarlı sonik saldırı.
+4. Sculk Avı — süreli düşman tespiti, parlatma ve av debuffları.
+5. Warden Uyanışı — güç, direnç, yenilenme ve yakın alan hasar aurası.
 
-## Sınıflar ve seviyeler
+## Uçuş
+1. Yavaş Düşüş — Y veya R ile aç/kapat.
+2. Süreli Elytra — göğüs yuvası boşken 20–35 saniye takılır, sonra silinir.
+3. Roketsiz Kalkış — Elytra aktifken R veya çift boşluk.
+4. Hava Patlaması — canlıları ve mermileri savurur.
+5. Gökyüzü Hâkimiyeti — Elytra uçuşunda yüksek hızlı çarpışmada otomatik darbe.
 
-### Warden
-1. Kuvvet + direnç
-2. Yer sarsıntısı
-3. Sonik patlama
-4. Karanlık/titreşim görüşü
-5. Warden uyanışı
-
-### Uçuş
-1. Yavaş düşüş
-2. Bağlı kanatlar ve uçuş
-3. Roketsiz kalkış
-4. Hava patlaması ve mermi çevirme
-5. Gökyüzü hâkimiyeti
-
-### Ateş
-1. Ateş/lav bağışıklığı
-2. Alevli yakın dövüş
-3. Ateş çemberi
-4. Ateş görüşü
-5. Meteor yağmuru
-
-## Tasarım uyarlamaları
-
-- Bağlı kanatlar, göğüs zırhı yuvasını işgal etmeden sunucunun uçuş yeteneği üzerinden uygulanır; uçuş sırasında kanat izleri parçacıklarla gösterilir.
-- 26.1.2'nin yeni GUI çıkarma sistemiyle uyumlu kalmak için seçim ekranındaki oyuncu önizlemesi skin renklerinden oluşturulan, dönen blok karakter görselleştirmesidir. Skinin gerçek PNG renkleri yine analiz edilir.
-- Titreşim ve ateş görüşü, istemci ekran filtresi ile sunucu parçacık/işaretleme mantığının birleşimidir.
+## Ustalık
+Gerçek kullanım sayısı her güç için ayrı saklanır. Eşikler 5, 15 ve 30 kullanımdır. Aktif güçler başarılı çalıştırıldığında; otomatik güçler gerçekten tetiklendiğinde ilerler.

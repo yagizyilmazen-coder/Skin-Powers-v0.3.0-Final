@@ -1,0 +1,10 @@
+SKIN POWERS 0.3.2 KURULUM
+
+1) Bu paketin içindeki bütün dosyaları mevcut GitHub proje klasörüne kopyalayın.
+2) Windows sorunca "Hedefteki dosyaları değiştir" seçin.
+3) GitHub Desktop: Summary = Skin Powers 0.3.2 denge ve ustalık düzeltmesi
+4) Commit to main, ardından Push origin.
+5) GitHub > Actions > yeşil tikli çalışmayı açın.
+6) Artifacts > skinpowers-0.3.2-jar paketini indirin.
+7) ZIP içindeki skinpowers-0.3.2.jar dosyasını mods klasörüne koyun.
+8) Eski skinpowers-0.3.1.jar dosyasını kaldırın.

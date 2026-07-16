@@ -19,17 +19,18 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public final class SkinAnalyzer {
     private static final int[][] WARDEN_COLORS = {
-        {12, 16, 22}, {20, 32, 55}, {31, 27, 64}, {55, 28, 82}, {20, 58, 77}
+        {8, 12, 18}, {17, 29, 48}, {31, 26, 67}, {63, 27, 88}, {15, 61, 78}, {25, 126, 132}
     };
     private static final int[][] FLIGHT_COLORS = {
-        {245, 248, 255}, {192, 210, 225}, {150, 205, 235}, {205, 205, 210}, {112, 176, 225}
+        {248, 250, 255}, {205, 216, 228}, {157, 207, 235}, {188, 190, 200}, {105, 176, 226}
     };
     private static final int[][] FIRE_COLORS = {
-        {235, 35, 20}, {245, 100, 15}, {255, 185, 25}, {170, 20, 10}, {250, 225, 60}
+        {235, 35, 20}, {246, 96, 13}, {255, 181, 24}, {173, 20, 9}, {249, 221, 54}
     };
 
     private SkinAnalyzer() {}
@@ -37,25 +38,26 @@ public final class SkinAnalyzer {
     public static CompletableFuture<Result> analyzeAsync(GameProfile profile) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                String skinUrl = findSkinUrl(profile);
-                if (skinUrl == null || !skinUrl.startsWith("https://")) return Result.fallback();
-
                 HttpClient client = HttpClient.newBuilder()
                     .connectTimeout(Duration.ofSeconds(5))
                     .followRedirects(HttpClient.Redirect.NORMAL)
                     .build();
+
+                String skinUrl = findSkinUrl(profile, client);
+                if (skinUrl == null || !skinUrl.startsWith("https://")) return Result.unavailable();
+
                 HttpRequest request = HttpRequest.newBuilder(URI.create(skinUrl))
                     .timeout(Duration.ofSeconds(8))
-                    .header("User-Agent", "SkinPowers/0.3.0")
+                    .header("User-Agent", "SkinPowers/0.3.2")
                     .GET()
                     .build();
                 HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
-                if (response.statusCode() < 200 || response.statusCode() >= 300) return Result.fallback();
+                if (response.statusCode() < 200 || response.statusCode() >= 300) return Result.unavailable();
                 BufferedImage image = ImageIO.read(new ByteArrayInputStream(response.body()));
-                if (image == null) return Result.fallback();
+                if (image == null) return Result.unavailable();
                 return analyze(image);
             } catch (Exception ignored) {
-                return Result.fallback();
+                return Result.unavailable();
             }
         });
     }
@@ -65,32 +67,42 @@ public final class SkinAnalyzer {
         double flight = 0.0;
         double fire = 0.0;
         int counted = 0;
+        int matched = 0;
         Map<Integer, Integer> quantized = new HashMap<>();
 
-        for (int y = 0; y < image.getHeight(); y++) {
-            for (int x = 0; x < image.getWidth(); x++) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+        int[] skinPixels = image.getRGB(0, 0, width, height, null, 0, width);
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
                 int argb = image.getRGB(x, y);
                 int alpha = (argb >>> 24) & 0xFF;
-                if (alpha < 16) continue;
+                if (alpha < 32) continue;
+
                 int red = (argb >>> 16) & 0xFF;
                 int green = (argb >>> 8) & 0xFF;
                 int blue = argb & 0xFF;
-
-                warden += nearestSimilarity(red, green, blue, WARDEN_COLORS);
-                flight += nearestSimilarity(red, green, blue, FLIGHT_COLORS);
-                fire += nearestSimilarity(red, green, blue, FIRE_COLORS);
                 counted++;
 
-                int qr = (red / 32) * 32;
-                int qg = (green / 32) * 32;
-                int qb = (blue / 32) * 32;
+                double[] scores = pixelScores(red, green, blue);
+                double best = Math.max(scores[0], Math.max(scores[1], scores[2]));
+                if (best >= 0.18) {
+                    warden += Math.pow(scores[0], 2.6);
+                    flight += Math.pow(scores[1], 2.6);
+                    fire += Math.pow(scores[2], 2.6);
+                    matched++;
+                }
+
+                int qr = (red / 24) * 24;
+                int qg = (green / 24) * 24;
+                int qb = (blue / 24) * 24;
                 int key = (qr << 16) | (qg << 8) | qb;
                 quantized.merge(key, 1, Integer::sum);
             }
         }
 
-        if (counted == 0) return Result.fallback();
-        double sum = Math.max(0.0001, warden + flight + fire);
+        if (counted == 0) return Result.unavailable();
         int[] dominant = quantized.entrySet().stream()
             .sorted(Map.Entry.<Integer, Integer>comparingByValue(Comparator.reverseOrder()))
             .limit(3)
@@ -101,10 +113,62 @@ public final class SkinAnalyzer {
             System.arraycopy(dominant, 0, filled, 0, dominant.length);
             dominant = filled;
         }
-        return new Result(warden / sum, flight / sum, fire / sum, dominant, true);
+
+        return new Result(
+            warden / counted,
+            flight / counted,
+            fire / counted,
+            dominant,
+            true,
+            skinPixels,
+            width,
+            height,
+            matched / (double) counted
+        );
     }
 
-    private static double nearestSimilarity(int r, int g, int b, int[][] prototypes) {
+    private static double[] pixelScores(int r, int g, int b) {
+        double warden = nearestSimilarity(r, g, b, WARDEN_COLORS, 58.0);
+        double flight = nearestSimilarity(r, g, b, FLIGHT_COLORS, 55.0);
+        double fire = nearestSimilarity(r, g, b, FIRE_COLORS, 52.0);
+
+        double max = Math.max(r, Math.max(g, b)) / 255.0;
+        double min = Math.min(r, Math.min(g, b)) / 255.0;
+        double saturation = max <= 0.0001 ? 0.0 : (max - min) / max;
+        double hue = hueDegrees(r, g, b);
+
+        if (max < 0.34 && (b >= r * 0.82 || hue >= 220.0 && hue <= 310.0)) {
+            warden = Math.max(warden, 0.72 + (0.34 - max) * 0.65);
+        }
+        if (max > 0.66 && saturation < 0.30) {
+            flight = Math.max(flight, 0.72 + (max - 0.66) * 0.70);
+        }
+        if (max > 0.48 && hue >= 180.0 && hue <= 225.0) {
+            flight = Math.max(flight, 0.68 + Math.min(0.25, saturation * 0.25));
+        }
+        if (saturation > 0.42 && max > 0.30 && (hue <= 67.0 || hue >= 345.0)) {
+            fire = Math.max(fire, 0.74 + Math.min(0.22, saturation * 0.22));
+        }
+
+        return new double[]{clamp01(warden), clamp01(flight), clamp01(fire)};
+    }
+
+    private static double hueDegrees(int r, int g, int b) {
+        double rd = r / 255.0;
+        double gd = g / 255.0;
+        double bd = b / 255.0;
+        double max = Math.max(rd, Math.max(gd, bd));
+        double min = Math.min(rd, Math.min(gd, bd));
+        double delta = max - min;
+        if (delta < 0.00001) return 0.0;
+        double hue;
+        if (max == rd) hue = 60.0 * (((gd - bd) / delta) % 6.0);
+        else if (max == gd) hue = 60.0 * (((bd - rd) / delta) + 2.0);
+        else hue = 60.0 * (((rd - gd) / delta) + 4.0);
+        return hue < 0.0 ? hue + 360.0 : hue;
+    }
+
+    private static double nearestSimilarity(int r, int g, int b, int[][] prototypes, double sigma) {
         double bestDistanceSquared = Double.MAX_VALUE;
         for (int[] prototype : prototypes) {
             double dr = r - prototype[0];
@@ -113,39 +177,80 @@ public final class SkinAnalyzer {
             double distanceSquared = dr * dr + dg * dg + db * db;
             if (distanceSquared < bestDistanceSquared) bestDistanceSquared = distanceSquared;
         }
-        return Math.exp(-bestDistanceSquared / (2.0 * 92.0 * 92.0));
+        return Math.exp(-bestDistanceSquared / (2.0 * sigma * sigma));
     }
 
-    private static String findSkinUrl(GameProfile profile) throws Exception {
+    private static String findSkinUrl(GameProfile profile, HttpClient client) throws Exception {
         if (profile == null) return null;
 
-        // Authlib 7 (Minecraft 26.1.x) uses record-style accessors, while older
-        // versions used getProperties(). Reflection keeps this code compatible
-        // with both forms without directly compiling against a removed method.
+        String embedded = findEmbeddedSkinUrl(profile);
+        if (embedded != null) return embedded;
+
+        UUID profileId = extractProfileId(profile);
+        if (profileId == null) return null;
+        String compactUuid = profileId.toString().replace("-", "");
+        HttpRequest request = HttpRequest.newBuilder(
+                URI.create("https://sessionserver.mojang.com/session/minecraft/profile/" + compactUuid + "?unsigned=false"))
+            .timeout(Duration.ofSeconds(7))
+            .header("User-Agent", "SkinPowers/0.3.2")
+            .GET()
+            .build();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        if (response.statusCode() < 200 || response.statusCode() >= 300) return null;
+        JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
+        if (!root.has("properties")) return null;
+        for (var element : root.getAsJsonArray("properties")) {
+            JsonObject property = element.getAsJsonObject();
+            if (!property.has("name") || !"textures".equals(property.get("name").getAsString())) continue;
+            if (!property.has("value")) continue;
+            String skinUrl = skinUrlFromTextureValue(property.get("value").getAsString());
+            if (skinUrl != null) return skinUrl;
+        }
+        return null;
+    }
+
+    private static String findEmbeddedSkinUrl(GameProfile profile) throws Exception {
         Object propertyContainer = invokeNoArg(profile, "properties", "getProperties");
         if (propertyContainer == null) return null;
-
         for (Object property : textureProperties(propertyContainer)) {
             String value = extractPropertyValue(property);
             if (value == null || value.isBlank()) continue;
+            String skinUrl = skinUrlFromTextureValue(value);
+            if (skinUrl != null) return skinUrl;
+        }
+        return null;
+    }
+
+    private static String skinUrlFromTextureValue(String value) {
+        try {
             String decoded = new String(Base64.getDecoder().decode(value), StandardCharsets.UTF_8);
             JsonObject root = JsonParser.parseString(decoded).getAsJsonObject();
             JsonObject textures = root.has("textures") ? root.getAsJsonObject("textures") : null;
             JsonObject skin = textures != null && textures.has("SKIN") ? textures.getAsJsonObject("SKIN") : null;
-            if (skin != null && skin.has("url")) return skin.get("url").getAsString();
+            return skin != null && skin.has("url") ? skin.get("url").getAsString() : null;
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static UUID extractProfileId(GameProfile profile) {
+        Object value = invokeNoArg(profile, "id", "getId");
+        if (value instanceof UUID uuid) return uuid;
+        if (value instanceof String string) {
+            try {
+                return UUID.fromString(string);
+            } catch (IllegalArgumentException ignored) {
+                return null;
+            }
         }
         return null;
     }
 
     private static List<Object> textureProperties(Object propertyContainer) {
         List<Object> result = new ArrayList<>();
-
-        // PropertyMap/Multimap biçimi: properties.get("textures")
         Object named = invokeOneArg(propertyContainer, "get", "textures");
         addAll(result, named, false);
         if (!result.isEmpty()) return result;
-
-        // Yeni Authlib biçimi: doğrudan Property listesi.
         addAll(result, propertyContainer, true);
         return result;
     }
@@ -204,6 +309,7 @@ public final class SkinAnalyzer {
     }
 
     private static String extractPropertyValue(Object property) {
+        if (property == null) return null;
         for (String methodName : new String[]{"value", "getValue"}) {
             try {
                 Object result = property.getClass().getMethod(methodName).invoke(property);
@@ -215,9 +321,23 @@ public final class SkinAnalyzer {
         return null;
     }
 
-    public record Result(double warden, double flight, double fire, int[] dominantColors, boolean fromSkin) {
-        public static Result fallback() {
-            return new Result(0.34, 0.33, 0.33, new int[]{0x233044, 0x8FCBE8, 0xE95818}, false);
+    private static double clamp01(double value) {
+        return Math.max(0.0, Math.min(1.0, value));
+    }
+
+    public record Result(
+        double warden,
+        double flight,
+        double fire,
+        int[] dominantColors,
+        boolean fromSkin,
+        int[] skinPixels,
+        int skinWidth,
+        int skinHeight,
+        double matchedFraction
+    ) {
+        public static Result unavailable() {
+            return new Result(0.0, 0.0, 0.0, new int[]{0x233044, 0x8FCBE8, 0xE95818}, false, new int[0], 0, 0, 0.0);
         }
 
         public double score(int index) {
@@ -229,9 +349,29 @@ public final class SkinAnalyzer {
         }
 
         public int bestIndex() {
+            if (!hasRecommendation()) return -1;
             if (warden >= flight && warden >= fire) return 0;
             if (flight >= fire) return 1;
             return 2;
+        }
+
+        public boolean hasRecommendation() {
+            if (!fromSkin || matchedFraction < 0.035) return false;
+            double best = Math.max(warden, Math.max(flight, fire));
+            double second;
+            if (best == warden) second = Math.max(flight, fire);
+            else if (best == flight) second = Math.max(warden, fire);
+            else second = Math.max(warden, flight);
+            return best >= 0.075 && best - second >= 0.015;
+        }
+
+        public boolean hasSkinImage() {
+            return fromSkin && skinPixels != null && skinPixels.length == skinWidth * skinHeight && skinWidth >= 64 && skinHeight >= 32;
+        }
+
+        public int argbAt(int x, int y) {
+            if (!hasSkinImage() || x < 0 || y < 0 || x >= skinWidth || y >= skinHeight) return 0;
+            return skinPixels[y * skinWidth + x];
         }
     }
 }

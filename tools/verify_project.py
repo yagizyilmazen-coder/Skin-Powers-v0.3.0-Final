@@ -24,7 +24,7 @@ EXPECTED_PROPERTIES = {
     "loader_version": "0.19.3",
     "loom_version": "1.17-SNAPSHOT",
     "fabric_api_version": "0.154.2+26.1.2",
-    "mod_version": "0.3.0",
+    "mod_version": "0.3.2",
     "maven_group": "com.yagiz",
     "archives_base_name": "skinpowers",
 }
@@ -164,8 +164,9 @@ public final class CoreLogicSmokeTest {
         check(PowerCatalog.xpCostForLevel(5) == 50, "level 5 xp");
         check(PowerCatalog.masteryStage(4) == 0, "mastery 4");
         check(PowerCatalog.masteryStage(5) == 1, "mastery 5");
-        check(PowerCatalog.masteryStage(9) == 2, "mastery 9");
-        check(PowerCatalog.masteryStage(16) == 3, "mastery 16");
+        check(PowerCatalog.masteryStage(14) == 1, "mastery 14");
+        check(PowerCatalog.masteryStage(15) == 2, "mastery 15");
+        check(PowerCatalog.masteryStage(30) == 3, "mastery 30");
 
         PlayerPowerData data = new PlayerPowerData();
         data.chooseClass(PowerClass.FIRE);
@@ -178,14 +179,17 @@ public final class CoreLogicSmokeTest {
         check(data.selectedPower() == 1, "selection wrap next");
         data.selectRelative(-1);
         check(data.selectedPower() == 5, "selection wrap previous");
-        for (int i = 0; i < 16; i++) data.addMasteryUse(3);
+        for (int i = 0; i < 30; i++) data.addMasteryUse(3);
         check(data.masteryStage(3) == 3, "mastery progression");
         data.setCooldown(3, 100L, 40);
         check(data.cooldownRemaining(3, 120L) == 20, "cooldown remaining");
         check(data.cooldownRemaining(3, 200L) == 0, "cooldown floor");
         data.togglePassive();
         data.toggleVision();
+        data.setTemporaryElytraUntil(500L);
+        data.setWardenHuntUntil(600L);
         check(data.passiveEnabled() && data.visionEnabled(), "toggles");
+        check(data.temporaryElytraUntil() == 500L && data.wardenHuntUntil() == 600L, "timed powers");
         data.reset();
         check(data.powerClass() == PowerClass.NONE && data.unlockedLevel() == 0, "reset");
 

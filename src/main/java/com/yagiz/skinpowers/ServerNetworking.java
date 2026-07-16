@@ -42,6 +42,16 @@ public final class ServerNetworking {
             }
         } else if (command.equals("UNLOCK")) {
             unlockNext(player, data);
+        } else if (command.startsWith("SELECT:")) {
+            try {
+                int selectedLevel = Integer.parseInt(command.substring("SELECT:".length()));
+                if (selectedLevel >= 1 && selectedLevel <= data.unlockedLevel()) {
+                    data.setSelectedPower(selectedLevel);
+                    PlayerDataStore.markDirty();
+                }
+            } catch (NumberFormatException ignored) {
+                return;
+            }
         } else if (command.equals("NEXT")) {
             data.selectRelative(1);
         } else if (command.equals("PREV")) {
@@ -91,6 +101,8 @@ public final class ServerNetworking {
             data.cooldownRemaining(data.selectedPower(), gameTime),
             data.passiveEnabled(),
             data.visionEnabled(),
+            (int) Math.max(0L, data.temporaryElytraUntil() - gameTime),
+            (int) Math.max(0L, data.wardenHuntUntil() - gameTime),
             data.masteryCopy(),
             player.experienceLevel,
             PowerCatalog.powerName(data.powerClass(), data.selectedPower())
@@ -105,6 +117,8 @@ public final class ServerNetworking {
         int cooldownTicks,
         boolean passiveEnabled,
         boolean visionEnabled,
+        int temporaryElytraTicks,
+        int wardenHuntTicks,
         int[] masteryUses,
         int xpLevel,
         String powerName

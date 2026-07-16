@@ -18,7 +18,7 @@ public final class SkinSelectionScreen extends Screen {
     private static final int[] ACCENTS = {0xFF35D7D0, 0xFFFFFFFF, 0xFFFFC22E};
 
     private final long openedAt = Util.getMillis();
-    private SkinAnalyzer.Result result = SkinAnalyzer.Result.fallback();
+    private SkinAnalyzer.Result result = SkinAnalyzer.Result.unavailable();
     private boolean analysisFinished;
     private int selectedIndex = -1;
     private long selectedAt;
@@ -82,9 +82,16 @@ public final class SkinSelectionScreen extends Screen {
         int titleWidth = font.width(title);
         graphics.text(font, title, (width - titleWidth) / 2, 12, 0xFFFFFFFF, true);
 
-        String scanText = analysisFinished
-            ? (result.fromSkin() ? "Skin taraması tamamlandı" : "Skin alınamadı — dengeli öneri kullanılıyor")
-            : Component.translatable("screen.skinpowers.scan").getString();
+        String scanText;
+        if (!analysisFinished) {
+            scanText = Component.translatable("screen.skinpowers.scan").getString();
+        } else if (!result.fromSkin()) {
+            scanText = "Skin alınamadı — puan uydurulmadı, sınıfı kendin seç";
+        } else if (result.hasRecommendation()) {
+            scanText = "Skin tarandı — renk puanları gerçek piksellerden hesaplandı";
+        } else {
+            scanText = "Skin tarandı — belirgin bir sınıf rengi bulunamadı";
+        }
         graphics.text(font, scanText, (width - font.width(scanText)) / 2, 28, analysisFinished ? 0xFF9BEFD9 : 0xFFE7F4FF, false);
 
         drawAvatar(graphics, now);
@@ -137,7 +144,8 @@ public final class SkinSelectionScreen extends Screen {
         int score = (int) Math.round(result.score(index) * 100.0);
         graphics.text(font, TITLES[index], x + (w - font.width(TITLES[index])) / 2, artBottom + 7, 0xFFFFFFFF, true);
         graphics.text(font, SUBTITLES[index], x + (w - font.width(SUBTITLES[index])) / 2, artBottom + 20, 0xFFE8EEF4, false);
-        String scoreText = analysisFinished ? "Skin uyumu: %" + score : "Taranıyor...";
+        String scoreText = !analysisFinished ? "Taranıyor..."
+            : (result.fromSkin() ? "Renk eşleşmesi: %" + score : "Renk eşleşmesi: —");
         graphics.text(font, scoreText, x + (w - font.width(scoreText)) / 2, artBottom + 34, recommended ? ACCENTS[index] : 0xFFC8D0D8, false);
         if (recommended) {
             String recommendedText = "ÖNERİLEN";
@@ -149,23 +157,73 @@ public final class SkinSelectionScreen extends Screen {
     private void drawAvatar(GuiGraphicsExtractor graphics, long now) {
         int centerX = width / 2;
         int top = 43;
-        int[] colors = result.dominantColors();
-        int primary = 0xFF000000 | colors[0];
-        int secondary = 0xFF000000 | colors[1];
-        int accent = 0xFF000000 | colors[2];
-        int sway = (int) Math.round(Math.sin(now / 520.0) * 5.0);
+        int sway = (int) Math.round(Math.sin(now / 520.0) * 2.0);
         int x = centerX + sway;
 
-        graphics.fill(x - 10, top, x + 10, top + 18, primary);
-        graphics.outline(x - 10, top, 20, 18, 0xAAFFFFFF);
-        graphics.fill(x - 11, top + 19, x + 11, top + 48, secondary);
-        graphics.fill(x - 18, top + 20, x - 12, top + 47, primary);
-        graphics.fill(x + 12, top + 20, x + 18, top + 47, accent);
-        graphics.fill(x - 10, top + 49, x - 2, top + 73, primary);
-        graphics.fill(x + 2, top + 49, x + 10, top + 73, secondary);
+        graphics.fill(x - 22, top + 64, x + 22, top + 68, 0x44000000);
+        if (!result.hasSkinImage()) {
+            graphics.fill(x - 8, top, x + 8, top + 16, 0xFF34404D);
+            graphics.outline(x - 8, top, 16, 16, 0xAAFFFFFF);
+            graphics.fill(x - 8, top + 17, x + 8, top + 41, 0xFF516270);
+            graphics.fill(x - 16, top + 18, x - 9, top + 41, 0xFF3B4854);
+            graphics.fill(x + 9, top + 18, x + 16, top + 41, 0xFF3B4854);
+            graphics.fill(x - 8, top + 42, x - 1, top + 66, 0xFF28333D);
+            graphics.fill(x + 1, top + 42, x + 8, top + 66, 0xFF28333D);
+        } else {
+            int armSwing = (int) Math.round(Math.sin(now / 260.0) * 1.5);
+            boolean modern = result.skinHeight() >= 64;
 
-        int scanY = top + (int) ((now - openedAt) % 900L / 900.0 * 74.0);
-        graphics.fill(x - 22, scanY, x + 22, scanY + 2, 0xAA63FFF1);
+            drawSkinPart(graphics, 8, 8, 8, 8, x - 8, top, 2);
+            drawSkinPart(graphics, 40, 8, 8, 8, x - 8, top, 2);
+
+            drawSkinPart(graphics, 20, 20, 8, 12, x - 8, top + 16, 2);
+            if (modern) drawSkinPart(graphics, 20, 36, 8, 12, x - 8, top + 16, 2);
+
+            drawSkinPart(graphics, 44, 20, 4, 12, x - 16, top + 16 + armSwing, 2);
+            if (modern) drawSkinPart(graphics, 44, 36, 4, 12, x - 16, top + 16 + armSwing, 2);
+
+            int leftArmX = modern ? 36 : 44;
+            int leftArmY = modern ? 52 : 20;
+            drawSkinPart(graphics, leftArmX, leftArmY, 4, 12, x + 8, top + 16 - armSwing, 2);
+            if (modern) drawSkinPart(graphics, 52, 52, 4, 12, x + 8, top + 16 - armSwing, 2);
+
+            drawSkinPart(graphics, 4, 20, 4, 12, x - 8, top + 40, 2);
+            if (modern) drawSkinPart(graphics, 4, 36, 4, 12, x - 8, top + 40, 2);
+
+            int leftLegX = modern ? 20 : 4;
+            int leftLegY = modern ? 52 : 20;
+            drawSkinPart(graphics, leftLegX, leftLegY, 4, 12, x, top + 40, 2);
+            if (modern) drawSkinPart(graphics, 4, 52, 4, 12, x, top + 40, 2);
+        }
+
+        int scanY = top + (int) ((now - openedAt) % 900L / 900.0 * 66.0);
+        graphics.fill(x - 21, scanY, x + 21, scanY + 2, 0xAA63FFF1);
+    }
+
+    private void drawSkinPart(
+        GuiGraphicsExtractor graphics,
+        int sourceX,
+        int sourceY,
+        int sourceWidth,
+        int sourceHeight,
+        int targetX,
+        int targetY,
+        int scale
+    ) {
+        for (int py = 0; py < sourceHeight; py++) {
+            for (int px = 0; px < sourceWidth; px++) {
+                int argb = result.argbAt(sourceX + px, sourceY + py);
+                int alpha = (argb >>> 24) & 0xFF;
+                if (alpha < 24) continue;
+                graphics.fill(
+                    targetX + px * scale,
+                    targetY + py * scale,
+                    targetX + (px + 1) * scale,
+                    targetY + (py + 1) * scale,
+                    argb
+                );
+            }
+        }
     }
 
     private void drawAncientCity(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {

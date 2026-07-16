@@ -13,6 +13,8 @@ public final class ClientState {
     private static int cooldownTicks;
     private static boolean passiveEnabled;
     private static boolean visionEnabled;
+    private static int temporaryElytraTicks;
+    private static int wardenHuntTicks;
     private static int[] masteryUses = new int[5];
     private static int xpLevel;
     private static String powerName = "-";
@@ -30,6 +32,8 @@ public final class ClientState {
             cooldownTicks = Math.max(0, state.cooldownTicks);
             passiveEnabled = state.passiveEnabled;
             visionEnabled = state.visionEnabled;
+            temporaryElytraTicks = Math.max(0, state.temporaryElytraTicks);
+            wardenHuntTicks = Math.max(0, state.wardenHuntTicks);
             masteryUses = state.masteryUses == null || state.masteryUses.length != 5 ? new int[5] : state.masteryUses;
             xpLevel = Math.max(0, state.xpLevel);
             powerName = state.powerName == null ? PowerCatalog.powerName(powerClass, selectedPower) : state.powerName;
@@ -41,6 +45,8 @@ public final class ClientState {
 
     public static void clientTick() {
         if (cooldownTicks > 0) cooldownTicks--;
+        if (temporaryElytraTicks > 0) temporaryElytraTicks--;
+        if (wardenHuntTicks > 0) wardenHuntTicks--;
     }
 
     public static void reset() {
@@ -50,6 +56,8 @@ public final class ClientState {
         cooldownTicks = 0;
         passiveEnabled = false;
         visionEnabled = false;
+        temporaryElytraTicks = 0;
+        wardenHuntTicks = 0;
         masteryUses = new int[5];
         xpLevel = 0;
         powerName = "-";
@@ -62,6 +70,8 @@ public final class ClientState {
     public static int cooldownTicks() { return cooldownTicks; }
     public static boolean passiveEnabled() { return passiveEnabled; }
     public static boolean visionEnabled() { return visionEnabled; }
+    public static int temporaryElytraTicks() { return temporaryElytraTicks; }
+    public static int wardenHuntTicks() { return wardenHuntTicks; }
     public static int xpLevel() { return xpLevel; }
     public static String powerName() { return powerName; }
     public static boolean receivedState() { return receivedState; }
@@ -81,6 +91,8 @@ public final class ClientState {
         private int cooldownTicks;
         private boolean passiveEnabled;
         private boolean visionEnabled;
+        private int temporaryElytraTicks;
+        private int wardenHuntTicks;
         private int[] masteryUses;
         private int xpLevel;
         private String powerName;

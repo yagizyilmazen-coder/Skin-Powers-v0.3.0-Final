@@ -22,10 +22,13 @@ public final class SkinPowersMod implements ModInitializer {
         SkinPowersCommands.register();
 
         ServerLifecycleEvents.SERVER_STARTED.register(PlayerDataStore::load);
-        ServerLifecycleEvents.SERVER_STOPPING.register(server -> PlayerDataStore.save());
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            PowerSystem.clearAllMeteorVisuals();
+            PlayerDataStore.save();
+        });
         ServerTickEvents.END_SERVER_TICK.register(PowerSystem::tickServer);
         AttackEntityCallback.EVENT.register(PowerSystem::onAttackEntity);
 
-        LOGGER.info("Skin Powers 0.3.0 yüklendi.");
+        LOGGER.info("Skin Powers 0.3.2 yüklendi.");
     }
 }
