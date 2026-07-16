@@ -1,40 +1,53 @@
-# Skin Powers 0.3.5 — Fabric 26.1.2
+# Skin Powers 0.3.6
 
-Minecraft skinindeki gerçek piksel renklerini analiz ederek Warden, Uçuş, Ateş ve Su sınıflarını öneren beş seviyeli Fabric modudur. Skin alınamazsa mod puan veya öneri uydurmaz; oyuncu dört sınıftan birini kendisi seçer.
+Minecraft Java Edition 26.1.2 için Fabric modudur. Oyuncunun skini ilk sınıf seçiminde renklerine göre analiz edilir ve dört güç sınıfı sunulur:
 
-## Sürüm ve derleme
+- Warden
+- Uçuş
+- Ateş
+- Doğa
 
-- Minecraft: **26.1.2**
-- Fabric Loader: **0.19.3**
-- Fabric API: **0.154.2+26.1.2**
-- Java: **25**
-- Mod: **0.3.5**
+## Öne çıkan özellikler
 
-GitHub Actions başarılı olduğunda `skinpowers-0.3.5-jar` artifact’ini indirin ve içindeki `skinpowers-0.3.5.jar` dosyasını `mods` klasörüne koyun.
+- Her sınıfta 5 güç ve ayrı ustalık ilerlemesi
+- XP ile güç açma sistemi
+- Tek oyunculu dünya ve Fabric sunucu desteği
+- `R`: seçili gücü kullan
+- `Y`: uygun yardımcı özelliği kullan
+- `Sol/Sağ`: güç değiştir
+- `O`: güç menüsünü aç/kapat
+- Mod Menu üzerinden açılan Skin Powers ayar ekranı
+- Ayarlanabilir HUD, animasyon, performans modu ve ekran sarsıntısı
 
-## Kontroller
+## 0.3.6 yenilikleri
 
-- **O:** Güç ağacını açar; açıkken tekrar O ile kapatır.
-- **ESC:** Güç ağacını kapatır.
-- **R:** Seçili aktif gücü kullanır.
-- **Y:** Uçuş sınıfında Yavaş Düşüşü açar/kapatır.
-- **Sol/Sağ:** Seçili gücü değiştirir.
-- **Çift boşluk:** Süreli Elytra açıkken Roketsiz Kalkış.
+- Su sınıfı tamamen kaldırıldı ve yerine Doğa sınıfı eklendi.
+- Doğal Yenilenme, Dikenli Tohum, Sarmaşık Kapanı, Yaşam Ağacı ve Kadim Orman Uyanışı eklendi.
+- Havada ilerleyen Dikenli Tohum ve Cehennem Küresi görünür blok gövdelerine sahiptir.
+- Meteor Yağmuru tam 10 adet, simetrik magma meteorundan oluşur.
+- Meteor inişi uzatıldı, hızlanarak düşer ve gereksiz blok yenilemeleri azaltıldı.
+- Meteor krateri ve savurması ölçülü biçimde güçlendirildi.
+- Kamera sarsıntısı hem mevcut hem önceki kamera dönüşlerine uygulanarak görünür hâle getirildi.
+- Skin analizi ayrı düşük öncelikli iş parçacığında çalışır ve sonuç önbelleğe alınır.
+- Dört kartlı seçim ekranı küçük ekranlarda çakışmayı önleyecek şekilde ölçeklenir.
+- Mod Menu ayar ekranı ve `Made by Yankalan` imzası eklendi.
 
-## Su sınıfı
+## Gereksinimler
 
-1. **Suda Yaşam — 10 XP:** Su altında nefes, daha net görüş ve hızlı yüzme.
-2. **Basınçlı Su Küresi — 20 XP:** Hasar verir, ateşi söndürür ve hedefleri kuvvetle savurur.
-3. **Derin Girdap — 30 XP:** Düşmanları merkeze çeker, yavaşlatır ve aralıklı hasar verir.
-4. **Okyanus Zırhı — 40 XP:** Hasarı azaltır, mermileri saptırır ve oyuncuyu söndürür.
-5. **Büyük Tsunami — 50 XP:** Geniş su duvarı ileri gider; canlıları sürükler, hasar verir ve giderek küçülür.
+- Minecraft Java Edition 26.1.2
+- Fabric Loader 0.19.3 veya üzeri
+- Fabric API 0.154.2+26.1.2
+- Java 25
+- Mod Menu 18.0.0 isteğe bağlıdır; yalnızca ayar düğmesini gösterir.
 
-## 0.3.5 değişiklikleri
+## GitHub Actions ile JAR oluşturma
 
-- İlk seçim ekranı dört kart için yeniden ölçeklendirildi; dar ekranlarda yazı ve düğme çarpışmasını azaltan dinamik yerleşim eklendi.
-- Warden kartında Warden, Uçuş kartında Elytra, Ateş kartında görünür ateş küresi ve Su kartında tsunami görseli bulunur.
-- Skin analizine turkuaz, camgöbeği ve deniz yeşili odaklı Su puanlaması eklendi.
-- Birkaç beyaz pikselin Uçuş sınıfına yüksek ve yapay puan vermemesi için puanlar toplam piksel sayısına göre hesaplanır.
-- Su sınıfının beş gücü ve sınıfa özel O menüsü/HUD teması eklendi.
-- Cehennem Küresi hareket ederken geçici magma çekirdeğiyle görünür hâle getirildi.
-- Warden oynanış değerleri değiştirilmedi.
+1. Proje içeriğini GitHub deposunun ana dizinine yükleyin.
+2. `Actions` sekmesindeki **Fabric JAR Derle** iş akışını çalıştırın.
+3. Yeşil tikten sonra `skinpowers-0.3.6-jar` artifact'ini indirin.
+4. ZIP içindeki `skinpowers-0.3.6.jar` dosyasını Minecraft `mods` klasörüne koyun.
+5. Eski Skin Powers JAR dosyalarını `mods` klasöründen kaldırın.
+
+## Yapımcı
+
+**Made by Yankalan**

@@ -16,28 +16,27 @@ public final class HudOverlay {
         int screenWidth = client.getWindow().getGuiScaledWidth();
         int screenHeight = client.getWindow().getGuiScaledHeight();
         PowerClass powerClass = ClientState.powerClass();
+        ClientConfig config = ClientConfig.get();
+
+        drawShakeOverlay(graphics, screenWidth, screenHeight, config);
 
         if (powerClass == PowerClass.WARDEN && ClientState.wardenHuntTicks() > 0) {
             graphics.fill(0, 0, screenWidth, 4, 0xAA35D7D0);
             graphics.fill(0, screenHeight - 4, screenWidth, screenHeight, 0xAA35D7D0);
             graphics.fill(0, 4, 4, screenHeight - 4, 0xAA35D7D0);
             graphics.fill(screenWidth - 4, 4, screenWidth, screenHeight - 4, 0xAA35D7D0);
-            for (int radius = 28; radius <= 84; radius += 28) {
-                int alpha = Math.max(15, 52 - radius / 3);
-                graphics.outline(screenWidth / 2 - radius, screenHeight / 2 - radius / 2, radius * 2, radius, (alpha << 24) | 0x35D7D0);
-            }
         }
 
-        // Önceki 228x64 panelin yaklaşık %80 boyutu.
-        int x = 6;
+        float scale = config.hudScalePercent() / 100.0F;
+        int panelWidth = Math.max(146, Math.round(228 * scale));
+        int panelHeight = Math.max(47, Math.round(64 * scale));
+        int x = config.hudRight() ? screenWidth - panelWidth - 6 : 6;
         int y = 6;
-        int panelWidth = 182;
-        int panelHeight = 51;
         int accent = switch (powerClass) {
             case WARDEN -> 0xFF35D7D0;
             case FLIGHT -> 0xFFEAF8FF;
             case FIRE -> 0xFFFFA826;
-            case WATER -> 0xFF63FFF1;
+            case NATURE -> 0xFF67D96E;
             default -> 0xFFBFC9D2;
         };
 
@@ -65,12 +64,26 @@ public final class HudOverlay {
                 ? String.format(java.util.Locale.ROOT, "Sculk Avı: %.1f sn", ClientState.wardenHuntTicks() / 20.0)
                 : "Sculk Avı: R ile kullan";
             case FIRE -> ClientState.unlockedLevel() >= 4 ? "Seviye 4: Ateş Küresi" : "Ateş bağışıklığı: AÇIK";
-            case WATER -> ClientState.waterArmorTicks() > 0
-                ? String.format(java.util.Locale.ROOT, "Su Zırhı: %.1f sn", ClientState.waterArmorTicks() / 20.0)
-                : "Suda Yaşam: AÇIK";
+            case NATURE -> ClientState.natureTreeTicks() > 0
+                ? String.format(java.util.Locale.ROOT, "Yaşam Ağacı: %.1f sn", ClientState.natureTreeTicks() / 20.0)
+                : "Doğal Yenilenme: AÇIK";
             default -> "";
         };
-        graphics.text(client.font, fit(client, status, panelWidth - 18), x + 9, y + 40, 0xFFB8C8D3, false);
+        int statusY = Math.min(y + panelHeight - 11, y + 40);
+        graphics.text(client.font, fit(client, status, panelWidth - 18), x + 9, statusY, 0xFFB8C8D3, false);
+    }
+
+    private static void drawShakeOverlay(GuiGraphicsExtractor graphics, int width, int height, ClientConfig config) {
+        if (ClientState.shakeTicks() <= 0 || config.screenShakePercent() <= 0) return;
+        float scaledStrength = ClientState.shakeStrength() * config.screenShakePercent() / 100.0F;
+        int alpha = Math.max(18, Math.min(86, Math.round(22.0F + scaledStrength * 32.0F)));
+        int edge = Math.max(2, Math.min(7, Math.round(2.0F + scaledStrength * 1.8F)));
+        int jitter = (ClientState.shakeTicks() % 4) - 2;
+        int color = (alpha << 24) | 0x00150B08;
+        graphics.fill(0, Math.max(0, jitter), width, Math.max(edge, edge + jitter), color);
+        graphics.fill(0, height - edge + Math.min(0, jitter), width, height, color);
+        graphics.fill(Math.max(0, jitter), 0, Math.max(edge, edge + jitter), height, color);
+        graphics.fill(width - edge + Math.min(0, jitter), 0, width, height, color);
     }
 
     private static String fit(Minecraft client, String text, int maxWidth) {

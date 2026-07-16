@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public final class SkinAnalyzer {
     private static final int[][] WARDEN_COLORS = {
@@ -32,44 +34,58 @@ public final class SkinAnalyzer {
     private static final int[][] FIRE_COLORS = {
         {235, 35, 20}, {246, 96, 13}, {255, 181, 24}, {173, 20, 9}, {249, 221, 54}
     };
-    private static final int[][] WATER_COLORS = {
-        {0, 188, 212}, {24, 168, 196}, {35, 205, 181}, {0, 139, 171}, {73, 218, 210}, {19, 118, 156}
+    private static final int[][] NATURE_COLORS = {
+        {46, 125, 50}, {76, 148, 63}, {31, 92, 43}, {104, 159, 56}, {91, 67, 39}, {126, 92, 49}, {59, 104, 53}
     };
+    private static final java.util.concurrent.ConcurrentHashMap<UUID, Result> CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final ExecutorService ANALYSIS_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "SkinPowers-SkinAnalyzer");
+        thread.setDaemon(true);
+        thread.setPriority(Thread.MIN_PRIORITY);
+        return thread;
+    });
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+        .connectTimeout(Duration.ofSeconds(5))
+        .followRedirects(HttpClient.Redirect.NORMAL)
+        .executor(ANALYSIS_EXECUTOR)
+        .build();
 
     private SkinAnalyzer() {}
 
     public static CompletableFuture<Result> analyzeAsync(GameProfile profile) {
+        UUID profileId = profile == null ? null : extractProfileId(profile);
+        if (profileId != null) {
+            Result cached = CACHE.get(profileId);
+            if (cached != null) return CompletableFuture.completedFuture(cached);
+        }
         return CompletableFuture.supplyAsync(() -> {
             try {
-                HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .followRedirects(HttpClient.Redirect.NORMAL)
-                    .build();
-
-                String skinUrl = findSkinUrl(profile, client);
+                String skinUrl = findSkinUrl(profile, HTTP_CLIENT);
                 if (skinUrl == null || !skinUrl.startsWith("https://")) return Result.unavailable();
 
                 HttpRequest request = HttpRequest.newBuilder(URI.create(skinUrl))
                     .timeout(Duration.ofSeconds(8))
-                    .header("User-Agent", "SkinPowers/0.3.4")
+                    .header("User-Agent", "SkinPowers/0.3.6")
                     .GET()
                     .build();
-                HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
+                HttpResponse<byte[]> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofByteArray());
                 if (response.statusCode() < 200 || response.statusCode() >= 300) return Result.unavailable();
                 BufferedImage image = ImageIO.read(new ByteArrayInputStream(response.body()));
                 if (image == null) return Result.unavailable();
-                return analyze(image);
+                Result analyzed = analyze(image);
+                if (profileId != null && analyzed.fromSkin()) CACHE.put(profileId, analyzed);
+                return analyzed;
             } catch (Exception ignored) {
                 return Result.unavailable();
             }
-        });
+        }, ANALYSIS_EXECUTOR);
     }
 
     static Result analyze(BufferedImage image) {
         double warden = 0.0;
         double flight = 0.0;
         double fire = 0.0;
-        double water = 0.0;
+        double nature = 0.0;
         int counted = 0;
         int matched = 0;
         Map<Integer, Integer> quantized = new HashMap<>();
@@ -80,7 +96,7 @@ public final class SkinAnalyzer {
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                int argb = image.getRGB(x, y);
+                int argb = skinPixels[y * width + x];
                 int alpha = (argb >>> 24) & 0xFF;
                 if (alpha < 32) continue;
 
@@ -95,7 +111,7 @@ public final class SkinAnalyzer {
                     warden += Math.pow(scores[0], 2.6);
                     flight += Math.pow(scores[1], 2.6);
                     fire += Math.pow(scores[2], 2.6);
-                    water += Math.pow(scores[3], 2.6);
+                    nature += Math.pow(scores[3], 2.6);
                     matched++;
                 }
 
@@ -114,7 +130,7 @@ public final class SkinAnalyzer {
             .mapToInt(Map.Entry::getKey)
             .toArray();
         if (dominant.length < 4) {
-            int[] filled = {0x233044, 0x8FCBE8, 0xE95818, 0x18B8C8};
+            int[] filled = {0x233044, 0x8FCBE8, 0xE95818, 0x4F8B3B};
             System.arraycopy(dominant, 0, filled, 0, dominant.length);
             dominant = filled;
         }
@@ -123,7 +139,7 @@ public final class SkinAnalyzer {
             warden / counted,
             flight / counted,
             fire / counted,
-            water / counted,
+            nature / counted,
             dominant,
             true,
             skinPixels,
@@ -137,7 +153,7 @@ public final class SkinAnalyzer {
         double warden = nearestSimilarity(r, g, b, WARDEN_COLORS, 58.0);
         double flight = nearestSimilarity(r, g, b, FLIGHT_COLORS, 52.0);
         double fire = nearestSimilarity(r, g, b, FIRE_COLORS, 52.0);
-        double water = nearestSimilarity(r, g, b, WATER_COLORS, 48.0);
+        double nature = nearestSimilarity(r, g, b, NATURE_COLORS, 52.0);
 
         double max = Math.max(r, Math.max(g, b)) / 255.0;
         double min = Math.min(r, Math.min(g, b)) / 255.0;
@@ -156,12 +172,15 @@ public final class SkinAnalyzer {
         if (saturation > 0.42 && max > 0.30 && (hue <= 67.0 || hue >= 345.0)) {
             fire = Math.max(fire, 0.74 + Math.min(0.22, saturation * 0.22));
         }
-        if (saturation > 0.42 && max > 0.34 && hue >= 155.0 && hue <= 202.0) {
-            water = Math.max(water, 0.74 + Math.min(0.23, saturation * 0.23));
-            if (max > 0.76 && saturation < 0.62) flight *= 0.78;
+        if (saturation > 0.28 && max > 0.20 && hue >= 72.0 && hue <= 155.0) {
+            nature = Math.max(nature, 0.70 + Math.min(0.27, saturation * 0.25));
+        }
+        // Kahverengi/toprak tonları da Doğa sınıfına katkı verir.
+        if (r > g && g > b && hue >= 22.0 && hue <= 52.0 && max < 0.72 && saturation > 0.22) {
+            nature = Math.max(nature, 0.55 + Math.min(0.28, saturation * 0.24));
         }
 
-        return new double[]{clamp01(warden), clamp01(flight), clamp01(fire), clamp01(water)};
+        return new double[]{clamp01(warden), clamp01(flight), clamp01(fire), clamp01(nature)};
     }
 
     private static double hueDegrees(int r, int g, int b) {
@@ -203,7 +222,7 @@ public final class SkinAnalyzer {
         HttpRequest request = HttpRequest.newBuilder(
                 URI.create("https://sessionserver.mojang.com/session/minecraft/profile/" + compactUuid + "?unsigned=false"))
             .timeout(Duration.ofSeconds(7))
-            .header("User-Agent", "SkinPowers/0.3.4")
+            .header("User-Agent", "SkinPowers/0.3.6")
             .GET()
             .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -340,7 +359,7 @@ public final class SkinAnalyzer {
         double warden,
         double flight,
         double fire,
-        double water,
+        double nature,
         int[] dominantColors,
         boolean fromSkin,
         int[] skinPixels,
@@ -349,7 +368,7 @@ public final class SkinAnalyzer {
         double matchedFraction
     ) {
         public static Result unavailable() {
-            return new Result(0.0, 0.0, 0.0, 0.0, new int[]{0x233044, 0x8FCBE8, 0xE95818, 0x18B8C8}, false, new int[0], 0, 0, 0.0);
+            return new Result(0.0, 0.0, 0.0, 0.0, new int[]{0x233044, 0x8FCBE8, 0xE95818, 0x4F8B3B}, false, new int[0], 0, 0, 0.0);
         }
 
         public double score(int index) {
@@ -357,13 +376,13 @@ public final class SkinAnalyzer {
                 case 0 -> warden;
                 case 1 -> flight;
                 case 2 -> fire;
-                default -> water;
+                default -> nature;
             };
         }
 
         public int bestIndex() {
             if (!hasRecommendation()) return -1;
-            double[] values = {warden, flight, fire, water};
+            double[] values = {warden, flight, fire, nature};
             int best = 0;
             for (int i = 1; i < values.length; i++) {
                 if (values[i] > values[best]) best = i;
@@ -373,7 +392,7 @@ public final class SkinAnalyzer {
 
         public boolean hasRecommendation() {
             if (!fromSkin || matchedFraction < 0.035) return false;
-            double[] values = {warden, flight, fire, water};
+            double[] values = {warden, flight, fire, nature};
             double best = -1.0;
             double second = -1.0;
             for (double value : values) {

@@ -12,5 +12,8 @@
   "class.skinpowers.warden": "WARDEN",
   "class.skinpowers.flight": "FLIGHT",
   "class.skinpowers.fire": "FIRE",
-  "class.skinpowers.water": "WATER"
+  "class.skinpowers.nature": "NATURE",
+  "modmenu.nameTranslation.skinpowers": "Skin Powers",
+  "modmenu.descriptionTranslation.skinpowers": "Choose Warden, Flight, Fire and Nature powers from skin colors.",
+  "modmenu.summaryTranslation.skinpowers": "Skin-based power classes."
 }

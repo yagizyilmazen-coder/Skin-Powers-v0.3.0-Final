@@ -3,12 +3,15 @@ package com.yagiz.skinpowers;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.yagiz.skinpowers.network.ClientCommandPayload;
+import com.yagiz.skinpowers.network.ClientEffectPayload;
 import com.yagiz.skinpowers.network.ServerStatePayload;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.Locale;
 
@@ -20,10 +23,11 @@ public final class ServerNetworking {
     public static void register() {
         PayloadTypeRegistry.serverboundPlay().register(ClientCommandPayload.TYPE, ClientCommandPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(ServerStatePayload.TYPE, ServerStatePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(ClientEffectPayload.TYPE, ClientEffectPayload.CODEC);
 
-        ServerPlayNetworking.registerGlobalReceiver(ClientCommandPayload.TYPE, (payload, context) -> {
-            handle(context.player(), payload.command());
-        });
+        ServerPlayNetworking.registerGlobalReceiver(ClientCommandPayload.TYPE, (payload, context) ->
+            handle(context.player(), payload.command())
+        );
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> sync(handler.player));
     }
@@ -103,12 +107,23 @@ public final class ServerNetworking {
             data.visionEnabled(),
             (int) Math.max(0L, data.temporaryElytraUntil() - gameTime),
             (int) Math.max(0L, data.wardenHuntUntil() - gameTime),
-            (int) Math.max(0L, data.waterArmorUntil() - gameTime),
+            (int) Math.max(0L, data.natureTreeUntil() - gameTime),
             data.masteryCopy(),
             player.experienceLevel,
             PowerCatalog.powerName(data.powerClass(), data.selectedPower())
         );
         ServerPlayNetworking.send(player, new ServerStatePayload(GSON.toJson(state)));
+    }
+
+    public static void sendScreenShake(ServerLevel level, Vec3 center, double radius, float strength, int durationTicks) {
+        double radiusSquared = radius * radius;
+        for (ServerPlayer player : level.players()) {
+            double distanceSquared = player.position().distanceToSqr(center);
+            if (distanceSquared > radiusSquared) continue;
+            double falloff = 1.0 - Math.sqrt(distanceSquared) / radius;
+            float scaled = (float) Math.max(0.08, strength * Math.max(0.2, falloff));
+            ServerPlayNetworking.send(player, new ClientEffectPayload("SHAKE", scaled, durationTicks));
+        }
     }
 
     public record State(
@@ -120,7 +135,7 @@ public final class ServerNetworking {
         boolean visionEnabled,
         int temporaryElytraTicks,
         int wardenHuntTicks,
-        int waterArmorTicks,
+        int natureTreeTicks,
         int[] masteryUses,
         int xpLevel,
         String powerName

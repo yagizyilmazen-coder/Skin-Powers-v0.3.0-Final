@@ -3,9 +3,11 @@
   "id": "skinpowers",
   "version": "${version}",
   "name": "Skin Powers",
-  "description": "Skin renklerinden Warden, Uçuş, Ateş ve Su sınıfları öneren beş seviyeli Fabric güç modu.",
-  "authors": ["Yağız Yılmaz"],
-  "contact": {},
+  "description": "Skin renklerinden Warden, Uçuş, Ateş ve Doğa sınıfları öneren beş seviyeli Fabric güç modu.",
+  "authors": ["Yankalan"],
+  "contact": {
+    "sources": "https://github.com/yagizyilmazen-coder/Skin-Powers-v0.3.0-Final"
+  },
   "license": "MIT",
   "icon": "assets/skinpowers/icon.png",
   "environment": "*",
@@ -15,6 +17,9 @@
     ],
     "client": [
       "com.yagiz.skinpowers.client.SkinPowersClient"
+    ],
+    "modmenu": [
+      "com.yagiz.skinpowers.client.SkinPowersModMenu"
     ]
   },
   "depends": {
@@ -22,5 +27,13 @@
     "minecraft": "~26.1.2",
     "java": ">=25",
     "fabric-api": "*"
+  },
+  "suggests": {
+    "modmenu": ">=18.0.0"
+  },
+  "custom": {
+    "modmenu": {
+      "update_checker": false
+    }
   }
 }

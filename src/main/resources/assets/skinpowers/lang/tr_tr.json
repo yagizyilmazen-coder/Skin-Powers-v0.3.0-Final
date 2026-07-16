@@ -12,5 +12,8 @@
   "class.skinpowers.warden": "WARDEN",
   "class.skinpowers.flight": "UÇUŞ",
   "class.skinpowers.fire": "ATEŞ",
-  "class.skinpowers.water": "SU"
+  "class.skinpowers.nature": "DOĞA",
+  "modmenu.nameTranslation.skinpowers": "Skin Powers",
+  "modmenu.descriptionTranslation.skinpowers": "Skin renklerinden Warden, Uçuş, Ateş ve Doğa güçleri seç.",
+  "modmenu.summaryTranslation.skinpowers": "Skin tabanlı güç sınıfları."
 }

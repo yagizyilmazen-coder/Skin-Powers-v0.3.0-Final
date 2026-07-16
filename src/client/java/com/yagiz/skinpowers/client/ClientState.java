@@ -15,11 +15,13 @@ public final class ClientState {
     private static boolean visionEnabled;
     private static int temporaryElytraTicks;
     private static int wardenHuntTicks;
-    private static int waterArmorTicks;
+    private static int natureTreeTicks;
     private static int[] masteryUses = new int[5];
     private static int xpLevel;
     private static String powerName = "-";
     private static boolean receivedState;
+    private static int shakeTicks;
+    private static float shakeStrength;
 
     private ClientState() {}
 
@@ -35,7 +37,7 @@ public final class ClientState {
             visionEnabled = state.visionEnabled;
             temporaryElytraTicks = Math.max(0, state.temporaryElytraTicks);
             wardenHuntTicks = Math.max(0, state.wardenHuntTicks);
-            waterArmorTicks = Math.max(0, state.waterArmorTicks);
+            natureTreeTicks = Math.max(0, state.natureTreeTicks);
             masteryUses = state.masteryUses == null || state.masteryUses.length != 5 ? new int[5] : state.masteryUses;
             xpLevel = Math.max(0, state.xpLevel);
             powerName = state.powerName == null ? PowerCatalog.powerName(powerClass, selectedPower) : state.powerName;
@@ -45,11 +47,22 @@ public final class ClientState {
         }
     }
 
+    public static void startShake(float strength, int durationTicks) {
+        if (durationTicks <= 0 || strength <= 0.0F) return;
+        shakeTicks = Math.max(shakeTicks, durationTicks);
+        // Art arda düşen meteorların sarsıntısı görünür kalsın, fakat kontrol edilemez seviyede birikmesin.
+        shakeStrength = Math.min(2.4F, Math.max(strength, shakeStrength * 0.88F + strength * 0.22F));
+    }
+
     public static void clientTick() {
         if (cooldownTicks > 0) cooldownTicks--;
         if (temporaryElytraTicks > 0) temporaryElytraTicks--;
         if (wardenHuntTicks > 0) wardenHuntTicks--;
-        if (waterArmorTicks > 0) waterArmorTicks--;
+        if (natureTreeTicks > 0) natureTreeTicks--;
+        if (shakeTicks > 0) {
+            shakeTicks--;
+            if (shakeTicks == 0) shakeStrength = 0.0F;
+        }
     }
 
     public static void reset() {
@@ -61,11 +74,13 @@ public final class ClientState {
         visionEnabled = false;
         temporaryElytraTicks = 0;
         wardenHuntTicks = 0;
-        waterArmorTicks = 0;
+        natureTreeTicks = 0;
         masteryUses = new int[5];
         xpLevel = 0;
         powerName = "-";
         receivedState = false;
+        shakeTicks = 0;
+        shakeStrength = 0.0F;
     }
 
     public static PowerClass powerClass() { return powerClass; }
@@ -76,10 +91,12 @@ public final class ClientState {
     public static boolean visionEnabled() { return visionEnabled; }
     public static int temporaryElytraTicks() { return temporaryElytraTicks; }
     public static int wardenHuntTicks() { return wardenHuntTicks; }
-    public static int waterArmorTicks() { return waterArmorTicks; }
+    public static int natureTreeTicks() { return natureTreeTicks; }
     public static int xpLevel() { return xpLevel; }
     public static String powerName() { return powerName; }
     public static boolean receivedState() { return receivedState; }
+    public static int shakeTicks() { return shakeTicks; }
+    public static float shakeStrength() { return shakeStrength; }
 
     public static int masteryUses(int level) {
         return masteryUses[Math.max(0, Math.min(4, level - 1))];
@@ -98,7 +115,7 @@ public final class ClientState {
         private boolean visionEnabled;
         private int temporaryElytraTicks;
         private int wardenHuntTicks;
-        private int waterArmorTicks;
+        private int natureTreeTicks;
         private int[] masteryUses;
         private int xpLevel;
         private String powerName;

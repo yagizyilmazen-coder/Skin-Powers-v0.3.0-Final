@@ -75,6 +75,8 @@ public final class PowerMenuScreen extends Screen {
         } else {
             drawCompactFooter(graphics, layout, powerClass, colors, contentBottom);
         }
+        String signature = "Made by Yankalan";
+        graphics.text(font, signature, width - font.width(signature) - 7, height - 11, 0xFF85D68A, true);
 
         super.extractRenderState(graphics, mouseX, mouseY, delta);
     }
@@ -153,7 +155,7 @@ public final class PowerMenuScreen extends Screen {
             graphics.text(font, usage, textX, barY - 10, 0xFF91A8B5, false);
         } else {
             String locked = level == ClientState.unlockedLevel() + 1
-                ? PowerCatalog.xpCostForLevel(ClientState.powerClass(), level) + " XP ile açılır"
+                ? PowerCatalog.xpCostForLevel(powerClass, level) + " XP ile açılır"
                 : "Önceki seviye gerekli";
             graphics.text(font, locked, textX, barY - 10, 0xFFB7786D, false);
         }
@@ -250,11 +252,11 @@ public final class PowerMenuScreen extends Screen {
             graphics.fill(x + 11, y + 12, x + 27, y + 29, accent);
             graphics.fill(x + 15, y + 5, x + 24, y + 18, withAlpha(accent, 210));
             graphics.fill(x + 18, y, x + 22, y + 10, 0xFFFFFF8A);
-        } else if (powerClass == PowerClass.WATER) {
-            graphics.fill(x + 2, y + 16, x + 34, y + 27, withAlpha(accent, 155));
-            graphics.fill(x + 7, y + 9, x + 29, y + 20, withAlpha(accent, 205));
-            graphics.fill(x + 14, y + 2, x + 23, y + 13, 0xFFCFFFFF);
-            graphics.fill(x + 18, y, x + 22, y + 6, 0xFFFFFFFF);
+        } else if (powerClass == PowerClass.NATURE) {
+            graphics.fill(x + 16, y + 11, x + 21, y + 30, 0xFF7A4A25);
+            graphics.fill(x + 4, y + 4, x + 18, y + 17, withAlpha(accent, 190));
+            graphics.fill(x + 19, y, x + 33, y + 15, withAlpha(accent, 220));
+            graphics.fill(x + 12, y - 2, x + 25, y + 11, 0xFF9BE66D);
         }
     }
 
@@ -263,7 +265,6 @@ public final class PowerMenuScreen extends Screen {
         if (powerClass == PowerClass.FLIGHT && level == 3) return "R veya çift boşluk";
         if (powerClass == PowerClass.FLIGHT && level == 5) return "Otomatik çarpışma";
         if (powerClass == PowerClass.FIRE && (level == 1 || level == 2)) return "Otomatik";
-        if (powerClass == PowerClass.WATER && level == 1) return "Su altında otomatik";
         return "R: kullan";
     }
 
@@ -277,9 +278,8 @@ public final class PowerMenuScreen extends Screen {
         if (powerClass == PowerClass.WARDEN && level == 4 && ClientState.wardenHuntTicks() > 0) {
             return String.format(java.util.Locale.ROOT, "Sculk Avı %.1f sn", ClientState.wardenHuntTicks() / 20.0);
         }
-        if (powerClass == PowerClass.WATER && level == 1) return "Su altında sürekli aktif";
-        if (powerClass == PowerClass.WATER && level == 4 && ClientState.waterArmorTicks() > 0) {
-            return String.format(java.util.Locale.ROOT, "Okyanus Zırhı %.1f sn", ClientState.waterArmorTicks() / 20.0);
+        if (powerClass == PowerClass.NATURE && level == 4 && ClientState.natureTreeTicks() > 0) {
+            return String.format(java.util.Locale.ROOT, "Yaşam Ağacı %.1f sn", ClientState.natureTreeTicks() / 20.0);
         }
         return ClientState.cooldownTicks() <= 0 ? "Kullanıma hazır" : "Bekleme süresinde";
     }
@@ -305,12 +305,12 @@ public final class PowerMenuScreen extends Screen {
                 int y = 70 + (i * 43) % Math.max(90, height - 130);
                 g.fill(x, y, x + 3, y + 3, withAlpha(accent, 65 + (i % 4) * 22));
             }
-        } else if (powerClass == PowerClass.WATER) {
-            for (int i = -1; i < 12; i++) {
-                int x = ((i * 92 + drift) % (width + 120)) - 60;
-                int y = 92 + (i * 37) % Math.max(100, height - 145);
-                g.fill(x, y, x + 58, y + 5, withAlpha(accent, 35 + (i & 3) * 15));
-                g.fill(x + 12, y - 5, x + 39, y + 6, 0x247FFFFF);
+        } else if (powerClass == PowerClass.NATURE) {
+            for (int i = 0; i < 16; i++) {
+                int x = (i * 101 + drift / 3) % Math.max(1, width);
+                int y = 75 + (i * 47) % Math.max(90, height - 130);
+                g.fill(x, y, x + 7, y + 4, withAlpha(accent, 55 + (i % 4) * 18));
+                g.fill(x + 3, y - 5, x + 5, y + 8, 0x557A4A25);
             }
         }
     }
@@ -380,7 +380,7 @@ public final class PowerMenuScreen extends Screen {
             case WARDEN -> new int[]{0xFF010409, 0xFF0A2430, 0xFF35D7D0};
             case FLIGHT -> new int[]{0xFF2F719D, 0xFFBFE8FF, 0xFFF1FBFF};
             case FIRE -> new int[]{0xFF170201, 0xFF7C1608, 0xFFFFA51F};
-            case WATER -> new int[]{0xFF031C2B, 0xFF087C96, 0xFF63FFF1};
+            case NATURE -> new int[]{0xFF071008, 0xFF315A2A, 0xFF72D86A};
             default -> new int[]{0xFF080A0E, 0xFF1D2630, 0xFF93A5B2};
         };
     }

@@ -10,19 +10,22 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 
 public final class SkinSelectionScreen extends Screen {
-    private static final String[] TITLES = {"WARDEN", "UÇUŞ", "ATEŞ", "SU"};
-    private static final String[] SUBTITLES = {"Derinliğin gücü", "Gökyüzünün özgürlüğü", "Alevin hâkimiyeti", "Okyanusun kuvveti"};
-    private static final PowerClass[] CLASSES = {PowerClass.WARDEN, PowerClass.FLIGHT, PowerClass.FIRE, PowerClass.WATER};
-    private static final int[] TOP_COLORS = {0xFF07111C, 0xFF74BDE8, 0xFF5B0B08, 0xFF06354A};
-    private static final int[] BOTTOM_COLORS = {0xFF16384B, 0xFFEAF8FF, 0xFFFF6B18, 0xFF18B8C8};
-    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFFFFFFF, 0xFFFFC22E, 0xFF63FFF1};
+    private static final String[] TITLES = {"WARDEN", "UÇUŞ", "ATEŞ", "DOĞA"};
+    private static final String[] SUBTITLES = {"Derinliğin gücü", "Gökyüzünün özgürlüğü", "Alevin hâkimiyeti", "Ormanın yaşamı"};
+    private static final PowerClass[] CLASSES = {PowerClass.WARDEN, PowerClass.FLIGHT, PowerClass.FIRE, PowerClass.NATURE};
+    private static final int[] TOP_COLORS = {0xFF07111C, 0xFF74BDE8, 0xFF5B0B08, 0xFF102B13};
+    private static final int[] BOTTOM_COLORS = {0xFF16384B, 0xFFEAF8FF, 0xFFFF6B18, 0xFF4C8B3C};
+    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFFFFFFF, 0xFFFFC22E, 0xFF74E36D};
 
     private final long openedAt = Util.getMillis();
     private SkinAnalyzer.Result result = SkinAnalyzer.Result.unavailable();
     private boolean analysisFinished;
     private int selectedIndex = -1;
     private long selectedAt;
-    private Button[] selectButtons = new Button[4];
+    private final Button[] selectButtons = new Button[4];
+    private CardLayout cachedLayout;
+    private int cachedLayoutWidth = -1;
+    private int cachedLayoutHeight = -1;
 
     public SkinSelectionScreen() {
         super(Component.translatable("screen.skinpowers.title"));
@@ -33,7 +36,7 @@ public final class SkinSelectionScreen extends Screen {
         CardLayout layout = layout();
         for (int i = 0; i < CLASSES.length; i++) {
             final int index = i;
-            int buttonWidth = Math.max(48, layout.cardWidth() - (layout.compact() ? 8 : 24));
+            int buttonWidth = Math.max(40, layout.cardWidth() - (layout.compact() ? 8 : 24));
             int x = layout.startX() + i * (layout.cardWidth() + layout.gap()) + (layout.cardWidth() - buttonWidth) / 2;
             int buttonHeight = layout.compact() ? 18 : 20;
             int y = layout.cardY() + layout.cardHeight() - buttonHeight - 7;
@@ -81,7 +84,9 @@ public final class SkinSelectionScreen extends Screen {
         graphics.fillGradient(0, 0, width, height, 0xFF03060B, 0xFF101622);
 
         long now = Util.getMillis();
-        float totalProgress = clamp01((now - openedAt) / 900.0F);
+        ClientConfig config = ClientConfig.get();
+        float animationFactor = config.menuAnimations() ? config.cardAnimationSpeedPercent() / 100.0F : 8.0F;
+        float totalProgress = clamp01((now - openedAt) / (900.0F / animationFactor));
         CardLayout layout = layout();
         String titleText = fit(title.getString(), Math.max(80, width - (layout.compact() ? 150 : 250)));
         int titleAreaWidth = layout.compact() ? width - 78 : width;
@@ -100,7 +105,7 @@ public final class SkinSelectionScreen extends Screen {
         scanText = fit(scanText, Math.max(100, width - 20));
         graphics.text(font, scanText, (width - font.width(scanText)) / 2, layout.compact() ? 26 : 28, analysisFinished ? 0xFF9BEFD9 : 0xFFE7F4FF, false);
 
-        if (!layout.compact()) drawAvatar(graphics, now);
+        if (!layout.compact() && !ClientConfig.get().performanceMode()) drawAvatar(graphics, now);
 
         for (int i = 0; i < CLASSES.length; i++) {
             float cardProgress = smoothStep(clamp01((totalProgress * 1.4F) - i * 0.15F));
@@ -114,10 +119,12 @@ public final class SkinSelectionScreen extends Screen {
             drawCard(graphics, i, baseX + shake, y, layout.cardWidth(), layout.cardHeight(), cardProgress, now);
         }
 
-        if (!analysisFinished) {
+        if (!analysisFinished && ClientConfig.get().scanAnimation()) {
             int scanX = (int) ((now - openedAt) % 1400L / 1400.0 * width);
             graphics.fill(scanX - 1, 42, scanX + 2, height - 12, 0x5535D7D0);
         }
+        String signature = "Made by Yankalan";
+        graphics.text(font, signature, width - font.width(signature) - 7, height - 11, 0xFF85D68A, true);
 
         super.extractRenderState(graphics, mouseX, mouseY, delta);
     }
@@ -146,7 +153,7 @@ public final class SkinSelectionScreen extends Screen {
             case 0 -> drawAncientCity(graphics, x, y, w, artBottom - y, now);
             case 1 -> drawClouds(graphics, x, y, w, artBottom - y, now);
             case 2 -> drawLavaCave(graphics, x, y, w, artBottom - y, now);
-            case 3 -> drawOcean(graphics, x, y, w, artBottom - y, now);
+            case 3 -> drawForest(graphics, x, y, w, artBottom - y, now);
             default -> { }
         }
         graphics.disableScissor();
@@ -215,8 +222,10 @@ public final class SkinSelectionScreen extends Screen {
             if (modern) drawSkinPart(graphics, 4, 52, 4, 12, x, top + 40, 2);
         }
 
-        int scanY = top + (int) ((now - openedAt) % 900L / 900.0 * 66.0);
-        graphics.fill(x - 21, scanY, x + 21, scanY + 2, 0xAA63FFF1);
+        if (ClientConfig.get().scanAnimation()) {
+            int scanY = top + (int) ((now - openedAt) % 900L / 900.0 * 66.0);
+            graphics.fill(x - 21, scanY, x + 21, scanY + 2, 0xAA63FFF1);
+        }
     }
 
     private void drawSkinPart(
@@ -323,45 +332,48 @@ public final class SkinSelectionScreen extends Screen {
         g.fill(cx, cy - 4, cx + 6, cy + 4, 0xFFFFFFB0);
     }
 
-    private void drawOcean(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
-        g.fillGradient(x, y, x + w, y + h, 0xFF073E59, 0xFF0FB7C5);
-        int seaY = y + h - 20;
-        g.fill(x, seaY, x + w, y + h, 0xFF075A79);
-        int motion = (int) ((now / 55L) % Math.max(1, w + 35));
-        for (int i = -1; i < 5; i++) {
-            int waveX = x + ((i * 39 + motion) % (w + 35)) - 18;
-            int waveY = seaY - 8 - (i & 1) * 5;
-            g.fill(waveX, waveY, waveX + 30, waveY + 6, 0xAA83FFF5);
-            g.fill(waveX + 8, waveY - 5, waveX + 22, waveY + 7, 0x88D8FFFF);
+    private void drawForest(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
+        g.fillGradient(x, y, x + w, y + h, 0xFF132A15, 0xFF477A35);
+        int ground = y + h - 18;
+        g.fill(x, ground, x + w, y + h, 0xFF3B2A19);
+        for (int i = 0; i < 5; i++) {
+            int tx = x + 8 + i * Math.max(13, (w - 16) / 5);
+            int th = 26 + (i % 3) * 8;
+            g.fill(tx, ground - th, tx + 6, ground, 0xFF6A4425);
+            g.fill(tx - 8, ground - th - 10, tx + 14, ground - th + 6, 0xFF2F7335);
+            g.fill(tx - 4, ground - th - 17, tx + 10, ground - th - 3, 0xFF4B9848);
         }
-
-        // Büyük Tsunami: yüksek ve geniş, ileri kıvrılan su duvarı.
-        int crestX = x + w / 2 - 7;
-        int crestY = y + Math.max(24, h / 4);
-        int waveWidth = Math.max(34, Math.min(70, w - 18));
-        int waveHeight = Math.max(45, Math.min(82, h - 30));
-        g.fill(crestX - waveWidth / 2, crestY + waveHeight / 3, crestX + waveWidth / 2, crestY + waveHeight, 0xB91193B2);
-        g.fill(crestX - waveWidth / 2, crestY + waveHeight / 5, crestX + waveWidth / 5, crestY + waveHeight / 2, 0xD825C9D2);
-        g.fill(crestX - waveWidth / 2 + 7, crestY + 4, crestX + 8, crestY + waveHeight / 3, 0xE253E8E0);
-        g.fill(crestX - waveWidth / 2 + 13, crestY, crestX + 18, crestY + 8, 0xEEEAFFFF);
-        g.fill(crestX + 7, crestY + 8, crestX + 23, crestY + 15, 0xD7D7FFFF);
+        int cx = x + w / 2;
+        int cy = y + Math.max(35, h / 2);
+        int bob = (int) Math.round(Math.sin(now / 240.0) * 3.0);
+        // Dikenli Tohum görseli: havada net görünen çekirdek ve dikenler.
+        g.fill(cx - 8, cy - 8 + bob, cx + 8, cy + 8 + bob, 0xFF6F4C26);
+        g.fill(cx - 5, cy - 5 + bob, cx + 5, cy + 5 + bob, 0xFF8BC34A);
+        g.fill(cx - 14, cy - 2 + bob, cx - 7, cy + 2 + bob, 0xFFB5E56A);
+        g.fill(cx + 7, cy - 2 + bob, cx + 14, cy + 2 + bob, 0xFFB5E56A);
+        g.fill(cx - 2, cy - 14 + bob, cx + 2, cy - 7 + bob, 0xFFB5E56A);
+        g.fill(cx - 2, cy + 7 + bob, cx + 2, cy + 14 + bob, 0xFFB5E56A);
     }
 
     private CardLayout layout() {
+        if (cachedLayout != null && cachedLayoutWidth == width && cachedLayoutHeight == height) return cachedLayout;
         int count = CLASSES.length;
         boolean compact = width < 520 || height < 330;
         int gap = compact ? 4 : Math.max(5, Math.min(10, width / 105));
         int sideMargin = compact ? 8 : 20;
-        int availableWidth = Math.max(200, width - sideMargin - gap * (count - 1));
-        int cardWidth = Math.max(48, Math.min(145, availableWidth / count));
+        int availableWidth = Math.max(count * 44, width - sideMargin * 2 - gap * (count - 1));
+        int cardWidth = Math.max(44, Math.min(145, availableWidth / count));
         int cardY = compact ? 44 : 112;
-        int maxHeight = Math.max(118, height - cardY - 8);
+        int maxHeight = Math.max(112, height - cardY - 20);
         int preferredHeight = compact ? Math.max(142, (int) (cardWidth * 2.15)) : Math.max(178, (int) (cardWidth * 1.62));
         int cardHeight = Math.min(maxHeight, preferredHeight);
         int total = cardWidth * count + gap * (count - 1);
-        int startX = (width - total) / 2;
-        if (!compact) cardY = Math.max(112, height - cardHeight - 8);
-        return new CardLayout(startX, cardY, cardWidth, cardHeight, gap, compact);
+        int startX = Math.max(4, (width - total) / 2);
+        if (!compact) cardY = Math.max(112, height - cardHeight - 20);
+        cachedLayoutWidth = width;
+        cachedLayoutHeight = height;
+        cachedLayout = new CardLayout(startX, cardY, cardWidth, cardHeight, gap, compact);
+        return cachedLayout;
     }
 
     private String fit(String text, int maxWidth) {
