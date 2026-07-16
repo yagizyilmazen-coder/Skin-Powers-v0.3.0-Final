@@ -78,8 +78,8 @@ public final class ServerNetworking {
             player.sendSystemMessage(Component.literal("Önce bir sınıf seçmelisin."));
             return;
         }
-        if (data.unlockedLevel() >= 5) {
-            player.sendSystemMessage(Component.literal("Bütün seviyeler açık."));
+        if (data.unlockedLevel() >= PowerCatalog.maxLevel(data.powerClass())) {
+            player.sendSystemMessage(Component.literal("Bütün güçler açık."));
             return;
         }
         int nextLevel = data.unlockedLevel() + 1;
@@ -108,6 +108,9 @@ public final class ServerNetworking {
             (int) Math.max(0L, data.temporaryElytraUntil() - gameTime),
             (int) Math.max(0L, data.wardenHuntUntil() - gameTime),
             (int) Math.max(0L, data.natureTreeUntil() - gameTime),
+            (int) Math.max(0L, data.ancientChargeUntil() - gameTime),
+            (int) Math.max(0L, data.ancientExhaustionUntil() - gameTime),
+            data.ancientChargeActive(gameTime),
             data.masteryCopy(),
             player.experienceLevel,
             PowerCatalog.powerName(data.powerClass(), data.selectedPower())
@@ -136,6 +139,9 @@ public final class ServerNetworking {
         int temporaryElytraTicks,
         int wardenHuntTicks,
         int natureTreeTicks,
+        int ancientChargeTicks,
+        int ancientExhaustionTicks,
+        boolean ancientChargeAvailable,
         int[] masteryUses,
         int xpLevel,
         String powerName

@@ -1,36 +1,59 @@
-# Skin Powers 0.3.6
+# Skin Powers 0.3.7
 
-Minecraft Java Edition 26.1.2 için Fabric modudur. Oyuncunun skini ilk sınıf seçiminde renklerine göre analiz edilir ve dört güç sınıfı sunulur:
+Minecraft Java Edition 26.1.2 için Fabric modudur. İlk sınıf seçiminde oyuncunun skini renklerine göre analiz edilir ve dört sınıf önerilir:
 
 - Warden
 - Uçuş
 - Ateş
 - Doğa
 
-## Öne çıkan özellikler
+## Temel kontroller
 
-- Her sınıfta 5 güç ve ayrı ustalık ilerlemesi
-- XP ile güç açma sistemi
-- Tek oyunculu dünya ve Fabric sunucu desteği
-- `R`: seçili gücü kullan
+- `R`: seçili aktif gücü kullan
 - `Y`: uygun yardımcı özelliği kullan
-- `Sol/Sağ`: güç değiştir
+- `Sol/Sağ`: açık güçler arasında geçiş yap
 - `O`: güç menüsünü aç/kapat
-- Mod Menu üzerinden açılan Skin Powers ayar ekranı
-- Ayarlanabilir HUD, animasyon, performans modu ve ekran sarsıntısı
+- `ESC`: açık menüyü kapat
 
-## 0.3.6 yenilikleri
+## 0.3.7 — Antik Şehir Şarjı
 
-- Su sınıfı tamamen kaldırıldı ve yerine Doğa sınıfı eklendi.
-- Doğal Yenilenme, Dikenli Tohum, Sarmaşık Kapanı, Yaşam Ağacı ve Kadim Orman Uyanışı eklendi.
-- Havada ilerleyen Dikenli Tohum ve Cehennem Küresi görünür blok gövdelerine sahiptir.
-- Meteor Yağmuru tam 10 adet, simetrik magma meteorundan oluşur.
-- Meteor inişi uzatıldı, hızlanarak düşer ve gereksiz blok yenilemeleri azaltıldı.
-- Meteor krateri ve savurması ölçülü biçimde güçlendirildi.
-- Kamera sarsıntısı hem mevcut hem önceki kamera dönüşlerine uygulanarak görünür hâle getirildi.
-- Skin analizi ayrı düşük öncelikli iş parçacığında çalışır ve sonuç önbelleğe alınır.
-- Dört kartlı seçim ekranı küçük ekranlarda çakışmayı önleyecek şekilde ölçeklenir.
-- Mod Menu ayar ekranı ve `Made by Yankalan` imzası eklendi.
+Warden sınıfına **70 XP** gerektiren altıncı güç eklendi:
+
+**Şarj Et Beni Antik Şehir**
+
+- Warden oyuncusunun arkasında dört sculk enerji kolu animasyonla açılır.
+- Dört ışın, oyuncunun yaklaşık 1–1,5 blok önünde birleşerek tek ışın hâlinde hedef oyuncuya gider.
+- Işın yalnızca başka bir oyuncuya şarj verir; kullanan oyuncu kendini bu güçle hedefleyemez.
+- Hedef oyuncu en fazla 20 saniye boyunca Antik Şehir mutasyonu taşır.
+- Şarj sırasında bütün uygun aktif güç cooldownları geçici olarak kapanır.
+- Oyuncunun yalnızca **bir güçlendirilmiş aktif güç kullanma hakkı** vardır.
+- Güç kullanılırsa veya 20 saniye kullanılmadan dolarsa 30 saniyelik Yavaşlık V, Bulantı ve Madencilik Yorgunluğu başlar.
+- Warden'ın altıncı gücü kendi şarjıyla güçlendirilemez ve cooldownu temizlenmez.
+- Şarjlı saldırılar mor/camgöbeği sculk görünümü kazanır.
+- Şarjlı Meteor Yağmuru 10 yerine **20 daha büyük morumsu meteor** oluşturur.
+
+Gerçek değerler güvenli sınırlarla artırılır: hasar yaklaşık 2,75 kat, etki alanı 1,45 kat, geri savurma 1,85 kat ve süre yaklaşık 1,65 kat artar. Böylece ekranda güçlü hissettirirken oyunun tamamen bozulması önlenir.
+
+## Tek oyunculu test komutları
+
+Hileler açıkken veya yönetici yetkisiyle:
+
+```text
+/skinpowers charge give @s 20
+```
+
+Süre 20 saniyeden büyük yazılsa bile otomatik olarak 20 saniyeyle sınırlandırılır.
+
+```text
+/skinpowers charge clear @s
+```
+
+Türkçe karşılıkları:
+
+```text
+/skingucu sarj ver @s 20
+/skingucu sarj temizle @s
+```
 
 ## Gereksinimler
 
@@ -42,10 +65,10 @@ Minecraft Java Edition 26.1.2 için Fabric modudur. Oyuncunun skini ilk sınıf 
 
 ## GitHub Actions ile JAR oluşturma
 
-1. Proje içeriğini GitHub deposunun ana dizinine yükleyin.
+1. Bu klasörün içeriğini GitHub deposunun ana dizinine kopyalayın.
 2. `Actions` sekmesindeki **Fabric JAR Derle** iş akışını çalıştırın.
-3. Yeşil tikten sonra `skinpowers-0.3.6-jar` artifact'ini indirin.
-4. ZIP içindeki `skinpowers-0.3.6.jar` dosyasını Minecraft `mods` klasörüne koyun.
+3. Yeşil tikten sonra `skinpowers-0.3.7-jar` artifact'ini indirin.
+4. ZIP içindeki `skinpowers-0.3.7.jar` dosyasını Minecraft `mods` klasörüne koyun.
 5. Eski Skin Powers JAR dosyalarını `mods` klasöründen kaldırın.
 
 ## Yapımcı

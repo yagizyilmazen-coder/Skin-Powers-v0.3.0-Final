@@ -8,13 +8,14 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+VERSION = "0.3.7"
 REQUIRED = [
     "build.gradle",
     "settings.gradle",
     "gradle.properties",
     ".github/workflows/build.yml",
     "README.md",
-    "CHANGELOG_0.3.6.md",
+    f"CHANGELOG_{VERSION}.md",
     "LICENSE",
     "src/main/resources/fabric.mod.json",
     "src/main/resources/assets/skinpowers/icon.png",
@@ -22,7 +23,10 @@ REQUIRED = [
     "src/main/resources/assets/skinpowers/lang/en_us.json",
     "src/main/java/com/yagiz/skinpowers/SkinPowersMod.java",
     "src/main/java/com/yagiz/skinpowers/PowerSystem.java",
+    "src/main/java/com/yagiz/skinpowers/AncientChargeSystem.java",
+    "src/main/java/com/yagiz/skinpowers/SkinPowersCommands.java",
     "src/client/java/com/yagiz/skinpowers/client/SkinPowersClient.java",
+    "src/client/java/com/yagiz/skinpowers/client/PowerMenuScreen.java",
     "src/client/java/com/yagiz/skinpowers/client/SkinPowersSettingsScreen.java",
     "src/client/java/com/yagiz/skinpowers/client/SkinPowersModMenu.java",
 ]
@@ -32,7 +36,7 @@ EXPECTED_PROPERTIES = {
     "loom_version": "1.17-SNAPSHOT",
     "fabric_api_version": "0.154.2+26.1.2",
     "modmenu_version": "18.0.0",
-    "mod_version": "0.3.6",
+    "mod_version": VERSION,
     "maven_group": "com.yagiz",
     "archives_base_name": "skinpowers",
 }
@@ -45,16 +49,21 @@ FORBIDDEN_SOURCE_SNIPPETS = {
     "hasPermissionLevel(": "26.1 permission API kullanılmalı",
     "PowerClass.WATER": "Kaldırılan Su sınıfı kodda kalmamalı",
     "clearWidgets(": "26.1 ekranında riskli eski widget temizleme çağrısı kullanılmamalı",
-    "player.hurtTime": "Doğa pasifinde erişilemeyen oyuncu alanı kullanılmamalı",
+    "player.hurtTime": "erişilemeyen oyuncu alanı kullanılmamalı",
 }
 REQUIRED_SOURCE_SNIPPETS = {
-    "PowerClass.NATURE": "Doğa sınıfı bağlantısı",
-    "int count = 10;": "10 meteor",
-    "ServerNetworking.sendScreenShake": "sunucu sarsıntı gönderimi",
-    "adjustPreviousRotation": "görünür kamera sarsıntısı",
+    '"Şarj Et Beni Antik Şehir"': "Warden altıncı güç adı",
+    "WARDEN_ANCIENT_CHARGE_XP = 70": "70 XP bedeli",
+    "public static final int MAX_CHARGE_TICKS = 20 * 20": "20 saniye üst sınırı",
+    "public static final int EXHAUSTION_TICKS = 30 * 20": "30 saniye çöküş",
+    "int count = charged ? 20 : 10;": "şarjlı 20 / normal 10 meteor",
+    "AncientChargeSystem.consume": "tek kullanım hakkı",
+    "beginAncientCharge": "cooldown dondurma",
+    "frozenCooldownTicks": "cooldown saklama",
+    "ParticleTypes.WITCH": "mor şarj görselleri",
+    "clearPendingBeams": "sunucu kapanış temizliği",
     "Made by Yankalan": "yapımcı imzası",
     "SkinPowersModMenu": "Mod Menu entegrasyonu",
-    "Dikenli Tohum": "Doğa güçleri",
 }
 
 errors: list[str] = []
@@ -63,14 +72,12 @@ for rel in REQUIRED:
     if not (ROOT / rel).is_file():
         errors.append(f"Eksik zorunlu dosya: {rel}")
 
-# JSON validity
 for path in ROOT.rglob("*.json"):
     try:
         json.loads(path.read_text(encoding="utf-8"))
     except Exception as exc:
         errors.append(f"Geçersiz JSON: {path.relative_to(ROOT)} -> {exc}")
 
-# Java package paths and delimiter balance
 java_files = sorted(ROOT.rglob("*.java"))
 all_source = "\n".join(path.read_text(encoding="utf-8") for path in java_files)
 for path in java_files:
@@ -97,45 +104,34 @@ for snippet, explanation in REQUIRED_SOURCE_SNIPPETS.items():
     if snippet not in all_source:
         errors.append(f"Beklenen özellik kodu bulunamadı: {explanation} ({snippet})")
 
-# fabric.mod.json checks
 fabric = ROOT / "src/main/resources/fabric.mod.json"
 if fabric.exists():
     try:
         data = json.loads(fabric.read_text(encoding="utf-8"))
-        if data.get("id") != "skinpowers":
-            errors.append("fabric.mod.json id değeri skinpowers değil")
-        if data.get("environment") != "*":
-            errors.append("fabric.mod.json environment değeri '*' değil")
+        if data.get("id") != "skinpowers": errors.append("fabric.mod.json id değeri skinpowers değil")
+        if data.get("environment") != "*": errors.append("fabric.mod.json environment değeri '*' değil")
         entrypoints = data.get("entrypoints", {})
-        for required_entrypoint in ("main", "client", "modmenu"):
-            if required_entrypoint not in entrypoints:
-                errors.append(f"fabric.mod.json {required_entrypoint} entrypoint eksik")
+        for key in ("main", "client", "modmenu"):
+            if key not in entrypoints: errors.append(f"fabric.mod.json {key} entrypoint eksik")
         depends = data.get("depends", {})
-        if depends.get("minecraft") != "~26.1.2":
-            errors.append("fabric.mod.json Minecraft bağımlılığı ~26.1.2 değil")
-        if depends.get("java") != ">=25":
-            errors.append("fabric.mod.json Java bağımlılığı >=25 değil")
-        if data.get("authors") != ["Yankalan"]:
-            errors.append("fabric.mod.json yazar bilgisi Yankalan değil")
+        if depends.get("minecraft") != "~26.1.2": errors.append("fabric.mod.json Minecraft bağımlılığı ~26.1.2 değil")
+        if depends.get("java") != ">=25": errors.append("fabric.mod.json Java bağımlılığı >=25 değil")
+        if data.get("authors") != ["Yankalan"]: errors.append("fabric.mod.json yazar bilgisi Yankalan değil")
     except Exception:
         pass
 
-# gradle.properties exact versions
 properties_path = ROOT / "gradle.properties"
 if properties_path.exists():
     properties: dict[str, str] = {}
     for raw in properties_path.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
+        if not line or line.startswith("#") or "=" not in line: continue
         key, value = line.split("=", 1)
         properties[key.strip()] = value.strip()
     for key, expected in EXPECTED_PROPERTIES.items():
-        actual = properties.get(key)
-        if actual != expected:
-            errors.append(f"gradle.properties {key}: beklenen {expected}, bulunan {actual!r}")
+        if properties.get(key) != expected:
+            errors.append(f"gradle.properties {key}: beklenen {expected}, bulunan {properties.get(key)!r}")
 
-# Workflow should be independent from user's local Java/Gradle installation
 workflow = ROOT / ".github/workflows/build.yml"
 if workflow.exists():
     workflow_text = workflow.read_text(encoding="utf-8")
@@ -144,13 +140,12 @@ if workflow.exists():
         "gradle-version: '9.5.1'",
         "gradle clean build",
         "tools/verify_project.py",
-        "skinpowers-0.3.6-jar",
-        "build/libs/skinpowers-0.3.6.jar",
+        f"skinpowers-{VERSION}-jar",
+        f"build/libs/skinpowers-{VERSION}.jar",
     ]:
         if required_text not in workflow_text:
             errors.append(f"GitHub Actions içinde eksik ifade: {required_text}")
 
-# Asset checks
 icon = ROOT / "src/main/resources/assets/skinpowers/icon.png"
 if icon.exists() and icon.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
     errors.append("Mod ikonu geçerli PNG imzasına sahip değil")
@@ -161,18 +156,20 @@ for name in ["warden", "flight", "fire", "nature"]:
     elif card.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
         errors.append(f"Geçersiz PNG kartı: {card.relative_to(ROOT)}")
 
-# Do not ship generated or obsolete garbage
-for suffix in [".class", ".pyc", ".bak", ".tmp"]:
+for suffix in [".class", ".pyc", ".bak", ".bakwork", ".tmp"]:
     for path in ROOT.rglob(f"*{suffix}"):
         errors.append(f"Paketlenmemesi gereken dosya: {path.relative_to(ROOT)}")
 for unwanted_dir in ["build", ".gradle", "run", "out", "__pycache__"]:
     if (ROOT / unwanted_dir).exists():
         errors.append(f"Paketlenmemesi gereken klasör mevcut: {unwanted_dir}")
-for obsolete in ["DESIGN.md", "FEATURE_STATUS.md", "FILE_MANIFEST.txt", "VALIDATION.md", "KURULUM_0.3.3.txt", "CHANGELOG_0.3.3.md"]:
+for obsolete in [
+    "DESIGN.md", "FEATURE_STATUS.md", "FILE_MANIFEST.txt", "VALIDATION.md",
+    "KURULUM_0.3.3.txt", "CHANGELOG_0.3.3.md", "CHANGELOG_0.3.6.md",
+]:
     if (ROOT / obsolete).exists():
         errors.append(f"Eski/gereksiz kök dosyası kalmış: {obsolete}")
 
-# Compile and run Minecraft-independent core logic.
+
 def run_core_smoke_test() -> None:
     javac = shutil.which("javac")
     java = shutil.which("java")
@@ -193,39 +190,46 @@ public final class CoreLogicSmokeTest {
         if (!value) throw new AssertionError(message);
     }
     public static void main(String[] args) {
-        check(PowerClass.safeValueOf("nature") == PowerClass.NATURE, "nature class parse");
-        check(PowerClass.safeValueOf("water") == PowerClass.NONE, "removed class fallback");
-        check(PowerCatalog.xpCostForLevel(PowerClass.NATURE, 1) == 10, "nature level 1 xp");
-        check(PowerCatalog.xpCostForLevel(PowerClass.FIRE, 1) == 5, "regular level 1 xp");
-        check(PowerCatalog.xpCostForLevel(PowerClass.NATURE, 5) == 50, "nature level 5 xp");
-        check(PowerCatalog.masteryStage(4) == 0, "mastery 4");
-        check(PowerCatalog.masteryStage(5) == 1, "mastery 5");
-        check(PowerCatalog.masteryStage(15) == 2, "mastery 15");
-        check(PowerCatalog.masteryStage(30) == 3, "mastery 30");
+        check(PowerCatalog.maxLevel(PowerClass.WARDEN) == 6, "warden level cap");
+        check(PowerCatalog.maxLevel(PowerClass.FIRE) == 5, "other class cap");
+        check(PowerCatalog.xpCostForLevel(PowerClass.WARDEN, 6) == 70, "warden sixth xp");
+        check("Şarj Et Beni Antik Şehir".equals(PowerCatalog.powerName(PowerClass.WARDEN, 6)), "sixth name");
 
         PlayerPowerData data = new PlayerPowerData();
-        data.chooseClass(PowerClass.NATURE);
-        data.chooseClass(PowerClass.FIRE);
-        check(data.powerClass() == PowerClass.NATURE, "class must stay immutable");
-        for (int i = 0; i < 7; i++) data.unlockNextLevel();
-        check(data.unlockedLevel() == 5, "level cap");
-        data.setSelectedPower(5);
-        data.selectRelative(1);
-        check(data.selectedPower() == 1, "selection wrap next");
-        data.selectRelative(-1);
-        check(data.selectedPower() == 5, "selection wrap previous");
-        for (int i = 0; i < 30; i++) data.addMasteryUse(3);
-        check(data.masteryStage(3) == 3, "mastery progression");
-        data.setCooldown(3, 100L, 40);
-        check(data.cooldownRemaining(3, 120L) == 20, "cooldown remaining");
-        data.setNatureTreeUntil(500L);
-        check(data.natureTreeUntil() == 500L, "nature timer");
+        data.chooseClass(PowerClass.WARDEN);
+        for (int i = 0; i < 8; i++) data.unlockNextLevel();
+        check(data.unlockedLevel() == 6, "warden unlock cap");
+        data.setSelectedPower(6);
+        check(data.selectedPower() == 6, "sixth selection");
+
+        data.setCooldown(1, 100L, 50);   // until 150
+        data.setCooldown(5, 100L, 70);   // until 170
+        data.setCooldown(6, 100L, 90);   // until 190; must not be cleared by charge
+        data.beginAncientCharge(110L, 999);
+        check(data.ancientChargeUntil() == 510L, "charge max 20 seconds");
+        check(data.cooldownRemaining(1, 110L) == 0, "regular cooldown disabled");
+        check(data.cooldownRemaining(5, 110L) == 0, "selected cooldown disabled");
+        check(data.cooldownRemaining(6, 110L) == 80, "sixth cooldown protected");
+        data.setCooldown(5, 110L, 200);
+        data.consumeAncientCharge(120L, 5);
+        check(!data.ancientChargeAvailable(), "charge consumed");
+        check(data.cooldownRemaining(1, 120L) == 40, "old cooldown restored");
+        check(data.cooldownRemaining(5, 120L) == 190, "used power new cooldown kept");
+        check(data.cooldownRemaining(6, 120L) == 70, "sixth cooldown continued");
+
+        PlayerPowerData expiry = new PlayerPowerData();
+        expiry.chooseClass(PowerClass.FIRE);
+        for (int i = 0; i < 5; i++) expiry.unlockNextLevel();
+        expiry.setCooldown(4, 200L, 60);
+        expiry.beginAncientCharge(210L, 200);
+        check(expiry.cooldownRemaining(4, 210L) == 0, "expiry charge bypass");
+        expiry.expireAncientCharge(230L);
+        check(expiry.cooldownRemaining(4, 230L) == 50, "expiry restores frozen cooldown");
+
+        for (int i = 0; i < 30; i++) data.addMasteryUse(6);
+        check(data.masteryStage(6) == 3, "sixth mastery");
         data.reset();
         check(data.powerClass() == PowerClass.NONE && data.unlockedLevel() == 0, "reset");
-
-        ModConfig config = new ModConfig();
-        config.setMeteorBlockDamage(false);
-        check(!config.meteorBlockDamage(), "config toggle");
     }
 }
 '''
@@ -235,16 +239,14 @@ public final class CoreLogicSmokeTest {
         test_path.write_text(test_source, encoding="utf-8")
         compiled = subprocess.run(
             [javac, "-encoding", "UTF-8", "-d", str(temp), *(str(p) for p in core_sources), str(test_path)],
-            capture_output=True,
-            text=True,
+            capture_output=True, text=True,
         )
         if compiled.returncode != 0:
             errors.append("Çekirdek Java derleme testi başarısız:\n" + compiled.stderr.strip())
             return
         executed = subprocess.run(
             [java, "-cp", str(temp), "com.yagiz.skinpowers.CoreLogicSmokeTest"],
-            capture_output=True,
-            text=True,
+            capture_output=True, text=True,
         )
         if executed.returncode != 0:
             errors.append("Çekirdek Java çalışma testi başarısız:\n" + (executed.stderr or executed.stdout).strip())
@@ -259,5 +261,6 @@ if errors:
 
 print(
     f"PROJE DENETİMİ BAŞARILI — {len(java_files)} Java dosyası; JSON, PNG, sürüm, "
-    "Doğa sınıfı, 10 meteor, ekran sarsıntısı, Mod Menu ve çekirdek davranış testleri kontrol edildi."
+    "Warden 6. güç, 70 XP, 20 saniyelik şarj, tek kullanım, cooldown dondurma, "
+    "20 mor meteor, komutlar ve çekirdek davranış testleri kontrol edildi."
 )

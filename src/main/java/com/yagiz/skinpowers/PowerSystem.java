@@ -70,9 +70,16 @@ public final class PowerSystem {
         }
 
         long now = serverLevel.getGameTime();
-        target.hurtServer(serverLevel, serverLevel.damageSources().playerAttack(serverPlayer), 4.0F);
-        target.setRemainingFireTicks(80);
-        serverLevel.sendParticles(ParticleTypes.FLAME, target.getX(), target.getY() + 1.0, target.getZ(), 12, 0.35, 0.45, 0.35, 0.02);
+        boolean charged = data.selectedPower() == 2 && AncientChargeSystem.isUsableCharge(data, now, 2);
+        float damage = AncientChargeSystem.damage(4.0F, charged);
+        target.hurtServer(serverLevel, serverLevel.damageSources().playerAttack(serverPlayer), damage);
+        target.setRemainingFireTicks(charged ? 220 : 80);
+        serverLevel.sendParticles(ParticleTypes.FLAME, target.getX(), target.getY() + 1.0, target.getZ(), charged ? 28 : 12, 0.35, 0.45, 0.35, 0.02);
+        if (charged) {
+            serverLevel.sendParticles(ParticleTypes.WITCH, target.getX(), target.getY() + 1.0, target.getZ(), 35, 0.55, 0.65, 0.55, 0.08);
+            serverLevel.sendParticles(ParticleTypes.SCULK_SOUL, target.getX(), target.getY() + 1.0, target.getZ(), 18, 0.45, 0.55, 0.45, 0.04);
+            AncientChargeSystem.consume(serverPlayer, data, 2, now);
+        }
         creditMastery(serverPlayer, data, 2, now, 20L);
         return InteractionResult.PASS;
     }
@@ -88,6 +95,7 @@ public final class PowerSystem {
         tickLifeTrees();
         tickRootWaves();
         tickNatureShapes();
+        AncientChargeSystem.tick(server);
 
         long gameTime = server.overworld().getGameTime();
         if (gameTime - lastAutosaveTick >= 1200L) {
@@ -117,7 +125,8 @@ public final class PowerSystem {
     private static void tickWarden(ServerPlayer player, PlayerPowerData data, ServerLevel level, long now) {
         if (data.wardenHuntUntil() > now) {
             int stage = data.masteryStage(4);
-            double radius = 20.0 + stage * 2.0;
+            boolean boosted = data.chargedWardenHunt();
+            double radius = AncientChargeSystem.radius(20.0 + stage * 2.0, boosted);
             if (now % 5L == 0L) {
                 for (LivingEntity living : nearbyLiving(player, radius)) {
                     if (living == player || protectedAlly(player, living)) continue;
@@ -125,14 +134,15 @@ public final class PowerSystem {
                     living.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 35, stage >= 2 ? 2 : 1, false, false, true));
                     living.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 35, stage >= 3 ? 1 : 0, false, false, true));
                     if (now % 20L == 0L && living.getDeltaMovement().horizontalDistanceSqr() > 0.001) {
-                        living.hurtServer(level, level.damageSources().playerAttack(player), 2.0F + stage);
-                        level.sendParticles(ParticleTypes.SCULK_SOUL, living.getX(), living.getY() + 0.8, living.getZ(), 8, 0.35, 0.45, 0.35, 0.025);
+                        living.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(2.0F + stage, boosted));
+                        level.sendParticles(boosted ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, living.getX(), living.getY() + 0.8, living.getZ(), boosted ? 16 : 8, 0.35, 0.45, 0.35, 0.025);
                     }
                 }
-                drawRing(level, player.position(), Math.min(9.0, radius * 0.42), ParticleTypes.SCULK_SOUL, 34);
+                drawRing(level, player.position(), Math.min(boosted ? 14.0 : 9.0, radius * 0.42), boosted ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, boosted ? 58 : 34);
             }
         } else if (data.wardenHuntUntil() != 0L || data.visionEnabled()) {
             data.setWardenHuntUntil(0L);
+            data.setChargedWardenHunt(false);
             data.setVisionEnabled(false);
             player.sendSystemMessage(Component.literal("Sculk Avı sona erdi."));
             PlayerDataStore.markDirty();
@@ -140,27 +150,29 @@ public final class PowerSystem {
 
         if (data.awakeningUntil() > now) {
             int stage = data.masteryStage(5);
-            player.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 35, stage >= 2 ? 3 : 2, false, false, true));
-            player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 35, 1, false, false, true));
+            boolean boosted = data.chargedAwakening();
+            player.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 35, boosted ? 4 : (stage >= 2 ? 3 : 2), false, false, true));
+            player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 35, boosted ? 2 : 1, false, false, true));
             player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 35, stage >= 3 ? 1 : 0, false, false, true));
             if (now % 4L == 0L) {
-                level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), 10, 0.85, 1.0, 0.85, 0.025);
+                level.sendParticles(boosted ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), boosted ? 22 : 10, 0.85, 1.0, 0.85, 0.025);
             }
             if (now % 20L == 0L) {
-                double auraRadius = 5.0 + stage * 0.7;
+                double auraRadius = AncientChargeSystem.radius(5.0 + stage * 0.7, boosted);
                 for (LivingEntity target : nearbyLiving(player, auraRadius)) {
                     if (target == player || protectedAlly(player, target)) continue;
-                    target.hurtServer(level, level.damageSources().playerAttack(player), 4.0F + stage * 1.5F);
+                    target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(4.0F + stage * 1.5F, boosted));
                     Vec3 push = target.position().subtract(player.position());
                     if (push.lengthSqr() > 0.0001) {
-                        push = push.normalize().scale(0.45 + stage * 0.08);
+                        push = push.normalize().scale(AncientChargeSystem.knockback(0.45 + stage * 0.08, boosted));
                         target.push(push.x, 0.12, push.z);
                     }
                 }
-                drawRing(level, player.position(), auraRadius, ParticleTypes.SCULK_SOUL, 42);
+                drawRing(level, player.position(), auraRadius, boosted ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, boosted ? 72 : 42);
             }
         } else if (data.awakeningUntil() != 0L) {
             data.setAwakeningUntil(0L);
+            data.setChargedAwakening(false);
             player.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, 100, 0, false, true, true));
             PlayerDataStore.markDirty();
         }
@@ -184,14 +196,20 @@ public final class PowerSystem {
         if (temporaryFlight) {
             if (!chest.is(Items.ELYTRA)) {
                 data.setTemporaryElytraUntil(0L);
+                data.setChargedTemporaryElytra(false);
                 player.sendSystemMessage(Component.literal("Süreli Elytra çıkarıldığı için uçuş sona erdi."));
                 PlayerDataStore.markDirty();
                 temporaryFlight = false;
             } else if (player.getDeltaMovement().lengthSqr() > 0.08 && now % 2L == 0L) {
                 Vec3 back = player.getLookAngle().scale(-0.75);
-                level.sendParticles(ParticleTypes.CLOUD,
+                level.sendParticles(data.chargedTemporaryElytra() ? ParticleTypes.WITCH : ParticleTypes.CLOUD,
                     player.getX() + back.x, player.getY() + 0.9, player.getZ() + back.z,
-                    4, 0.30, 0.24, 0.30, 0.015);
+                    data.chargedTemporaryElytra() ? 9 : 4, 0.30, 0.24, 0.30, 0.015);
+                if (data.chargedTemporaryElytra()) {
+                    level.sendParticles(ParticleTypes.SCULK_SOUL,
+                        player.getX() + back.x, player.getY() + 0.9, player.getZ() + back.z,
+                        3, 0.22, 0.18, 0.22, 0.01);
+                }
             }
         } else if (data.temporaryElytraUntil() != 0L) {
             removeTemporaryElytra(player, data);
@@ -218,17 +236,21 @@ public final class PowerSystem {
             long lastImpact = LAST_SKY_IMPACT.getOrDefault(player.getUUID(), Long.MIN_VALUE / 2);
             if (now - lastImpact >= 24L) {
                 int stage = data.masteryStage(5);
-                double hitRadius = 2.25 + stage * 0.20;
+                boolean chargeFromReadyState = data.selectedPower() == 5 && AncientChargeSystem.isUsableCharge(data, now, 5);
+                // Şarjlı Süreli Elytra yalnızca kendi süresini ve görünümünü güçlendirir.
+                // Gökyüzü Hâkimiyeti ancak 5. güç seçiliyken tek kullanım hakkını ayrıca tüketir.
+                boolean boosted = chargeFromReadyState;
+                double hitRadius = AncientChargeSystem.radius(2.25 + stage * 0.20, boosted);
                 AABB sweptArea = new AABB(previousPosition, currentPosition).inflate(hitRadius);
                 for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, sweptArea)) {
                     if (target == player || protectedAlly(player, target)) continue;
                     Vec3 targetCenter = target.getEyePosition();
                     if (distanceToSegmentSqr(targetCenter, previousPosition, currentPosition) > hitRadius * hitRadius) continue;
 
-                    target.hurtServer(level, level.damageSources().playerAttack(player), 12.0F + stage * 2.0F);
+                    target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(12.0F + stage * 2.0F, boosted));
                     Vec3 push = player.getDeltaMovement();
                     if (push.lengthSqr() < 0.0001) push = player.getLookAngle();
-                    push = push.normalize().scale(1.25 + stage * 0.14);
+                    push = push.normalize().scale(AncientChargeSystem.knockback(1.25 + stage * 0.14, boosted));
                     target.push(push.x, 0.42, push.z);
 
                     // Darbenin oyuncuya geri dönmesini azalt: hız yumuşatılır ve düşüş birikimi sıfırlanır.
@@ -236,7 +258,8 @@ public final class PowerSystem {
                     player.fallDistance = 0.0F;
                     player.hurtMarked = true;
                     LAST_SKY_IMPACT.put(player.getUUID(), now);
-                    level.sendParticles(ParticleTypes.CLOUD, target.getX(), target.getY() + 0.7, target.getZ(), 36, 0.9, 0.9, 0.9, 0.11);
+                    level.sendParticles(boosted ? ParticleTypes.WITCH : ParticleTypes.CLOUD, target.getX(), target.getY() + 0.7, target.getZ(), boosted ? 68 : 36, 0.9, 0.9, 0.9, 0.11);
+                    if (chargeFromReadyState) AncientChargeSystem.consume(player, data, 5, now);
                     creditMastery(player, data, 5, now, 24L);
                     break;
                 }
@@ -254,20 +277,22 @@ public final class PowerSystem {
 
         if (data.fireRingUntil() > now) {
             int stage = data.masteryStage(3);
-            double radius = 10.0 + stage * 0.6;
+            boolean boosted = data.chargedFireRing();
+            double radius = AncientChargeSystem.radius(10.0 + stage * 0.6, boosted);
             if (now % 20L == 0L) {
                 for (LivingEntity target : nearbyLiving(player, radius)) {
                     if (target == player || protectedAlly(player, target)) continue;
-                    target.hurtServer(level, level.damageSources().playerAttack(player), 2.5F + stage * 0.5F);
+                    target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(2.5F + stage * 0.5F, boosted));
                     target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), 70));
                 }
             }
             if (now % 3L == 0L) {
-                drawRing(level, player.position(), radius, ParticleTypes.FLAME, 48);
+                drawRing(level, player.position(), radius, boosted ? ParticleTypes.WITCH : ParticleTypes.FLAME, boosted ? 82 : 48);
                 igniteSparseGround(level, player.blockPosition(), (int) Math.ceil(radius), now);
             }
         } else if (data.fireRingUntil() != 0L) {
             data.setFireRingUntil(0L);
+            data.setChargedFireRing(false);
             PlayerDataStore.markDirty();
         }
     }
@@ -299,22 +324,28 @@ public final class PowerSystem {
         if (power > data.unlockedLevel()) return;
 
         long now = player.level().getGameTime();
+        if (power == 6 && data.ancientChargeActive(now)) {
+            player.sendSystemMessage(Component.literal("Antik Şehir Şarjı taşırken 6. güç kullanılamaz."));
+            return;
+        }
         int remaining = data.cooldownRemaining(power, now);
         if (remaining > 0) {
             player.sendSystemMessage(Component.literal("Güç " + formatSeconds(remaining) + " saniye sonra hazır."));
             return;
         }
 
+        boolean charged = AncientChargeSystem.isUsableCharge(data, now, power);
         boolean used = switch (data.powerClass()) {
-            case WARDEN -> useWarden(player, data, power, now);
-            case FLIGHT -> useFlight(player, data, power, now);
-            case FIRE -> useFire(player, data, power, now);
-            case NATURE -> useNature(player, data, power, now);
+            case WARDEN -> useWarden(player, data, power, now, charged);
+            case FLIGHT -> useFlight(player, data, power, now, charged);
+            case FIRE -> useFire(player, data, power, now, charged);
+            case NATURE -> useNature(player, data, power, now, charged);
             default -> false;
         };
 
         if (used) {
             recordMasteryUse(player, data, power);
+            if (charged) AncientChargeSystem.consume(player, data, power, now);
             ServerNetworking.sync(player);
         }
     }
@@ -348,13 +379,15 @@ public final class PowerSystem {
 
     public static void tryRocketlessLaunch(ServerPlayer player, PlayerPowerData data) {
         long now = player.level().getGameTime();
-        if (performRocketlessLaunch(player, data, now)) {
+        boolean charged = data.selectedPower() == 3 && AncientChargeSystem.isUsableCharge(data, now, 3);
+        if (performRocketlessLaunch(player, data, now, charged)) {
             recordMasteryUse(player, data, 3);
+            if (charged) AncientChargeSystem.consume(player, data, 3, now);
             ServerNetworking.sync(player);
         }
     }
 
-    private static boolean performRocketlessLaunch(ServerPlayer player, PlayerPowerData data, long now) {
+    private static boolean performRocketlessLaunch(ServerPlayer player, PlayerPowerData data, long now, boolean charged) {
         if (data.powerClass() != PowerClass.FLIGHT || data.unlockedLevel() < 3) return false;
         if (data.temporaryElytraUntil() <= now || !player.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA)) {
             player.sendSystemMessage(Component.literal("Önce Süreli Elytra gücünü açmalısın."));
@@ -365,11 +398,18 @@ public final class PowerSystem {
 
         int stage = data.masteryStage(3);
         Vec3 look = player.getLookAngle();
-        player.setDeltaMovement(look.x * (1.0 + stage * 0.14), 1.25 + stage * 0.14, look.z * (1.0 + stage * 0.14));
+        double launchScale = charged ? 1.62 : 1.0;
+        player.setDeltaMovement(
+            look.x * (1.0 + stage * 0.14) * launchScale,
+            (1.25 + stage * 0.14) * (charged ? 1.28 : 1.0),
+            look.z * (1.0 + stage * 0.14) * launchScale
+        );
         player.hurtMarked = true;
         player.fallDistance = 0.0F;
         data.setCooldown(3, now, Math.max(70, 150 - stage * 20));
-        ((ServerLevel) player.level()).sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY(), player.getZ(), 30, 0.6, 0.25, 0.6, 0.10);
+        ServerLevel level = (ServerLevel) player.level();
+        level.sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY(), player.getZ(), charged ? 55 : 30, 0.6, 0.25, 0.6, 0.10);
+        if (charged) AncientChargeSystem.emitChargedBurst(level, player.position().add(0.0, 0.7, 0.0), PowerClass.FLIGHT, 1.15);
         return true;
     }
 
@@ -377,48 +417,51 @@ public final class PowerSystem {
         ItemStack chest = player.getItemBySlot(EquipmentSlot.CHEST);
         if (chest.is(Items.ELYTRA)) player.setItemSlot(EquipmentSlot.CHEST, ItemStack.EMPTY);
         data.setTemporaryElytraUntil(0L);
+        data.setChargedTemporaryElytra(false);
     }
 
-    private static boolean useWarden(ServerPlayer player, PlayerPowerData data, int power, long now) {
+    private static boolean useWarden(ServerPlayer player, PlayerPowerData data, int power, long now, boolean charged) {
         ServerLevel level = (ServerLevel) player.level();
         int stage = data.masteryStage(power);
         switch (power) {
             case 1 -> {
-                int duration = 400 + stage * 100;
-                player.addEffect(new MobEffectInstance(MobEffects.STRENGTH, duration, stage >= 2 ? 2 : 1, false, true, true));
-                player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, duration, stage >= 3 ? 2 : 1, false, true, true));
-                player.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration, stage >= 2 ? 1 : 0, false, true, true));
+                int duration = AncientChargeSystem.duration(400 + stage * 100, charged);
+                player.addEffect(new MobEffectInstance(MobEffects.STRENGTH, duration, charged ? 4 : (stage >= 2 ? 2 : 1), false, true, true));
+                player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, duration, charged ? 3 : (stage >= 3 ? 2 : 1), false, true, true));
+                player.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration, charged ? 3 : (stage >= 2 ? 1 : 0), false, true, true));
                 data.setCooldown(1, now, Math.max(600, 900 - stage * 100));
                 level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 1.2F, 0.9F);
-                level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), 28, 0.7, 0.8, 0.7, 0.025);
+                level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), charged ? 58 : 28, 0.7, 0.8, 0.7, 0.025);
+                if (charged) AncientChargeSystem.emitChargedBurst(level, player.position().add(0.0, 1.0, 0.0), PowerClass.WARDEN, 1.25);
                 return true;
             }
             case 2 -> {
-                double radius = 7.0 + stage * 1.2;
+                double radius = AncientChargeSystem.radius(7.0 + stage * 1.2, charged);
                 for (LivingEntity target : nearbyLiving(player, radius)) {
                     if (target == player || protectedAlly(player, target)) continue;
-                    target.hurtServer(level, level.damageSources().playerAttack(player), 10.0F + stage * 2.0F);
+                    target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(10.0F + stage * 2.0F, charged));
                     target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 100 + stage * 20, stage >= 2 ? 3 : 2, false, true, true));
                     target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 100 + stage * 20, stage >= 3 ? 2 : 1, false, true, true));
                     Vec3 push = target.position().subtract(player.position());
                     if (push.lengthSqr() > 0.0001) {
-                        push = push.normalize().scale(0.9 + stage * 0.12);
+                        push = push.normalize().scale(AncientChargeSystem.knockback(0.9 + stage * 0.12, charged));
                         target.push(push.x, 0.45, push.z);
                     }
                 }
-                drawRing(level, player.position(), radius, ParticleTypes.SCULK_SOUL, 68);
+                drawRing(level, player.position(), radius, charged ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, charged ? 96 : 68);
                 level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ATTACK_IMPACT, SoundSource.PLAYERS, 1.5F, 0.72F);
                 data.setCooldown(2, now, Math.max(360, 600 - stage * 60));
                 return true;
             }
             case 3 -> {
-                sonicBlast(player, data, stage);
+                sonicBlast(player, data, stage, charged);
                 data.setCooldown(3, now, Math.max(220, 380 - stage * 40));
                 return true;
             }
             case 4 -> {
-                int duration = 400 + stage * 100;
+                int duration = AncientChargeSystem.duration(400 + stage * 100, charged);
                 data.setWardenHuntUntil(now + duration);
+                data.setChargedWardenHunt(charged);
                 data.setVisionEnabled(true);
                 data.setCooldown(4, now, Math.max(600, 900 - stage * 90));
                 player.sendSystemMessage(Component.literal("Sculk Avı başladı: " + formatSeconds(duration) + " saniye."));
@@ -427,18 +470,26 @@ public final class PowerSystem {
                 return true;
             }
             case 5 -> {
-                int duration = 600 + stage * 100;
+                int duration = AncientChargeSystem.duration(600 + stage * 100, charged);
                 data.setAwakeningUntil(now + duration);
+                data.setChargedAwakening(charged);
                 data.setCooldown(5, now, Math.max(1500, 2400 - stage * 180));
                 level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ROAR, SoundSource.PLAYERS, 1.6F, 0.68F);
-                level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), 85, 1.3, 1.3, 1.3, 0.055);
+                level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), charged ? 120 : 85, 1.3, 1.3, 1.3, 0.055);
+                if (charged) AncientChargeSystem.emitChargedBurst(level, player.position().add(0.0, 1.0, 0.0), PowerClass.WARDEN, 1.6);
+                return true;
+            }
+            case 6 -> {
+                if (!AncientChargeSystem.beginBeam(player, data, now)) return false;
+                data.setCooldown(6, now, 2400);
+                level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 1.5F, 0.62F);
                 return true;
             }
             default -> { return false; }
         }
     }
 
-    private static boolean useFlight(ServerPlayer player, PlayerPowerData data, int power, long now) {
+    private static boolean useFlight(ServerPlayer player, PlayerPowerData data, int power, long now, boolean charged) {
         int stage = data.masteryStage(power);
         if (power == 1) {
             data.togglePassive();
@@ -452,19 +503,22 @@ public final class PowerSystem {
                 player.sendSystemMessage(Component.literal("Süreli Elytra için göğüs zırhı yuvasını boşaltmalısın."));
                 return false;
             }
-            int duration = 400 + stage * 100;
+            int duration = AncientChargeSystem.duration(400 + stage * 100, charged);
             player.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.ELYTRA));
             data.setTemporaryElytraUntil(now + duration);
+            data.setChargedTemporaryElytra(charged);
             data.setCooldown(2, now, Math.max(700, 1000 - stage * 100));
-            ((ServerLevel) player.level()).sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY() + 1.0, player.getZ(), 36, 0.8, 0.8, 0.8, 0.05);
+            ServerLevel level = (ServerLevel) player.level();
+            level.sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY() + 1.0, player.getZ(), charged ? 68 : 36, 0.8, 0.8, 0.8, 0.05);
+            if (charged) AncientChargeSystem.emitChargedBurst(level, player.position().add(0.0, 1.0, 0.0), PowerClass.FLIGHT, 1.45);
             player.sendSystemMessage(Component.literal("Süreli Elytra takıldı: " + formatSeconds(duration) + " saniye."));
             return true;
         }
         if (power == 3) {
-            return performRocketlessLaunch(player, data, now);
+            return performRocketlessLaunch(player, data, now, charged);
         }
         if (power == 4) {
-            airBlast(player, stage);
+            airBlast(player, stage, charged);
             data.setCooldown(4, now, Math.max(160, 300 - stage * 35));
             return true;
         }
@@ -475,7 +529,7 @@ public final class PowerSystem {
         return false;
     }
 
-    private static boolean useFire(ServerPlayer player, PlayerPowerData data, int power, long now) {
+    private static boolean useFire(ServerPlayer player, PlayerPowerData data, int power, long now, boolean charged) {
         ServerLevel level = (ServerLevel) player.level();
         int stage = data.masteryStage(power);
         switch (power) {
@@ -488,24 +542,27 @@ public final class PowerSystem {
                 return false;
             }
             case 3 -> {
-                data.setFireRingUntil(now + 100L + stage * 10L);
-                for (LivingEntity target : nearbyLiving(player, 10.0 + stage * 0.5)) {
+                int duration = AncientChargeSystem.duration((int) (100L + stage * 10L), charged);
+                double radius = AncientChargeSystem.radius(10.0 + stage * 0.5, charged);
+                data.setFireRingUntil(now + duration);
+                data.setChargedFireRing(charged);
+                for (LivingEntity target : nearbyLiving(player, radius)) {
                     if (target == player) continue;
-                    target.hurtServer(level, level.damageSources().playerAttack(player), 6.0F + stage);
+                    target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(6.0F + stage, charged));
                     target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), 80));
                 }
-                drawRing(level, player.position(), 10.0, ParticleTypes.FLAME, 64);
+                drawRing(level, player.position(), radius, charged ? ParticleTypes.WITCH : ParticleTypes.FLAME, charged ? 92 : 64);
                 level.playSound(null, player.blockPosition(), SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 1.2F, 0.8F);
                 data.setCooldown(3, now, Math.max(420, 600 - stage * 50));
                 return true;
             }
             case 4 -> {
-                hellfireBeam(player, stage);
+                hellfireBeam(player, stage, charged);
                 data.setCooldown(4, now, Math.max(240, 360 - stage * 40));
                 return true;
             }
             case 5 -> {
-                scheduleMeteors(player, data, stage);
+                scheduleMeteors(player, data, stage, charged);
                 data.setCooldown(5, now, Math.max(1800, 2400 - stage * 120));
                 return true;
             }
@@ -513,7 +570,7 @@ public final class PowerSystem {
         }
     }
 
-    private static boolean useNature(ServerPlayer player, PlayerPowerData data, int power, long now) {
+    private static boolean useNature(ServerPlayer player, PlayerPowerData data, int power, long now, boolean charged) {
         ServerLevel level = (ServerLevel) player.level();
         int stage = data.masteryStage(power);
         switch (power) {
@@ -522,24 +579,25 @@ public final class PowerSystem {
                 return false;
             }
             case 2 -> {
-                launchNatureSeed(player, stage);
+                launchNatureSeed(player, stage, charged);
                 data.setCooldown(2, now, Math.max(90, 140 - stage * 12));
                 return true;
             }
             case 3 -> {
                 Vec3 direction = horizontalDirection(player.getLookAngle());
                 Vec3 center = findGroundPoint(level, player.position().add(direction.scale(7.0 + stage)));
-                PendingVineTrap trap = new PendingVineTrap(level, player.getUUID(), center, now + 80L + stage * 15L, stage);
+                long duration = AncientChargeSystem.duration((int) (80L + stage * 15L), charged);
+                PendingVineTrap trap = new PendingVineTrap(level, player.getUUID(), center, now + duration, stage, charged);
                 buildVineTrapVisual(trap);
                 VINE_TRAPS.add(trap);
-                level.sendParticles(ParticleTypes.HAPPY_VILLAGER, center.x, center.y + 0.5, center.z, 28, 2.1, 0.6, 2.1, 0.03);
+                level.sendParticles(charged ? ParticleTypes.WITCH : ParticleTypes.HAPPY_VILLAGER, center.x, center.y + 0.5, center.z, charged ? 52 : 28, 2.1, 0.6, 2.1, 0.03);
                 data.setCooldown(3, now, Math.max(240, 320 - stage * 25));
                 return true;
             }
             case 4 -> {
                 Vec3 center = findGroundPoint(level, player.position().add(horizontalDirection(player.getLookAngle()).scale(2.5)));
-                long duration = 260L + stage * 35L;
-                PendingLifeTree tree = new PendingLifeTree(level, player.getUUID(), center, now + duration, stage);
+                long duration = AncientChargeSystem.duration((int) (260L + stage * 35L), charged);
+                PendingLifeTree tree = new PendingLifeTree(level, player.getUUID(), center, now + duration, stage, charged);
                 buildLifeTreeVisual(tree);
                 LIFE_TREES.add(tree);
                 data.setNatureTreeUntil(now + duration);
@@ -550,20 +608,21 @@ public final class PowerSystem {
             case 5 -> {
                 Vec3 direction = horizontalDirection(player.getLookAngle());
                 Vec3 start = findGroundPoint(level, player.position().add(direction.scale(2.0)));
-                ROOT_WAVES.add(new PendingRootWave(level, player.getUUID(), start, direction, now, 22 + stage * 2, stage));
+                int steps = charged ? 32 + stage * 3 : 22 + stage * 2;
+                ROOT_WAVES.add(new PendingRootWave(level, player.getUUID(), start, direction, now, steps, stage, charged));
                 data.setCooldown(5, now, Math.max(700, 900 - stage * 60));
-                ServerNetworking.sendScreenShake(level, player.position(), 28.0, 1.25F, 16);
+                ServerNetworking.sendScreenShake(level, player.position(), charged ? 40.0 : 28.0, charged ? 1.85F : 1.25F, charged ? 24 : 16);
                 return true;
             }
             default -> { return false; }
         }
     }
 
-    private static void sonicBlast(ServerPlayer player, PlayerPowerData data, int stage) {
+    private static void sonicBlast(ServerPlayer player, PlayerPowerData data, int stage, boolean charged) {
         ServerLevel level = (ServerLevel) player.level();
         Vec3 origin = player.getEyePosition();
         Vec3 look = player.getLookAngle().normalize();
-        double range = 18.0 + stage * 2.5;
+        double range = AncientChargeSystem.radius(18.0 + stage * 2.5, charged);
         List<LivingEntity> candidates = nearbyLiving(player, range);
         List<LivingEntity> lineTargets = new ArrayList<>();
 
@@ -573,7 +632,7 @@ public final class PowerSystem {
             double forward = to.dot(look);
             if (forward <= 0.0 || forward > range) continue;
             double side = to.subtract(look.scale(forward)).length();
-            if (side <= 1.7 + stage * 0.3) lineTargets.add(target);
+            if (side <= AncientChargeSystem.radius(1.7 + stage * 0.3, charged)) lineTargets.add(target);
         }
 
         if (stage == 0 && lineTargets.size() > 2) {
@@ -582,12 +641,12 @@ public final class PowerSystem {
         }
 
         for (LivingEntity target : lineTargets) {
-            target.hurtServer(level, level.damageSources().playerAttack(player), 14.0F + stage * 3.0F);
+            target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(14.0F + stage * 3.0F, charged));
             target.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 80 + stage * 20, 0, false, true, true));
             target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 70 + stage * 15, stage >= 2 ? 2 : 1, false, true, true));
             Vec3 push = target.position().subtract(player.position());
             if (push.lengthSqr() > 0.0001) {
-                push = push.normalize().scale(1.15 + stage * 0.1);
+                push = push.normalize().scale(AncientChargeSystem.knockback(1.15 + stage * 0.1, charged));
                 target.push(push.x, 0.28, push.z);
             }
         }
@@ -595,26 +654,28 @@ public final class PowerSystem {
         for (double distance = 1.0; distance <= range; distance += 1.25) {
             Vec3 point = origin.add(look.scale(distance));
             level.sendParticles(ParticleTypes.SONIC_BOOM, point.x, point.y, point.z, 1, 0.0, 0.0, 0.0, 0.0);
+            if (charged) level.sendParticles(ParticleTypes.WITCH, point.x, point.y, point.z, 4, 0.18, 0.18, 0.18, 0.01);
         }
         level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.6F, 0.92F);
     }
 
-    private static void hellfireBeam(ServerPlayer player, int stage) {
+    private static void hellfireBeam(ServerPlayer player, int stage, boolean charged) {
         ServerLevel level = (ServerLevel) player.level();
         Vec3 direction = player.getLookAngle().normalize();
         Vec3 start = player.getEyePosition().add(direction.scale(1.15));
-        Vec3 velocity = direction.scale(1.05 + stage * 0.10);
+        Vec3 velocity = direction.scale((1.05 + stage * 0.10) * (charged ? 1.28 : 1.0));
         long now = level.getGameTime();
         HELLFIRE_ORBS.add(new PendingHellfireOrb(
             level,
             player.getUUID(),
             start,
             velocity,
-            now + 34L + stage * 4L,
-            stage
+            now + (charged ? 48L : 34L + stage * 4L),
+            stage,
+            charged
         ));
-        level.sendParticles(ParticleTypes.FLAME, start.x, start.y, start.z, 24, 0.35, 0.35, 0.35, 0.05);
-        level.sendParticles(ParticleTypes.LAVA, start.x, start.y, start.z, 5, 0.20, 0.20, 0.20, 0.0);
+        level.sendParticles(charged ? ParticleTypes.WITCH : ParticleTypes.FLAME, start.x, start.y, start.z, charged ? 48 : 24, 0.35, 0.35, 0.35, 0.05);
+        level.sendParticles(charged ? ParticleTypes.SCULK_SOUL : ParticleTypes.LAVA, start.x, start.y, start.z, charged ? 18 : 5, 0.20, 0.20, 0.20, 0.0);
         level.playSound(null, player.blockPosition(), SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 1.3F, 0.72F);
     }
 
@@ -642,7 +703,7 @@ public final class PowerSystem {
                     break;
                 }
 
-                double contactRadius = 0.95 + orb.stage * 0.08;
+                double contactRadius = AncientChargeSystem.radius(0.95 + orb.stage * 0.08, orb.charged);
                 AABB contact = new AABB(point, point).inflate(contactRadius);
                 for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, contact)) {
                     if (owner != null && (target == owner || protectedAlly(owner, target))) continue;
@@ -662,25 +723,31 @@ public final class PowerSystem {
 
             orb.position = to;
             placeHellfireVisual(orb, to);
-            level.sendParticles(ParticleTypes.FLAME, to.x, to.y, to.z, 18, 0.42, 0.42, 0.42, 0.025);
-            level.sendParticles(ParticleTypes.LAVA, to.x, to.y, to.z, 3, 0.24, 0.24, 0.24, 0.0);
-            level.sendParticles(ParticleTypes.LARGE_SMOKE, from.x, from.y, from.z, 3, 0.20, 0.20, 0.20, 0.015);
+            level.sendParticles(orb.charged ? ParticleTypes.WITCH : ParticleTypes.FLAME, to.x, to.y, to.z, orb.charged ? 30 : 18, 0.42, 0.42, 0.42, 0.025);
+            level.sendParticles(orb.charged ? ParticleTypes.SCULK_SOUL : ParticleTypes.LAVA, to.x, to.y, to.z, orb.charged ? 12 : 3, 0.24, 0.24, 0.24, 0.0);
+            level.sendParticles(ParticleTypes.LARGE_SMOKE, from.x, from.y, from.z, orb.charged ? 7 : 3, 0.20, 0.20, 0.20, 0.015);
         }
     }
 
     private static void placeHellfireVisual(PendingHellfireOrb orb, Vec3 position) {
         BlockPos center = BlockPos.containing(position);
-        BlockPos[] shape = {center, center.above()};
-        for (BlockPos pos : shape) {
+        BlockPos[] shape = orb.charged
+            ? new BlockPos[]{center, center.above(), center.east(), center.west(), center.north(), center.south()}
+            : new BlockPos[]{center, center.above()};
+        for (int i = 0; i < shape.length; i++) {
+            BlockPos pos = shape[i];
             if (!orb.level.getBlockState(pos).isAir()) continue;
-            orb.level.setBlockAndUpdate(pos, Blocks.MAGMA_BLOCK.defaultBlockState());
+            BlockState visual = orb.charged && i % 2 == 0
+                ? Blocks.CRYING_OBSIDIAN.defaultBlockState()
+                : Blocks.MAGMA_BLOCK.defaultBlockState();
+            orb.level.setBlockAndUpdate(pos, visual);
             orb.visualBlocks.add(new BlockPos(pos.getX(), pos.getY(), pos.getZ()));
         }
     }
 
     private static void clearHellfireVisual(PendingHellfireOrb orb) {
         for (BlockPos pos : orb.visualBlocks) {
-            if (orb.level.getBlockState(pos).is(Blocks.MAGMA_BLOCK)) {
+            if (orb.level.getBlockState(pos).is(Blocks.MAGMA_BLOCK) || orb.level.getBlockState(pos).is(Blocks.CRYING_OBSIDIAN)) {
                 orb.level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
             }
         }
@@ -695,44 +762,52 @@ public final class PowerSystem {
     ) {
         ServerLevel level = orb.level;
         if (directTarget != null) {
-            float directDamage = 13.0F + orb.stage * 2.5F;
+            float directDamage = AncientChargeSystem.damage(13.0F + orb.stage * 2.5F, orb.charged);
             directTarget.hurtServer(level,
                 owner == null ? level.damageSources().generic() : level.damageSources().playerAttack(owner),
                 directDamage);
             directTarget.setRemainingFireTicks(180 + orb.stage * 35);
         }
 
-        double blastRadius = 3.2 + orb.stage * 0.45;
+        double blastRadius = AncientChargeSystem.radius(3.2 + orb.stage * 0.45, orb.charged);
         AABB blastArea = new AABB(impact, impact).inflate(blastRadius);
         for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, blastArea)) {
             if (target == directTarget) continue;
             if (owner != null && (target == owner || protectedAlly(owner, target))) continue;
             double distance = Math.sqrt(target.distanceToSqr(impact));
             if (distance > blastRadius) continue;
-            float damage = (float) Math.max(4.0, (9.0 + orb.stage * 1.8) * (1.0 - distance / (blastRadius + 1.0)));
+            float damage = AncientChargeSystem.damage((float) Math.max(4.0, (9.0 + orb.stage * 1.8) * (1.0 - distance / (blastRadius + 1.0))), orb.charged);
             target.hurtServer(level,
                 owner == null ? level.damageSources().generic() : level.damageSources().playerAttack(owner),
                 damage);
             target.setRemainingFireTicks(130 + orb.stage * 25);
             Vec3 push = target.position().subtract(impact);
             if (push.lengthSqr() > 0.0001) {
-                push = push.normalize().scale(0.90 + orb.stage * 0.08);
+                push = push.normalize().scale(AncientChargeSystem.knockback(0.90 + orb.stage * 0.08, orb.charged));
                 target.push(push.x, 0.36, push.z);
             }
         }
 
         level.sendParticles(ParticleTypes.EXPLOSION, impact.x, impact.y, impact.z, 5, 0.55, 0.55, 0.55, 0.0);
-        level.sendParticles(ParticleTypes.FLAME, impact.x, impact.y, impact.z, 70, 1.25, 1.25, 1.25, 0.11);
-        level.sendParticles(ParticleTypes.LAVA, impact.x, impact.y, impact.z, 15, 0.85, 0.85, 0.85, 0.0);
+        level.sendParticles(orb.charged ? ParticleTypes.WITCH : ParticleTypes.FLAME, impact.x, impact.y, impact.z, orb.charged ? 130 : 70, 1.25, 1.25, 1.25, 0.11);
+        level.sendParticles(orb.charged ? ParticleTypes.SCULK_SOUL : ParticleTypes.LAVA, impact.x, impact.y, impact.z, orb.charged ? 50 : 15, 0.85, 0.85, 0.85, 0.0);
         level.playSound(null, BlockPos.containing(impact), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.15F, 1.05F);
     }
 
-    private static void launchNatureSeed(ServerPlayer player, int stage) {
+    private static void launchNatureSeed(ServerPlayer player, int stage, boolean charged) {
         ServerLevel level = (ServerLevel) player.level();
         Vec3 direction = player.getLookAngle().normalize();
         Vec3 start = player.getEyePosition().add(direction.scale(1.2));
-        NATURE_SEEDS.add(new PendingNatureSeed(level, player.getUUID(), start, direction.scale(0.85 + stage * 0.07), level.getGameTime() + 34L + stage * 3L, stage));
-        level.sendParticles(ParticleTypes.HAPPY_VILLAGER, start.x, start.y, start.z, 14, 0.25, 0.25, 0.25, 0.02);
+        NATURE_SEEDS.add(new PendingNatureSeed(
+            level,
+            player.getUUID(),
+            start,
+            direction.scale((0.85 + stage * 0.07) * (charged ? 1.25 : 1.0)),
+            level.getGameTime() + (charged ? 50L : 34L + stage * 3L),
+            stage,
+            charged
+        ));
+        level.sendParticles(charged ? ParticleTypes.WITCH : ParticleTypes.HAPPY_VILLAGER, start.x, start.y, start.z, charged ? 34 : 14, 0.25, 0.25, 0.25, 0.02);
     }
 
     private static void tickNatureSeeds() {
@@ -751,7 +826,7 @@ public final class PowerSystem {
                 Vec3 point = from.add(seed.velocity.scale(i / (double) steps));
                 BlockState state = seed.level.getBlockState(BlockPos.containing(point));
                 if (!state.isAir()) { impact = point; break; }
-                AABB box = new AABB(point, point).inflate(0.75 + seed.stage * 0.05);
+                AABB box = new AABB(point, point).inflate(AncientChargeSystem.radius(0.75 + seed.stage * 0.05, seed.charged));
                 for (LivingEntity target : seed.level.getEntitiesOfClass(LivingEntity.class, box)) {
                     if (owner != null && (target == owner || protectedAlly(owner, target))) continue;
                     direct = target;
@@ -767,31 +842,32 @@ public final class PowerSystem {
             }
             seed.position = to;
             placeNatureSeedVisual(seed, to);
-            seed.level.sendParticles(ParticleTypes.HAPPY_VILLAGER, from.x, from.y, from.z, 4, 0.16, 0.16, 0.16, 0.01);
+            seed.level.sendParticles(seed.charged ? ParticleTypes.WITCH : ParticleTypes.HAPPY_VILLAGER, from.x, from.y, from.z, seed.charged ? 10 : 4, 0.16, 0.16, 0.16, 0.01);
         }
     }
 
     private static void placeNatureSeedVisual(PendingNatureSeed seed, Vec3 position) {
         BlockPos center = BlockPos.containing(position);
-        placeIfAir(seed.level, seed.visualBlocks, center, Blocks.MOSS_BLOCK.defaultBlockState());
-        placeIfAir(seed.level, seed.visualBlocks, center.east(), Blocks.OAK_LEAVES.defaultBlockState());
-        placeIfAir(seed.level, seed.visualBlocks, center.west(), Blocks.OAK_LEAVES.defaultBlockState());
-        placeIfAir(seed.level, seed.visualBlocks, center.above(), Blocks.OAK_LEAVES.defaultBlockState());
-        placeIfAir(seed.level, seed.visualBlocks, center.below(), Blocks.OAK_LEAVES.defaultBlockState());
+        placeIfAir(seed.level, seed.visualBlocks, center, seed.charged ? Blocks.AMETHYST_BLOCK.defaultBlockState() : Blocks.MOSS_BLOCK.defaultBlockState());
+        BlockState shell = seed.charged ? Blocks.CRYING_OBSIDIAN.defaultBlockState() : Blocks.OAK_LEAVES.defaultBlockState();
+        placeIfAir(seed.level, seed.visualBlocks, center.east(), shell);
+        placeIfAir(seed.level, seed.visualBlocks, center.west(), shell);
+        placeIfAir(seed.level, seed.visualBlocks, center.above(), shell);
+        placeIfAir(seed.level, seed.visualBlocks, center.below(), shell);
     }
 
     private static void impactNatureSeed(PendingNatureSeed seed, Vec3 impact, LivingEntity direct, ServerPlayer owner) {
         if (direct != null) {
-            direct.hurtServer(seed.level, owner == null ? seed.level.damageSources().generic() : seed.level.damageSources().playerAttack(owner), 5.0F + seed.stage * 1.4F);
+            direct.hurtServer(seed.level, owner == null ? seed.level.damageSources().generic() : seed.level.damageSources().playerAttack(owner), AncientChargeSystem.damage(5.0F + seed.stage * 1.4F, seed.charged));
             direct.addEffect(new MobEffectInstance(MobEffects.POISON, 70 + seed.stage * 15, seed.stage >= 2 ? 1 : 0, false, true, true));
             direct.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 55 + seed.stage * 12, 4, false, true, true));
         }
-        seed.level.sendParticles(ParticleTypes.HAPPY_VILLAGER, impact.x, impact.y, impact.z, 34, 0.85, 0.7, 0.85, 0.06);
+        seed.level.sendParticles(seed.charged ? ParticleTypes.WITCH : ParticleTypes.HAPPY_VILLAGER, impact.x, impact.y, impact.z, seed.charged ? 75 : 34, 0.85, 0.7, 0.85, 0.06);
         seed.level.sendParticles(ParticleTypes.COMPOSTER, impact.x, impact.y, impact.z, 26, 0.75, 0.55, 0.75, 0.08);
     }
 
     private static void buildVineTrapVisual(PendingVineTrap trap) {
-        int radius = 3 + trap.stage / 2;
+        int radius = (trap.charged ? 5 : 3) + trap.stage / 2;
         BlockPos center = BlockPos.containing(trap.center);
         for (int i = 0; i < 18; i++) {
             double angle = Math.PI * 2.0 * i / 18.0;
@@ -799,8 +875,8 @@ public final class PowerSystem {
             int z = center.getZ() + (int) Math.round(Math.sin(angle) * radius);
             int y = trap.level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
             BlockPos base = new BlockPos(x, y, z);
-            placeIfAir(trap.level, trap.visualBlocks, base, Blocks.MANGROVE_ROOTS.defaultBlockState());
-            if (i % 3 == 0) placeIfAir(trap.level, trap.visualBlocks, base.above(), Blocks.OAK_LEAVES.defaultBlockState());
+            placeIfAir(trap.level, trap.visualBlocks, base, trap.charged ? Blocks.CRYING_OBSIDIAN.defaultBlockState() : Blocks.MANGROVE_ROOTS.defaultBlockState());
+            if (i % 3 == 0) placeIfAir(trap.level, trap.visualBlocks, base.above(), trap.charged ? Blocks.AMETHYST_BLOCK.defaultBlockState() : Blocks.OAK_LEAVES.defaultBlockState());
         }
     }
 
@@ -810,13 +886,13 @@ public final class PowerSystem {
             PendingVineTrap trap = iterator.next();
             long now = trap.level.getGameTime();
             ServerPlayer owner = trap.level.getServer().getPlayerList().getPlayer(trap.owner);
-            double radius = 4.5 + trap.stage * 0.4;
+            double radius = AncientChargeSystem.radius(4.5 + trap.stage * 0.4, trap.charged);
             for (LivingEntity target : trap.level.getEntitiesOfClass(LivingEntity.class, new AABB(trap.center, trap.center).inflate(radius, 2.5, radius))) {
                 if (owner != null && (target == owner || protectedAlly(owner, target))) continue;
                 target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 30, 5, false, true, true));
-                if (now % 20L == 0L) target.hurtServer(trap.level, owner == null ? trap.level.damageSources().generic() : trap.level.damageSources().playerAttack(owner), 2.0F + trap.stage * 0.6F);
+                if (now % 20L == 0L) target.hurtServer(trap.level, owner == null ? trap.level.damageSources().generic() : trap.level.damageSources().playerAttack(owner), AncientChargeSystem.damage(2.0F + trap.stage * 0.6F, trap.charged));
             }
-            if (now % 5L == 0L) trap.level.sendParticles(ParticleTypes.COMPOSTER, trap.center.x, trap.center.y + 0.5, trap.center.z, 14, radius * 0.55, 0.6, radius * 0.55, 0.02);
+            if (now % 5L == 0L) trap.level.sendParticles(trap.charged ? ParticleTypes.WITCH : ParticleTypes.COMPOSTER, trap.center.x, trap.center.y + 0.5, trap.center.z, trap.charged ? 30 : 14, radius * 0.55, 0.6, radius * 0.55, 0.02);
             if (now >= trap.expireTick) {
                 for (LivingEntity target : trap.level.getEntitiesOfClass(LivingEntity.class, new AABB(trap.center, trap.center).inflate(radius, 2.5, radius))) {
                     if (owner != null && (target == owner || protectedAlly(owner, target))) continue;
@@ -830,13 +906,15 @@ public final class PowerSystem {
 
     private static void buildLifeTreeVisual(PendingLifeTree tree) {
         BlockPos base = BlockPos.containing(tree.center);
-        for (int y = 0; y < 5 + tree.stage / 2; y++) placeIfAir(tree.level, tree.visualBlocks, base.above(y), Blocks.OAK_LOG.defaultBlockState());
+        for (int y = 0; y < 5 + tree.stage / 2; y++) {
+            placeIfAir(tree.level, tree.visualBlocks, base.above(y), tree.charged ? Blocks.CRYING_OBSIDIAN.defaultBlockState() : Blocks.OAK_LOG.defaultBlockState());
+        }
         int crownY = 4 + tree.stage / 2;
         for (int dx = -2; dx <= 2; dx++) {
             for (int dz = -2; dz <= 2; dz++) {
                 for (int dy = -1; dy <= 2; dy++) {
                     if (dx * dx + dz * dz + dy * dy > 7) continue;
-                    placeIfAir(tree.level, tree.visualBlocks, base.offset(dx, crownY + dy, dz), Blocks.OAK_LEAVES.defaultBlockState());
+                    placeIfAir(tree.level, tree.visualBlocks, base.offset(dx, crownY + dy, dz), tree.charged ? Blocks.AMETHYST_BLOCK.defaultBlockState() : Blocks.OAK_LEAVES.defaultBlockState());
                 }
             }
         }
@@ -848,18 +926,18 @@ public final class PowerSystem {
             PendingLifeTree tree = iterator.next();
             long now = tree.level.getGameTime();
             ServerPlayer owner = tree.level.getServer().getPlayerList().getPlayer(tree.owner);
-            double radius = 7.0 + tree.stage * 0.5;
+            double radius = AncientChargeSystem.radius(7.0 + tree.stage * 0.5, tree.charged);
             if (now % 20L == 0L) {
                 for (LivingEntity target : tree.level.getEntitiesOfClass(LivingEntity.class, new AABB(tree.center, tree.center).inflate(radius, 5.0, radius))) {
                     if (owner != null && (target == owner || protectedAlly(owner, target))) {
-                        target.heal(1.0F + tree.stage * 0.4F);
+                        target.heal(tree.charged ? 3.0F + tree.stage * 0.7F : 1.0F + tree.stage * 0.4F);
                         target.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 35, 0, false, false, true));
                     } else {
                         target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 35, 1 + tree.stage / 2, false, true, true));
                     }
                 }
             }
-            if (now % 4L == 0L) tree.level.sendParticles(ParticleTypes.HAPPY_VILLAGER, tree.center.x, tree.center.y + 3.0, tree.center.z, 10, 2.1, 2.0, 2.1, 0.02);
+            if (now % 4L == 0L) tree.level.sendParticles(tree.charged ? ParticleTypes.WITCH : ParticleTypes.HAPPY_VILLAGER, tree.center.x, tree.center.y + 3.0, tree.center.z, tree.charged ? 28 : 10, 2.1, 2.0, 2.1, 0.02);
             if (now >= tree.expireTick) {
                 clearPlaced(tree.level, tree.visualBlocks);
                 if (owner != null) {
@@ -888,13 +966,18 @@ public final class PowerSystem {
     private static void spawnRootWaveStep(PendingRootWave wave, int step) {
         Vec3 center = findGroundPoint(wave.level, wave.start.add(wave.direction.scale(step + 1.0)));
         Vec3 right = new Vec3(-wave.direction.z, 0.0, wave.direction.x);
-        int halfWidth = 4 + wave.stage / 2;
+        int halfWidth = (wave.charged ? 6 : 4) + wave.stage / 2;
         List<PlacedBlock> blocks = new ArrayList<>();
         for (int side = -halfWidth; side <= halfWidth; side++) {
             Vec3 point = findGroundPoint(wave.level, center.add(right.scale(side)));
             BlockPos pos = BlockPos.containing(point);
             int height = 1 + ((step + side) & 1) + (wave.stage >= 2 && side % 3 == 0 ? 1 : 0);
-            for (int y = 0; y < height; y++) placeIfAir(wave.level, blocks, pos.above(y), y == 0 ? Blocks.MANGROVE_ROOTS.defaultBlockState() : Blocks.OAK_LOG.defaultBlockState());
+            for (int y = 0; y < height; y++) {
+                BlockState state = wave.charged
+                    ? (y == 0 ? Blocks.CRYING_OBSIDIAN.defaultBlockState() : Blocks.AMETHYST_BLOCK.defaultBlockState())
+                    : (y == 0 ? Blocks.MANGROVE_ROOTS.defaultBlockState() : Blocks.OAK_LOG.defaultBlockState());
+                placeIfAir(wave.level, blocks, pos.above(y), state);
+            }
         }
         NATURE_SHAPES.add(new TemporaryNatureShape(wave.level, blocks, wave.level.getGameTime() + 24L));
         ServerPlayer owner = wave.level.getServer().getPlayerList().getPlayer(wave.owner);
@@ -902,11 +985,11 @@ public final class PowerSystem {
         for (LivingEntity target : wave.level.getEntitiesOfClass(LivingEntity.class, hit)) {
             if (owner != null && (target == owner || protectedAlly(owner, target))) continue;
             if (!wave.hitTargets.add(target.getUUID())) continue;
-            target.hurtServer(wave.level, owner == null ? wave.level.damageSources().generic() : wave.level.damageSources().playerAttack(owner), 9.0F + wave.stage * 1.8F);
-            Vec3 push = wave.direction.scale(1.05 + wave.stage * 0.1);
+            target.hurtServer(wave.level, owner == null ? wave.level.damageSources().generic() : wave.level.damageSources().playerAttack(owner), AncientChargeSystem.damage(9.0F + wave.stage * 1.8F, wave.charged));
+            Vec3 push = wave.direction.scale(AncientChargeSystem.knockback(1.05 + wave.stage * 0.1, wave.charged));
             target.push(push.x, 0.62 + wave.stage * 0.05, push.z);
         }
-        wave.level.sendParticles(ParticleTypes.COMPOSTER, center.x, center.y + 0.8, center.z, 24, halfWidth * 0.65, 0.8, halfWidth * 0.65, 0.08);
+        wave.level.sendParticles(wave.charged ? ParticleTypes.WITCH : ParticleTypes.COMPOSTER, center.x, center.y + 0.8, center.z, wave.charged ? 48 : 24, halfWidth * 0.65, 0.8, halfWidth * 0.65, 0.08);
         if (step % 4 == 0) ServerNetworking.sendScreenShake(wave.level, center, 20.0, 0.65F, 7);
     }
 
@@ -954,11 +1037,11 @@ public final class PowerSystem {
         return point.distanceToSqr(start.add(segment.scale(projection)));
     }
 
-    private static void airBlast(ServerPlayer player, int stage) {
+    private static void airBlast(ServerPlayer player, int stage, boolean charged) {
         ServerLevel level = (ServerLevel) player.level();
         Vec3 origin = player.getEyePosition();
         Vec3 look = player.getLookAngle().normalize();
-        double range = 10.0 + stage * 2.0;
+        double range = AncientChargeSystem.radius(10.0 + stage * 2.0, charged);
         double minDot = 0.76 - stage * 0.04;
 
         AABB box = player.getBoundingBox().inflate(range);
@@ -968,8 +1051,8 @@ public final class PowerSystem {
             if (to.lengthSqr() > range * range) continue;
             Vec3 direction = to.normalize();
             if (direction.dot(look) < minDot) continue;
-            target.hurtServer(level, level.damageSources().playerAttack(player), 8.0F + stage * 1.5F);
-            Vec3 push = look.scale(1.3 + stage * 0.18);
+            target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(8.0F + stage * 1.5F, charged));
+            Vec3 push = look.scale(AncientChargeSystem.knockback(1.3 + stage * 0.18, charged));
             target.push(push.x, 0.35, push.z);
         }
 
@@ -984,16 +1067,16 @@ public final class PowerSystem {
         for (int i = 1; i <= (int) range; i++) {
             Vec3 point = origin.add(look.scale(i));
             double spread = 0.08 * i;
-            level.sendParticles(ParticleTypes.CLOUD, point.x, point.y, point.z, 4, spread, spread, spread, 0.03);
+            level.sendParticles(charged ? ParticleTypes.WITCH : ParticleTypes.CLOUD, point.x, point.y, point.z, charged ? 8 : 4, spread, spread, spread, 0.03);
         }
     }
 
-    private static void scheduleMeteors(ServerPlayer player, PlayerPowerData data, int stage) {
+    private static void scheduleMeteors(ServerPlayer player, PlayerPowerData data, int stage, boolean charged) {
         ServerLevel level = (ServerLevel) player.level();
         long now = level.getGameTime();
         Vec3 center = player.position();
         RandomSource random = level.getRandom();
-        int count = 10;
+        int count = charged ? 20 : 10;
 
         player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 36, 6, false, true, true));
         player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 36, 4, false, true, true));
@@ -1001,7 +1084,7 @@ public final class PowerSystem {
 
         for (int i = 0; i < count; i++) {
             double angle = random.nextDouble() * Math.PI * 2.0;
-            double distance = 3.0 + Math.sqrt(random.nextDouble()) * (9.0 + stage);
+            double distance = 3.0 + Math.sqrt(random.nextDouble()) * (charged ? 13.0 + stage : 9.0 + stage);
             int x = (int) Math.floor(center.x + Math.cos(angle) * distance);
             int z = (int) Math.floor(center.z + Math.sin(angle) * distance);
             int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
@@ -1015,11 +1098,11 @@ public final class PowerSystem {
                 impact.z + Math.sin(approachAngle) * horizontalOffset
             );
 
-            long spawnTick = now + i * 5L;
+            long spawnTick = now + i * (charged ? 3L : 5L);
             long impactTick = spawnTick + 50L + random.nextInt(9);
-            int craterRadius = 5 + stage / 2;
-            float damage = 23.0F + stage * 3.5F;
-            METEORS.add(new PendingMeteor(level, player.getUUID(), startPosition, impact, spawnTick, impactTick, craterRadius, damage));
+            int craterRadius = 5 + stage / 2 + (charged ? 1 : 0);
+            float damage = AncientChargeSystem.damage(23.0F + stage * 3.5F, charged);
+            METEORS.add(new PendingMeteor(level, player.getUUID(), startPosition, impact, spawnTick, impactTick, craterRadius, damage, charged));
         }
     }
 
@@ -1045,12 +1128,12 @@ public final class PowerSystem {
                 );
 
                 placeMeteorVisual(meteor, position);
-                level.sendParticles(ParticleTypes.FLAME, position.x, position.y, position.z, 13, 0.55, 0.55, 0.55, 0.05);
-                level.sendParticles(ParticleTypes.LARGE_SMOKE, position.x, position.y + 0.4, position.z, 8, 0.7, 0.7, 0.7, 0.035);
-                level.sendParticles(ParticleTypes.LAVA, position.x, position.y, position.z, 3, 0.35, 0.35, 0.35, 0.0);
+                level.sendParticles(meteor.charged ? ParticleTypes.WITCH : ParticleTypes.FLAME, position.x, position.y, position.z, meteor.charged ? 25 : 13, 0.55, 0.55, 0.55, 0.05);
+                level.sendParticles(ParticleTypes.LARGE_SMOKE, position.x, position.y + 0.4, position.z, meteor.charged ? 14 : 8, 0.7, 0.7, 0.7, 0.035);
+                level.sendParticles(meteor.charged ? ParticleTypes.SCULK_SOUL : ParticleTypes.LAVA, position.x, position.y, position.z, meteor.charged ? 9 : 3, 0.35, 0.35, 0.35, 0.0);
 
                 if (now % 4L == 0L) {
-                    drawRing(level, meteor.impact.add(0.0, 0.15, 0.0), 1.8 + meteor.radius * 0.18, ParticleTypes.FLAME, 20);
+                    drawRing(level, meteor.impact.add(0.0, 0.15, 0.0), 1.8 + meteor.radius * 0.18, meteor.charged ? ParticleTypes.WITCH : ParticleTypes.FLAME, meteor.charged ? 30 : 20);
                 }
                 continue;
             }
@@ -1071,9 +1154,13 @@ public final class PowerSystem {
             center.east(), center.west(), center.north(), center.south(),
             center.above(), center.below()
         };
-        for (BlockPos pos : shape) {
+        for (int i = 0; i < shape.length; i++) {
+            BlockPos pos = shape[i];
             if (!meteor.level.getBlockState(pos).isAir()) continue;
-            meteor.level.setBlockAndUpdate(pos, Blocks.MAGMA_BLOCK.defaultBlockState());
+            BlockState visual = meteor.charged && (i == 0 || i % 3 == 0)
+                ? Blocks.CRYING_OBSIDIAN.defaultBlockState()
+                : Blocks.MAGMA_BLOCK.defaultBlockState();
+            meteor.level.setBlockAndUpdate(pos, visual);
             meteor.visualBlocks.add(new BlockPos(pos.getX(), pos.getY(), pos.getZ()));
         }
         meteor.visualCenter = new BlockPos(center.getX(), center.getY(), center.getZ());
@@ -1081,7 +1168,7 @@ public final class PowerSystem {
 
     private static void clearMeteorVisual(PendingMeteor meteor) {
         for (BlockPos pos : meteor.visualBlocks) {
-            if (meteor.level.getBlockState(pos).is(Blocks.MAGMA_BLOCK)) {
+            if (meteor.level.getBlockState(pos).is(Blocks.MAGMA_BLOCK) || meteor.level.getBlockState(pos).is(Blocks.CRYING_OBSIDIAN)) {
                 meteor.level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
             }
         }
@@ -1104,6 +1191,7 @@ public final class PowerSystem {
         ROOT_WAVES.clear();
         NATURE_SHAPES.clear();
         LAST_FLIGHT_POSITION.clear();
+        AncientChargeSystem.clearPendingBeams();
     }
 
     private static void impactMeteor(PendingMeteor meteor) {
@@ -1114,8 +1202,8 @@ public final class PowerSystem {
         int radius = meteor.radius;
 
         level.sendParticles(ParticleTypes.EXPLOSION, impact.x, impact.y + 0.6, impact.z, 14, 1.9, 1.2, 1.9, 0.08);
-        level.sendParticles(ParticleTypes.FLAME, impact.x, impact.y + 0.6, impact.z, 130, 3.2, 1.8, 3.2, 0.16);
-        level.sendParticles(ParticleTypes.LARGE_SMOKE, impact.x, impact.y + 1.0, impact.z, 55, 2.7, 2.1, 2.7, 0.08);
+        level.sendParticles(meteor.charged ? ParticleTypes.WITCH : ParticleTypes.FLAME, impact.x, impact.y + 0.6, impact.z, meteor.charged ? 220 : 130, 3.2, 1.8, 3.2, 0.16);
+        level.sendParticles(ParticleTypes.LARGE_SMOKE, impact.x, impact.y + 1.0, impact.z, meteor.charged ? 85 : 55, 2.7, 2.1, 2.7, 0.08);
         level.playSound(null, BlockPos.containing(impact), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 2.2F, 0.62F);
         ServerNetworking.sendScreenShake(level, impact, 30.0, 1.45F, 14);
 
@@ -1132,7 +1220,7 @@ public final class PowerSystem {
             }
             Vec3 push = target.position().subtract(impact);
             if (push.lengthSqr() > 0.0001) {
-                push = push.normalize().scale(2.05);
+                push = push.normalize().scale(meteor.charged ? 2.65 : 2.05);
                 target.push(push.x, 0.92, push.z);
             }
             target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), 120));
@@ -1218,8 +1306,8 @@ public final class PowerSystem {
     }
 
     private static boolean creditMastery(ServerPlayer player, PlayerPowerData data, int power, long now, long minimumInterval) {
-        long[] credits = LAST_MASTERY_CREDIT.computeIfAbsent(player.getUUID(), ignored -> new long[5]);
-        int index = Math.max(0, Math.min(4, power - 1));
+        long[] credits = LAST_MASTERY_CREDIT.computeIfAbsent(player.getUUID(), ignored -> new long[6]);
+        int index = Math.max(0, Math.min(5, power - 1));
         if (now - credits[index] < minimumInterval) return false;
         credits[index] = now;
         recordMasteryUse(player, data, power);
@@ -1250,6 +1338,7 @@ public final class PowerSystem {
         private final Vec3 velocity;
         private final long expireTick;
         private final int stage;
+        private final boolean charged;
         private final List<BlockPos> visualBlocks = new ArrayList<>();
 
         private PendingHellfireOrb(
@@ -1258,7 +1347,8 @@ public final class PowerSystem {
             Vec3 position,
             Vec3 velocity,
             long expireTick,
-            int stage
+            int stage,
+            boolean charged
         ) {
             this.level = level;
             this.owner = owner;
@@ -1266,6 +1356,7 @@ public final class PowerSystem {
             this.velocity = velocity;
             this.expireTick = expireTick;
             this.stage = stage;
+            this.charged = charged;
         }
     }
 
@@ -1278,9 +1369,10 @@ public final class PowerSystem {
         private final Vec3 velocity;
         private final long expireTick;
         private final int stage;
+        private final boolean charged;
         private final List<PlacedBlock> visualBlocks = new ArrayList<>();
-        private PendingNatureSeed(ServerLevel level, UUID owner, Vec3 position, Vec3 velocity, long expireTick, int stage) {
-            this.level = level; this.owner = owner; this.position = position; this.velocity = velocity; this.expireTick = expireTick; this.stage = stage;
+        private PendingNatureSeed(ServerLevel level, UUID owner, Vec3 position, Vec3 velocity, long expireTick, int stage, boolean charged) {
+            this.level = level; this.owner = owner; this.position = position; this.velocity = velocity; this.expireTick = expireTick; this.stage = stage; this.charged = charged;
         }
     }
 
@@ -1290,9 +1382,10 @@ public final class PowerSystem {
         private final Vec3 center;
         private final long expireTick;
         private final int stage;
+        private final boolean charged;
         private final List<PlacedBlock> visualBlocks = new ArrayList<>();
-        private PendingVineTrap(ServerLevel level, UUID owner, Vec3 center, long expireTick, int stage) {
-            this.level = level; this.owner = owner; this.center = center; this.expireTick = expireTick; this.stage = stage;
+        private PendingVineTrap(ServerLevel level, UUID owner, Vec3 center, long expireTick, int stage, boolean charged) {
+            this.level = level; this.owner = owner; this.center = center; this.expireTick = expireTick; this.stage = stage; this.charged = charged;
         }
     }
 
@@ -1302,9 +1395,10 @@ public final class PowerSystem {
         private final Vec3 center;
         private final long expireTick;
         private final int stage;
+        private final boolean charged;
         private final List<PlacedBlock> visualBlocks = new ArrayList<>();
-        private PendingLifeTree(ServerLevel level, UUID owner, Vec3 center, long expireTick, int stage) {
-            this.level = level; this.owner = owner; this.center = center; this.expireTick = expireTick; this.stage = stage;
+        private PendingLifeTree(ServerLevel level, UUID owner, Vec3 center, long expireTick, int stage, boolean charged) {
+            this.level = level; this.owner = owner; this.center = center; this.expireTick = expireTick; this.stage = stage; this.charged = charged;
         }
     }
 
@@ -1316,10 +1410,11 @@ public final class PowerSystem {
         private final long startTick;
         private final int maxSteps;
         private final int stage;
+        private final boolean charged;
         private int nextStep;
         private final java.util.Set<UUID> hitTargets = new java.util.HashSet<>();
-        private PendingRootWave(ServerLevel level, UUID owner, Vec3 start, Vec3 direction, long startTick, int maxSteps, int stage) {
-            this.level = level; this.owner = owner; this.start = start; this.direction = direction; this.startTick = startTick; this.maxSteps = maxSteps; this.stage = stage;
+        private PendingRootWave(ServerLevel level, UUID owner, Vec3 start, Vec3 direction, long startTick, int maxSteps, int stage, boolean charged) {
+            this.level = level; this.owner = owner; this.start = start; this.direction = direction; this.startTick = startTick; this.maxSteps = maxSteps; this.stage = stage; this.charged = charged;
         }
     }
 
@@ -1341,6 +1436,7 @@ public final class PowerSystem {
         private final long impactTick;
         private final int radius;
         private final float damage;
+        private final boolean charged;
         private final List<BlockPos> visualBlocks = new ArrayList<>();
         private BlockPos visualCenter;
 
@@ -1352,7 +1448,8 @@ public final class PowerSystem {
             long spawnTick,
             long impactTick,
             int radius,
-            float damage
+            float damage,
+            boolean charged
         ) {
             this.level = level;
             this.owner = owner;
@@ -1362,6 +1459,7 @@ public final class PowerSystem {
             this.impactTick = impactTick;
             this.radius = radius;
             this.damage = damage;
+            this.charged = charged;
         }
     }
 }

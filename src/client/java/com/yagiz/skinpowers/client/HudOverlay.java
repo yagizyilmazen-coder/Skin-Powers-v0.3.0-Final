@@ -19,6 +19,7 @@ public final class HudOverlay {
         ClientConfig config = ClientConfig.get();
 
         drawShakeOverlay(graphics, screenWidth, screenHeight, config);
+        drawAncientStatus(graphics, client, screenWidth);
 
         if (powerClass == PowerClass.WARDEN && ClientState.wardenHuntTicks() > 0) {
             graphics.fill(0, 0, screenWidth, 4, 0xAA35D7D0);
@@ -71,6 +72,29 @@ public final class HudOverlay {
         };
         int statusY = Math.min(y + panelHeight - 11, y + 40);
         graphics.text(client.font, fit(client, status, panelWidth - 18), x + 9, statusY, 0xFFB8C8D3, false);
+    }
+
+
+    private static void drawAncientStatus(GuiGraphicsExtractor graphics, Minecraft client, int screenWidth) {
+        if (ClientState.ancientChargeAvailable() && ClientState.ancientChargeTicks() > 0) {
+            int width = Math.min(268, Math.max(190, screenWidth - 24));
+            int left = (screenWidth - width) / 2;
+            int top = 7;
+            graphics.fill(left, top, left + width, top + 34, 0xDD12071D);
+            graphics.fill(left, top, left + 5, top + 34, 0xFFB24DFF);
+            graphics.outline(left, top, width, 34, 0xFF65E7E0);
+            String title = "ANTİK ŞEHİR ŞARJI • 1 GÜÇ HAKKI";
+            graphics.text(client.font, fit(client, title, width - 18), left + 10, top + 7, 0xFFFFFFFF, true);
+            String timer = String.format(java.util.Locale.ROOT, "%.1f sn • bekleme süreleri kapalı", ClientState.ancientChargeTicks() / 20.0);
+            graphics.text(client.font, fit(client, timer, width - 18), left + 10, top + 20, 0xFFCFA8FF, false);
+        } else if (ClientState.ancientExhaustionTicks() > 0) {
+            int width = Math.min(222, Math.max(170, screenWidth - 24));
+            int left = (screenWidth - width) / 2;
+            graphics.fill(left, 7, left + width, 7 + 23, 0xD0180C16);
+            graphics.outline(left, 7, width, 23, 0xFF7C506F);
+            String text = String.format(java.util.Locale.ROOT, "ANTİK ÇÖKÜŞ • %.1f sn", ClientState.ancientExhaustionTicks() / 20.0);
+            graphics.text(client.font, text, left + (width - client.font.width(text)) / 2, 15, 0xFFE2B7DA, true);
+        }
     }
 
     private static void drawShakeOverlay(GuiGraphicsExtractor graphics, int width, int height, ClientConfig config) {

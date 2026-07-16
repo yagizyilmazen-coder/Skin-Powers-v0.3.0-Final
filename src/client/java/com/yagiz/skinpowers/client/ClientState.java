@@ -16,7 +16,10 @@ public final class ClientState {
     private static int temporaryElytraTicks;
     private static int wardenHuntTicks;
     private static int natureTreeTicks;
-    private static int[] masteryUses = new int[5];
+    private static int ancientChargeTicks;
+    private static int ancientExhaustionTicks;
+    private static boolean ancientChargeAvailable;
+    private static int[] masteryUses = new int[6];
     private static int xpLevel;
     private static String powerName = "-";
     private static boolean receivedState;
@@ -30,15 +33,19 @@ public final class ClientState {
             State state = GSON.fromJson(json, State.class);
             if (state == null) return;
             powerClass = PowerClass.safeValueOf(state.powerClass);
-            unlockedLevel = Math.max(0, Math.min(5, state.unlockedLevel));
-            selectedPower = Math.max(1, Math.min(5, state.selectedPower));
+            int maximum = PowerCatalog.maxLevel(powerClass);
+            unlockedLevel = Math.max(0, Math.min(maximum, state.unlockedLevel));
+            selectedPower = Math.max(1, Math.min(maximum, state.selectedPower));
             cooldownTicks = Math.max(0, state.cooldownTicks);
             passiveEnabled = state.passiveEnabled;
             visionEnabled = state.visionEnabled;
             temporaryElytraTicks = Math.max(0, state.temporaryElytraTicks);
             wardenHuntTicks = Math.max(0, state.wardenHuntTicks);
             natureTreeTicks = Math.max(0, state.natureTreeTicks);
-            masteryUses = state.masteryUses == null || state.masteryUses.length != 5 ? new int[5] : state.masteryUses;
+            ancientChargeTicks = Math.max(0, state.ancientChargeTicks);
+            ancientExhaustionTicks = Math.max(0, state.ancientExhaustionTicks);
+            ancientChargeAvailable = state.ancientChargeAvailable && ancientChargeTicks > 0;
+            masteryUses = normalizeMastery(state.masteryUses);
             xpLevel = Math.max(0, state.xpLevel);
             powerName = state.powerName == null ? PowerCatalog.powerName(powerClass, selectedPower) : state.powerName;
             receivedState = true;
@@ -47,10 +54,15 @@ public final class ClientState {
         }
     }
 
+    private static int[] normalizeMastery(int[] input) {
+        int[] result = new int[6];
+        if (input != null) System.arraycopy(input, 0, result, 0, Math.min(input.length, result.length));
+        return result;
+    }
+
     public static void startShake(float strength, int durationTicks) {
         if (durationTicks <= 0 || strength <= 0.0F) return;
         shakeTicks = Math.max(shakeTicks, durationTicks);
-        // Art arda düşen meteorların sarsıntısı görünür kalsın, fakat kontrol edilemez seviyede birikmesin.
         shakeStrength = Math.min(2.4F, Math.max(strength, shakeStrength * 0.88F + strength * 0.22F));
     }
 
@@ -59,6 +71,9 @@ public final class ClientState {
         if (temporaryElytraTicks > 0) temporaryElytraTicks--;
         if (wardenHuntTicks > 0) wardenHuntTicks--;
         if (natureTreeTicks > 0) natureTreeTicks--;
+        if (ancientChargeTicks > 0) ancientChargeTicks--;
+        if (ancientExhaustionTicks > 0) ancientExhaustionTicks--;
+        if (ancientChargeTicks <= 0) ancientChargeAvailable = false;
         if (shakeTicks > 0) {
             shakeTicks--;
             if (shakeTicks == 0) shakeStrength = 0.0F;
@@ -75,7 +90,10 @@ public final class ClientState {
         temporaryElytraTicks = 0;
         wardenHuntTicks = 0;
         natureTreeTicks = 0;
-        masteryUses = new int[5];
+        ancientChargeTicks = 0;
+        ancientExhaustionTicks = 0;
+        ancientChargeAvailable = false;
+        masteryUses = new int[6];
         xpLevel = 0;
         powerName = "-";
         receivedState = false;
@@ -92,6 +110,9 @@ public final class ClientState {
     public static int temporaryElytraTicks() { return temporaryElytraTicks; }
     public static int wardenHuntTicks() { return wardenHuntTicks; }
     public static int natureTreeTicks() { return natureTreeTicks; }
+    public static int ancientChargeTicks() { return ancientChargeTicks; }
+    public static int ancientExhaustionTicks() { return ancientExhaustionTicks; }
+    public static boolean ancientChargeAvailable() { return ancientChargeAvailable; }
     public static int xpLevel() { return xpLevel; }
     public static String powerName() { return powerName; }
     public static boolean receivedState() { return receivedState; }
@@ -99,7 +120,7 @@ public final class ClientState {
     public static float shakeStrength() { return shakeStrength; }
 
     public static int masteryUses(int level) {
-        return masteryUses[Math.max(0, Math.min(4, level - 1))];
+        return masteryUses[Math.max(0, Math.min(5, level - 1))];
     }
 
     public static int masteryStage(int level) {
@@ -116,6 +137,9 @@ public final class ClientState {
         private int temporaryElytraTicks;
         private int wardenHuntTicks;
         private int natureTreeTicks;
+        private int ancientChargeTicks;
+        private int ancientExhaustionTicks;
+        private boolean ancientChargeAvailable;
         private int[] masteryUses;
         private int xpLevel;
         private String powerName;

@@ -26,8 +26,9 @@ public final class PowerMenuScreen extends Screen {
         int unlocked = ClientState.unlockedLevel();
         int selected = ClientState.selectedPower();
         int next = unlocked + 1;
+        int maximum = PowerCatalog.maxLevel(ClientState.powerClass());
 
-        for (int level = 1; level <= 5; level++) {
+        for (int level = 1; level <= maximum; level++) {
             int y = layout.rowTop() + (level - 1) * (layout.rowHeight() + layout.gap());
             int buttonX = layout.listLeft() + layout.listWidth() - 104;
             if (level <= unlocked) {
@@ -60,11 +61,12 @@ public final class PowerMenuScreen extends Screen {
         drawBackgroundDetails(graphics, powerClass, colors[2], now);
         drawHeader(graphics, layout, powerClass, colors);
 
-        int contentBottom = layout.rowTop() + 5 * layout.rowHeight() + 4 * layout.gap();
+        int maximum = PowerCatalog.maxLevel(powerClass);
+        int contentBottom = layout.rowTop() + maximum * layout.rowHeight() + (maximum - 1) * layout.gap();
         graphics.fill(layout.listLeft() - 8, layout.rowTop() - 8, layout.listLeft() + layout.listWidth() + 8, contentBottom + 8, 0xC9070B11);
         graphics.outline(layout.listLeft() - 8, layout.rowTop() - 8, layout.listWidth() + 16, contentBottom - layout.rowTop() + 16, withAlpha(colors[2], 165));
 
-        for (int level = 1; level <= 5; level++) {
+        for (int level = 1; level <= maximum; level++) {
             int baseY = layout.rowTop() + (level - 1) * (layout.rowHeight() + layout.gap());
             int y = baseY + (int) ((1.0F - appear) * (20 + level * 4));
             drawPowerRow(graphics, layout, powerClass, colors, level, y, now);
@@ -72,7 +74,8 @@ public final class PowerMenuScreen extends Screen {
 
         if (layout.wide()) {
             drawDetailPanel(graphics, layout, powerClass, colors, contentBottom, now);
-        } else {
+        } else if (contentBottom + 44 <= height) {
+            // Çok kısa pencerelerde alt bilgi satırı altıncı Warden kartıyla çakışmasın.
             drawCompactFooter(graphics, layout, powerClass, colors, contentBottom);
         }
         String signature = "Made by Yankalan";
@@ -142,22 +145,27 @@ public final class PowerMenuScreen extends Screen {
         graphics.outline(chipX, y + 6, chipWidth, 13, unlocked ? withAlpha(colors[2], 180) : 0x5559636B);
         graphics.text(font, stageName, chipX + 6, y + 9, unlocked ? 0xFFFFFFFF : 0xFF77828A, false);
 
-        String description = fit(PowerCatalog.powerDescription(powerClass, level), Math.max(100, textRight - textX));
-        graphics.text(font, description, textX, y + 24, unlocked ? 0xFFC7D4DC : 0xFF707A82, false);
-
-        int barY = y + layout.rowHeight() - 10;
+        boolean compactRow = layout.rowHeight() < 52;
+        int barY = y + layout.rowHeight() - 8;
         int barWidth = Math.max(90, textRight - textX);
+        String usage = stage >= 3 ? uses + " kullanım • TAM" : uses + "/" + PowerCatalog.nextMasteryTarget(uses) + " kullanım";
+        String locked = level == ClientState.unlockedLevel() + 1
+            ? PowerCatalog.xpCostForLevel(powerClass, level) + " XP ile açılır"
+            : "Önceki seviye gerekli";
+
+        if (compactRow) {
+            String compactText = unlocked ? usage : locked;
+            graphics.text(font, fit(compactText, barWidth), textX, y + 25, unlocked ? 0xFF91A8B5 : 0xFFB7786D, false);
+        } else {
+            String description = fit(PowerCatalog.powerDescription(powerClass, level), Math.max(100, textRight - textX));
+            graphics.text(font, description, textX, y + 24, unlocked ? 0xFFC7D4DC : 0xFF707A82, false);
+            graphics.text(font, unlocked ? usage : locked, textX, barY - 10, unlocked ? 0xFF91A8B5 : 0xFFB7786D, false);
+        }
+
         graphics.fill(textX, barY, textX + barWidth, barY + 4, 0xFF202933);
         if (unlocked) {
             int filled = Math.max(2, (int) (barWidth * PowerCatalog.masteryProgress(uses)));
             graphics.fill(textX, barY, textX + Math.min(barWidth, filled), barY + 4, colors[2]);
-            String usage = stage >= 3 ? uses + " kullanım • TAM" : uses + "/" + PowerCatalog.nextMasteryTarget(uses) + " kullanım";
-            graphics.text(font, usage, textX, barY - 10, 0xFF91A8B5, false);
-        } else {
-            String locked = level == ClientState.unlockedLevel() + 1
-                ? PowerCatalog.xpCostForLevel(powerClass, level) + " XP ile açılır"
-                : "Önceki seviye gerekli";
-            graphics.text(font, locked, textX, barY - 10, 0xFFB7786D, false);
         }
 
         if (selected) {
@@ -264,6 +272,7 @@ public final class PowerMenuScreen extends Screen {
         if (powerClass == PowerClass.FLIGHT && level == 1) return "R veya Y: aç/kapat";
         if (powerClass == PowerClass.FLIGHT && level == 3) return "R veya çift boşluk";
         if (powerClass == PowerClass.FLIGHT && level == 5) return "Otomatik çarpışma";
+        if (powerClass == PowerClass.WARDEN && level == 6) return "R: başka oyuncuya ışın";
         if (powerClass == PowerClass.FIRE && (level == 1 || level == 2)) return "Otomatik";
         return "R: kullan";
     }
@@ -274,6 +283,9 @@ public final class PowerMenuScreen extends Screen {
         }
         if (powerClass == PowerClass.FLIGHT && level == 2 && ClientState.temporaryElytraTicks() > 0) {
             return String.format(java.util.Locale.ROOT, "Elytra %.1f sn", ClientState.temporaryElytraTicks() / 20.0);
+        }
+        if (powerClass == PowerClass.WARDEN && level == 6) {
+            return "20 sn • tek güç • 120 sn bekleme";
         }
         if (powerClass == PowerClass.WARDEN && level == 4 && ClientState.wardenHuntTicks() > 0) {
             return String.format(java.util.Locale.ROOT, "Sculk Avı %.1f sn", ClientState.wardenHuntTicks() / 20.0);
@@ -324,11 +336,12 @@ public final class PowerMenuScreen extends Screen {
         int totalLeft = (width - totalWidth) / 2;
         int listLeft = totalLeft;
         int detailLeft = listLeft + listWidth + gapToDetail;
-        int rowTop = 78;
-        int gap = 7;
-        int footerSpace = wide ? 26 : 52;
-        int available = Math.max(250, height - rowTop - footerSpace - gap * 4);
-        int rowHeight = Math.max(48, Math.min(66, available / 5));
+        int rowTop = height < 430 ? 68 : 78;
+        int powerCount = PowerCatalog.maxLevel(ClientState.powerClass());
+        int gap = powerCount >= 6 ? (height < 430 ? 3 : 5) : 7;
+        int footerSpace = wide ? 26 : (height < 430 ? 16 : 52);
+        int available = Math.max(powerCount * 38, height - rowTop - footerSpace - gap * (powerCount - 1));
+        int rowHeight = Math.max(38, Math.min(66, available / powerCount));
         return new Layout(totalLeft, totalWidth, listLeft, listWidth, detailLeft, detailWidth, rowTop, rowHeight, gap, wide);
     }
 
@@ -366,7 +379,8 @@ public final class PowerMenuScreen extends Screen {
             case 2 -> "II";
             case 3 -> "III";
             case 4 -> "IV";
-            default -> "V";
+            case 5 -> "V";
+            default -> "VI";
         };
     }
 

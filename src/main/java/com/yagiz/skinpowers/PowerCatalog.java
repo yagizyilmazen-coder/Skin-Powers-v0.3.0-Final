@@ -3,58 +3,67 @@ package com.yagiz.skinpowers;
 public final class PowerCatalog {
     public static final int[] XP_COSTS = {5, 15, 30, 40, 50};
     public static final int[] NATURE_XP_COSTS = {10, 20, 30, 40, 50};
+    public static final int WARDEN_ANCIENT_CHARGE_XP = 70;
 
     private static final String[][] NAMES = {
-        {"-", "-", "-", "-", "-"},
-        {"Warden Zırhı", "Yer Sarsıntısı", "Sonik Patlama", "Sculk Avı", "Warden Uyanışı"},
-        {"Yavaş Düşüş", "Süreli Elytra", "Roketsiz Kalkış", "Hava Patlaması", "Gökyüzü Hâkimiyeti"},
-        {"Ateş Bağışıklığı", "Alevli Yakın Dövüş", "Ateş Çemberi", "Cehennem Küresi", "Meteor Yağmuru"},
-        {"Doğal Yenilenme", "Dikenli Tohum", "Sarmaşık Kapanı", "Yaşam Ağacı", "Kadim Orman Uyanışı"}
+        {"-", "-", "-", "-", "-", "-"},
+        {"Warden Zırhı", "Yer Sarsıntısı", "Sonik Patlama", "Sculk Avı", "Warden Uyanışı", "Şarj Et Beni Antik Şehir"},
+        {"Yavaş Düşüş", "Süreli Elytra", "Roketsiz Kalkış", "Hava Patlaması", "Gökyüzü Hâkimiyeti", "-"},
+        {"Ateş Bağışıklığı", "Alevli Yakın Dövüş", "Ateş Çemberi", "Cehennem Küresi", "Meteor Yağmuru", "-"},
+        {"Doğal Yenilenme", "Dikenli Tohum", "Sarmaşık Kapanı", "Yaşam Ağacı", "Kadim Orman Uyanışı", "-"}
     };
 
     private static final String[][] DESCRIPTIONS = {
-        {"", "", "", "", ""},
+        {"", "", "", "", "", ""},
         {
             "Uzun süre Güç ve Direnç kazanırsın.",
             "Geniş alandaki düşmanları ezer, savurur ve zayıflatır.",
             "Önündeki hedeflere yüksek hasarlı sonik enerji yollar.",
             "Yakındaki düşmanları duvar arkasından parlatır ve avlar.",
-            "Güç, direnç, yenilenme ve hasar aurası kazandırır."
+            "Güç, direnç, yenilenme ve hasar aurası kazandırır.",
+            "Dört sculk kolu tek ışında birleşir; vurduğu oyuncuya 20 saniyelik tek kullanımlık Antik Şehir Şarjı verir."
         },
         {
             "Düşüş hasarını engeller; Y ile açıp kapatılır.",
             "R ile göğüs yuvasına süreli Elytra takar; süre bitince silinir.",
             "Geçici Elytra açıkken çift zıplamayla havalanırsın.",
             "Öndeki canlıları ve mermileri güçlü biçimde savurur.",
-            "Süreli Elytra ile uçuş yolundaki hedeflere çarpar; darbeyi yumuşatıp hasar verir."
+            "Süreli Elytra ile uçuş yolundaki hedeflere çarpar; darbeyi yumuşatıp hasar verir.",
+            ""
         },
         {
             "Ateş ve lav hasarına karşı sürekli koruma.",
             "Yakın dövüş vuruşlarına alev ve ek hasar ekler.",
             "Çevrende yakan ve hasar veren geniş bir halka.",
             "Baktığın yöne ilerleyen görünür büyük bir ateş küresi fırlatır.",
-            "Çevrene 10 yuvarlak magma meteoru indirir ve kraterler açar."
+            "Çevrene 10 yuvarlak magma meteoru indirir ve kraterler açar.",
+            ""
         },
         {
             "Doğal zeminde savaş dışında yavaşça iyileşirsin.",
             "Havada görünen dikenli tohumu fırlatır; hedefi zehirleyip kökler.",
             "Bakılan yerde kalın kökler çıkarır; düşmanları tutup hasar verir.",
             "Geçici bir ağaç büyütür; dostları iyileştirip düşmanları yavaşlatır.",
-            "İleri ilerleyen dev kök dalgası düşmanları vurur ve savurur."
+            "İleri ilerleyen dev kök dalgası düşmanları vurur ve savurur.",
+            ""
         }
     };
 
     private PowerCatalog() {}
 
+    public static int maxLevel(PowerClass powerClass) {
+        return powerClass == PowerClass.WARDEN ? 6 : 5;
+    }
+
     public static String powerName(PowerClass powerClass, int oneBasedLevel) {
         int classIndex = Math.max(0, Math.min(NAMES.length - 1, powerClass.ordinal()));
-        int levelIndex = Math.max(0, Math.min(4, oneBasedLevel - 1));
+        int levelIndex = Math.max(0, Math.min(5, oneBasedLevel - 1));
         return NAMES[classIndex][levelIndex];
     }
 
     public static String powerDescription(PowerClass powerClass, int oneBasedLevel) {
         int classIndex = Math.max(0, Math.min(DESCRIPTIONS.length - 1, powerClass.ordinal()));
-        int levelIndex = Math.max(0, Math.min(4, oneBasedLevel - 1));
+        int levelIndex = Math.max(0, Math.min(5, oneBasedLevel - 1));
         return DESCRIPTIONS[classIndex][levelIndex];
     }
 
@@ -63,7 +72,8 @@ public final class PowerCatalog {
     }
 
     public static int xpCostForLevel(PowerClass powerClass, int level) {
-        if (level < 1 || level > 5) return Integer.MAX_VALUE;
+        if (level < 1 || level > maxLevel(powerClass)) return Integer.MAX_VALUE;
+        if (powerClass == PowerClass.WARDEN && level == 6) return WARDEN_ANCIENT_CHARGE_XP;
         int[] costs = powerClass == PowerClass.NATURE ? NATURE_XP_COSTS : XP_COSTS;
         return costs[level - 1];
     }
