@@ -76,16 +76,20 @@ public final class HudOverlay {
 
 
     private static void drawAncientStatus(GuiGraphicsExtractor graphics, Minecraft client, int screenWidth) {
-        if (ClientState.ancientChargeAvailable() && ClientState.ancientChargeTicks() > 0) {
-            int width = Math.min(268, Math.max(190, screenWidth - 24));
+        if (ClientState.ancientChargeTicks() > 0) {
+            int width = Math.min(292, Math.max(202, screenWidth - 24));
             int left = (screenWidth - width) / 2;
             int top = 7;
             graphics.fill(left, top, left + width, top + 34, 0xDD12071D);
             graphics.fill(left, top, left + 5, top + 34, 0xFFB24DFF);
             graphics.outline(left, top, width, 34, 0xFF65E7E0);
-            String title = "ANTİK ŞEHİR ŞARJI • 1 GÜÇ HAKKI";
+            String title = ClientState.ancientChargeAvailable()
+                ? "ANTİK ŞEHİR ŞARJI • 1 GÜÇ HAKKI"
+                : "ANTİK ŞEHİR ŞARJI • GÜÇ KULLANILDI";
             graphics.text(client.font, fit(client, title, width - 18), left + 10, top + 7, 0xFFFFFFFF, true);
-            String timer = String.format(java.util.Locale.ROOT, "%.1f sn • bekleme süreleri kapalı", ClientState.ancientChargeTicks() / 20.0);
+            String timer = ClientState.ancientChargeAvailable()
+                ? String.format(java.util.Locale.ROOT, "%.1f sn • bekleme süreleri kapalı", ClientState.ancientChargeTicks() / 20.0)
+                : String.format(java.util.Locale.ROOT, "Çöküşe %.1f sn", ClientState.ancientChargeTicks() / 20.0);
             graphics.text(client.font, fit(client, timer, width - 18), left + 10, top + 20, 0xFFCFA8FF, false);
         } else if (ClientState.ancientExhaustionTicks() > 0) {
             int width = Math.min(222, Math.max(170, screenWidth - 24));

@@ -65,7 +65,7 @@ public final class SkinAnalyzer {
 
                 HttpRequest request = HttpRequest.newBuilder(URI.create(skinUrl))
                     .timeout(Duration.ofSeconds(8))
-                    .header("User-Agent", "SkinPowers/0.3.7")
+                    .header("User-Agent", "SkinPowers/4.0.0")
                     .GET()
                     .build();
                 HttpResponse<byte[]> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofByteArray());
@@ -222,7 +222,7 @@ public final class SkinAnalyzer {
         HttpRequest request = HttpRequest.newBuilder(
                 URI.create("https://sessionserver.mojang.com/session/minecraft/profile/" + compactUuid + "?unsigned=false"))
             .timeout(Duration.ofSeconds(7))
-            .header("User-Agent", "SkinPowers/0.3.7")
+            .header("User-Agent", "SkinPowers/4.0.0")
             .GET()
             .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));

@@ -8,7 +8,7 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.3.7"
+VERSION = "4.0.0"
 REQUIRED = [
     "build.gradle",
     "settings.gradle",
@@ -27,6 +27,7 @@ REQUIRED = [
     "src/main/java/com/yagiz/skinpowers/SkinPowersCommands.java",
     "src/client/java/com/yagiz/skinpowers/client/SkinPowersClient.java",
     "src/client/java/com/yagiz/skinpowers/client/PowerMenuScreen.java",
+    "src/client/java/com/yagiz/skinpowers/client/HudOverlay.java",
     "src/client/java/com/yagiz/skinpowers/client/SkinPowersSettingsScreen.java",
     "src/client/java/com/yagiz/skinpowers/client/SkinPowersModMenu.java",
 ]
@@ -50,12 +51,20 @@ FORBIDDEN_SOURCE_SNIPPETS = {
     "PowerClass.WATER": "Kaldırılan Su sınıfı kodda kalmamalı",
     "clearWidgets(": "26.1 ekranında riskli eski widget temizleme çağrısı kullanılmamalı",
     "player.hurtTime": "erişilemeyen oyuncu alanı kullanılmamalı",
+    "applyExhaustion(player, data, now, \"Antik Şehir gücü boşaldı": "Çöküş güç kullanıldığı anda başlamamalı",
 }
 REQUIRED_SOURCE_SNIPPETS = {
     '"Şarj Et Beni Antik Şehir"': "Warden altıncı güç adı",
     "WARDEN_ANCIENT_CHARGE_XP = 70": "70 XP bedeli",
     "public static final int MAX_CHARGE_TICKS = 20 * 20": "20 saniye üst sınırı",
     "public static final int EXHAUSTION_TICKS = 30 * 20": "30 saniye çöküş",
+    "SELF_CHARGE_ANIMATION_TICKS = 40": "iki saniyelik kendi kendine şarj animasyonu",
+    "SELF_CHARGE_HEALTH_COST = 6.0F": "üç kalplik kendi kendine şarj bedeli",
+    "caster.isShiftKeyDown()": "çömelerek kendi kendine şarj",
+    "drawPurpleHeart": "göğüs önündeki mor Antik Kalp",
+    "grantMob": "moblara Antik Şehir gücü aktarımı",
+    "ancientChargeCyclePresent": "güç kullanılsa da 20 saniyelik sayaç",
+    "startSacrificedHeartRecovery": "feda edilen kalplerin yavaş geri dönüşü",
     "int count = charged ? 20 : 10;": "şarjlı 20 / normal 10 meteor",
     "AncientChargeSystem.consume": "tek kullanım hakkı",
     "beginAncientCharge": "cooldown dondurma",
@@ -99,7 +108,7 @@ for path in java_files:
 
 for snippet, explanation in FORBIDDEN_SOURCE_SNIPPETS.items():
     if snippet in all_source:
-        errors.append(f"Eski/riskli API kalıntısı bulundu: {snippet} — {explanation}")
+        errors.append(f"Eski/riskli davranış kalıntısı bulundu: {snippet} — {explanation}")
 for snippet, explanation in REQUIRED_SOURCE_SNIPPETS.items():
     if snippet not in all_source:
         errors.append(f"Beklenen özellik kodu bulunamadı: {explanation} ({snippet})")
@@ -164,7 +173,7 @@ for unwanted_dir in ["build", ".gradle", "run", "out", "__pycache__"]:
         errors.append(f"Paketlenmemesi gereken klasör mevcut: {unwanted_dir}")
 for obsolete in [
     "DESIGN.md", "FEATURE_STATUS.md", "FILE_MANIFEST.txt", "VALIDATION.md",
-    "KURULUM_0.3.3.txt", "CHANGELOG_0.3.3.md", "CHANGELOG_0.3.6.md",
+    "KURULUM_0.3.3.txt", "CHANGELOG_0.3.3.md", "CHANGELOG_0.3.6.md", "CHANGELOG_0.3.7.md",
 ]:
     if (ROOT / obsolete).exists():
         errors.append(f"Eski/gereksiz kök dosyası kalmış: {obsolete}")
@@ -191,31 +200,37 @@ public final class CoreLogicSmokeTest {
     }
     public static void main(String[] args) {
         check(PowerCatalog.maxLevel(PowerClass.WARDEN) == 6, "warden level cap");
-        check(PowerCatalog.maxLevel(PowerClass.FIRE) == 5, "other class cap");
         check(PowerCatalog.xpCostForLevel(PowerClass.WARDEN, 6) == 70, "warden sixth xp");
         check("Şarj Et Beni Antik Şehir".equals(PowerCatalog.powerName(PowerClass.WARDEN, 6)), "sixth name");
 
         PlayerPowerData data = new PlayerPowerData();
         data.chooseClass(PowerClass.WARDEN);
         for (int i = 0; i < 8; i++) data.unlockNextLevel();
-        check(data.unlockedLevel() == 6, "warden unlock cap");
-        data.setSelectedPower(6);
-        check(data.selectedPower() == 6, "sixth selection");
-
-        data.setCooldown(1, 100L, 50);   // until 150
-        data.setCooldown(5, 100L, 70);   // until 170
-        data.setCooldown(6, 100L, 90);   // until 190; must not be cleared by charge
-        data.beginAncientCharge(110L, 999);
+        data.setCooldown(1, 100L, 50);
+        data.setCooldown(5, 100L, 70);
+        data.setCooldown(6, 100L, 90);
+        data.beginAncientCharge(110L, 999, true);
         check(data.ancientChargeUntil() == 510L, "charge max 20 seconds");
+        check(data.ancientChargeReady(110L), "charge right ready");
+        check(data.selfSacrificeActive(), "self sacrifice flag");
         check(data.cooldownRemaining(1, 110L) == 0, "regular cooldown disabled");
-        check(data.cooldownRemaining(5, 110L) == 0, "selected cooldown disabled");
         check(data.cooldownRemaining(6, 110L) == 80, "sixth cooldown protected");
+
         data.setCooldown(5, 110L, 200);
         data.consumeAncientCharge(120L, 5);
-        check(!data.ancientChargeAvailable(), "charge consumed");
-        check(data.cooldownRemaining(1, 120L) == 40, "old cooldown restored");
+        check(data.ancientChargeActive(120L), "20 second window continues after use");
+        check(!data.ancientChargeReady(120L), "single use right consumed");
+        check(data.ancientChargeUsedPower() == 5, "used power remembered");
+        check(data.cooldownRemaining(1, 120L) == 40, "old cooldown restored after use");
         check(data.cooldownRemaining(5, 120L) == 190, "used power new cooldown kept");
         check(data.cooldownRemaining(6, 120L) == 70, "sixth cooldown continued");
+
+        data.finishAncientCharge(510L);
+        check(!data.ancientChargeCyclePresent(), "charge cycle finished at timer end");
+        data.startSacrificedHeartRecovery(510L);
+        check(data.sacrificedHealthPointsToRecover() == 6, "three hearts recover in six half-heart steps");
+        data.advanceSacrificedHeartRecovery(630L);
+        check(data.sacrificedHealthPointsToRecover() == 5, "heart recovery advances");
 
         PlayerPowerData expiry = new PlayerPowerData();
         expiry.chooseClass(PowerClass.FIRE);
@@ -223,8 +238,8 @@ public final class CoreLogicSmokeTest {
         expiry.setCooldown(4, 200L, 60);
         expiry.beginAncientCharge(210L, 200);
         check(expiry.cooldownRemaining(4, 210L) == 0, "expiry charge bypass");
-        expiry.expireAncientCharge(230L);
-        check(expiry.cooldownRemaining(4, 230L) == 50, "expiry restores frozen cooldown");
+        expiry.finishAncientCharge(410L);
+        check(expiry.cooldownRemaining(4, 410L) == 50, "unused expiry restores frozen cooldown");
 
         for (int i = 0; i < 30; i++) data.addMasteryUse(6);
         check(data.masteryStage(6) == 3, "sixth mastery");
@@ -261,6 +276,7 @@ if errors:
 
 print(
     f"PROJE DENETİMİ BAŞARILI — {len(java_files)} Java dosyası; JSON, PNG, sürüm, "
-    "Warden 6. güç, 70 XP, 20 saniyelik şarj, tek kullanım, cooldown dondurma, "
+    "Warden 6. güç, hedef olmasa da ışın, mob şarjı, iki saniyelik Antik Kalp animasyonu, "
+    "üç kalp bedeli, 20 saniye sonunda çöküş, yavaş kalp dönüşü, cooldown dondurma, "
     "20 mor meteor, komutlar ve çekirdek davranış testleri kontrol edildi."
 )

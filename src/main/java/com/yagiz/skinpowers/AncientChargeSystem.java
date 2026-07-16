@@ -10,6 +10,8 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -17,20 +19,29 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 
-/** Ortak Antik Şehir Şarjı, mutasyon, ışın ve cooldown dondurma sistemi. */
+/** Ortak Antik Şehir Şarjı, mutasyon, ışın, mob güçlendirme ve cooldown dondurma sistemi. */
 public final class AncientChargeSystem {
     public static final int MAX_CHARGE_TICKS = 20 * 20;
     public static final int EXHAUSTION_TICKS = 30 * 20;
+    public static final int SELF_CHARGE_ANIMATION_TICKS = 40;
+    public static final float SELF_CHARGE_HEALTH_COST = 6.0F;
+
     private static final List<PendingBeam> BEAMS = new ArrayList<>();
+    private static final List<PendingSelfCharge> SELF_CHARGES = new ArrayList<>();
+    private static final List<ChargedMob> MOB_CHARGES = new ArrayList<>();
 
     private AncientChargeSystem() {}
 
     public static void clearPendingBeams() {
         BEAMS.clear();
+        SELF_CHARGES.clear();
+        MOB_CHARGES.clear();
     }
 
     public static void tick(MinecraftServer server) {
         tickBeams();
+        tickSelfCharges();
+        tickChargedMobs();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             PlayerPowerData data = PlayerDataStore.get(player.getUUID());
             tickPlayer(player, data);
@@ -45,18 +56,36 @@ public final class AncientChargeSystem {
             int remaining = (int) Math.max(0L, data.ancientChargeUntil() - now);
             int elapsed = (int) Math.max(0L, now - data.ancientChargeStartedAt());
             int phase = Math.min(3, elapsed / 100);
+            boolean ready = data.ancientChargeReady(now);
 
             player.addEffect(new MobEffectInstance(MobEffects.GLOWING, 30, 0, false, false, true));
-            player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 0, false, false, true));
-            player.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, phase >= 3 ? 1 : 0, false, false, true));
-            drawMutation(level, player, phase, now);
+            player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, ready ? 1 : 0, false, false, true));
+            if (ready) player.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, phase >= 3 ? 1 : 0, false, false, true));
+            drawMutation(level, player, phase, now, ready);
+
+            // Kendi kendine şarj sırasında feda edilen üç kalp 20 saniye boyunca geri doldurulamaz.
+            if (data.selfSacrificeActive()) {
+                float sacrificedCap = Math.max(1.0F, player.getMaxHealth() - SELF_CHARGE_HEALTH_COST);
+                if (player.getHealth() > sacrificedCap) player.setHealth(sacrificedCap);
+            }
 
             if (remaining == 200 || remaining == 100) {
-                player.sendSystemMessage(Component.literal("Antik Şehir Şarjı: " + Math.max(1, remaining / 20) + " saniye • 1 güç hakkı"));
+                String right = ready ? "1 güç hakkı" : "güç kullanıldı";
+                player.sendSystemMessage(Component.literal("Antik Şehir Şarjı: " + Math.max(1, remaining / 20) + " saniye • " + right));
             }
-        } else if (data.ancientChargeAvailable()) {
-            data.expireAncientCharge(now);
-            applyExhaustion(player, data, now, "Antik Şehir enerjisi kullanılmadan dağıldı.");
+        } else if (data.ancientChargeCyclePresent()) {
+            boolean unused = data.ancientChargeAvailable();
+            boolean selfSacrifice = data.selfSacrificeActive();
+            data.finishAncientCharge(now);
+            if (selfSacrifice) data.startSacrificedHeartRecovery(now);
+            applyExhaustion(
+                player,
+                data,
+                now,
+                unused
+                    ? "Antik Şehir enerjisi kullanılmadan dağıldı. Bedenin çökmeye başladı."
+                    : "Antik Şehir enerjisinin 20 saniyelik yükü sona erdi. Bedenin çökmeye başladı."
+            );
         }
 
         if (data.ancientExhausted(now)) {
@@ -64,14 +93,29 @@ public final class AncientChargeSystem {
             player.addEffect(new MobEffectInstance(MobEffects.NAUSEA, 30, 0, false, true, true));
             player.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, 30, 0, false, true, true));
             if (now % 6L == 0L) {
-                level.sendParticles(ParticleTypes.LARGE_SMOKE, player.getX(), player.getY() + 0.8, player.getZ(), 3, 0.35, 0.55, 0.35, 0.01);
-                level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 0.9, player.getZ(), 2, 0.25, 0.4, 0.25, 0.005);
+                level.sendParticles(ParticleTypes.LARGE_SMOKE, player.getX(), player.getY() + 0.8, player.getZ(), 4, 0.38, 0.58, 0.38, 0.012);
+                level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 0.9, player.getZ(), 3, 0.28, 0.45, 0.28, 0.006);
             }
         }
+
+        tickSacrificedHeartRecovery(player, data, now);
+    }
+
+    private static void tickSacrificedHeartRecovery(ServerPlayer player, PlayerPowerData data, long now) {
+        if (data.sacrificedHealthPointsToRecover() <= 0) return;
+        if (now < data.nextSacrificedHeartRecoveryTick()) return;
+
+        player.heal(1.0F); // Her üç saniyede yarım kalp.
+        data.advanceSacrificedHeartRecovery(now + 60L);
+        PlayerDataStore.markDirty();
+        ServerLevel level = (ServerLevel) player.level();
+        level.sendParticles(ParticleTypes.HEART, player.getX(), player.getY() + 1.1, player.getZ(), 3, 0.28, 0.35, 0.28, 0.01);
+        level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 0.9, player.getZ(), 2, 0.22, 0.25, 0.22, 0.005);
+        ServerNetworking.sync(player);
     }
 
     public static boolean isUsableCharge(PlayerPowerData data, long now, int power) {
-        if (!data.ancientChargeActive(now) || power == 6) return false;
+        if (!data.ancientChargeReady(now) || power == 6) return false;
         return switch (data.powerClass()) {
             case FLIGHT, FIRE, NATURE -> power != 1;
             case WARDEN -> true;
@@ -80,6 +124,10 @@ public final class AncientChargeSystem {
     }
 
     public static boolean grant(ServerPlayer player, int requestedTicks, boolean force) {
+        return grant(player, requestedTicks, force, false);
+    }
+
+    private static boolean grant(ServerPlayer player, int requestedTicks, boolean force, boolean selfSacrifice) {
         PlayerPowerData data = PlayerDataStore.get(player.getUUID());
         long now = player.level().getGameTime();
         int duration = Math.max(1, Math.min(MAX_CHARGE_TICKS, requestedTicks));
@@ -88,21 +136,26 @@ public final class AncientChargeSystem {
             player.sendSystemMessage(Component.literal("Hedef hâlâ Antik Şehir çöküşünde."));
             return false;
         }
-        if (!force && data.ancientChargeActive(now)) {
-            player.sendSystemMessage(Component.literal("Hedef zaten Antik Şehir Şarjı taşıyor."));
+        if (!force && data.ancientChargeCyclePresent()) {
+            player.sendSystemMessage(Component.literal("Hedef zaten Antik Şehir enerjisi taşıyor."));
             return false;
         }
 
-        if (data.ancientChargeAvailable()) data.expireAncientCharge(now);
-        if (force) data.clearAncientExhaustion();
-        data.beginAncientCharge(now, duration);
+        if (force) {
+            data.cancelAncientCharge(now);
+            data.clearAncientExhaustion();
+            SELF_CHARGES.removeIf(pending -> pending.caster.equals(player.getUUID()));
+        }
+        data.beginAncientCharge(now, duration, selfSacrifice);
         PlayerDataStore.markDirty();
         ServerNetworking.sync(player);
 
         ServerLevel level = (ServerLevel) player.level();
-        level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ROAR, SoundSource.PLAYERS, 1.1F, 1.45F);
-        level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), 65, 1.0, 1.2, 1.0, 0.04);
-        level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 42, 0.8, 1.0, 0.8, 0.05);
+        level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ROAR, SoundSource.PLAYERS, 1.35F, 1.32F);
+        level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), 115, 1.25, 1.45, 1.25, 0.055);
+        level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 92, 1.05, 1.25, 1.05, 0.075);
+        drawRing(level, player.position().add(0.0, 0.12, 0.0), 1.35, ParticleTypes.WITCH, 54);
+        drawRing(level, player.position().add(0.0, 1.05, 0.0), 0.95, ParticleTypes.SCULK_SOUL, 42);
         player.sendSystemMessage(Component.literal("ANTİK ŞEHİR ŞARJI • " + (duration / 20.0F) + " saniye • 1 güç hakkı"));
         return true;
     }
@@ -110,18 +163,28 @@ public final class AncientChargeSystem {
     public static void clear(ServerPlayer player) {
         PlayerPowerData data = PlayerDataStore.get(player.getUUID());
         long now = player.level().getGameTime();
-        if (data.ancientChargeAvailable()) data.expireAncientCharge(now);
+        int recovery = data.sacrificedHealthPointsToRecover() + (data.selfSacrificeActive() ? 6 : 0);
+        data.cancelAncientCharge(now);
         data.clearAncientExhaustion();
+        data.clearSacrificedHeartRecovery();
+        if (recovery > 0) player.heal(recovery);
+        SELF_CHARGES.removeIf(pending -> pending.caster.equals(player.getUUID()));
+        BEAMS.removeIf(beam -> beam.caster.equals(player.getUUID()));
         PlayerDataStore.markDirty();
         ServerNetworking.sync(player);
-        player.sendSystemMessage(Component.literal("Antik Şehir Şarjı ve çöküş etkisi temizlendi."));
+        player.sendSystemMessage(Component.literal("Antik Şehir Şarjı, çöküş ve kalp bedeli temizlendi."));
     }
 
     public static void consume(ServerPlayer player, PlayerPowerData data, int usedPower, long now) {
         if (!isUsableCharge(data, now, usedPower)) return;
         data.consumeAncientCharge(now, usedPower);
-        emitChargedBurst((ServerLevel) player.level(), player.position().add(0.0, 1.0, 0.0), data.powerClass(), 1.8);
-        applyExhaustion(player, data, now, "Antik Şehir gücü boşaldı. Bedenin çökmeye başladı.");
+        emitChargedBurst((ServerLevel) player.level(), player.position().add(0.0, 1.0, 0.0), data.powerClass(), 2.15);
+        int remaining = (int) Math.max(0L, data.ancientChargeUntil() - now);
+        player.sendSystemMessage(Component.literal(
+            "Antik Şehir gücü kullanıldı. Çöküş " + String.format(java.util.Locale.ROOT, "%.1f", remaining / 20.0) + " saniye sonra başlayacak."
+        ));
+        PlayerDataStore.markDirty();
+        ServerNetworking.sync(player);
     }
 
     private static void applyExhaustion(ServerPlayer player, PlayerPowerData data, long now, String message) {
@@ -131,35 +194,53 @@ public final class AncientChargeSystem {
         ServerNetworking.sync(player);
     }
 
+    /** Çömelerek kullanılırsa kalp yerleştirme animasyonu; normal kullanımda hedef olsun veya olmasın ışın mutlaka ateşlenir. */
     public static boolean beginBeam(ServerPlayer caster, PlayerPowerData data, long now) {
-        ServerPlayer target = findBeamTarget(caster, 22.0);
-        if (target == null) {
-            caster.sendSystemMessage(Component.literal("Işının önünde şarj edilebilecek başka bir oyuncu yok."));
-            return false;
-        }
-        PlayerPowerData targetData = PlayerDataStore.get(target.getUUID());
-        if (targetData.ancientChargeActive(now) || targetData.ancientExhausted(now)) {
-            caster.sendSystemMessage(Component.literal("Hedef şu anda yeni bir Antik Şehir Şarjı alamaz."));
-            return false;
-        }
+        if (caster.isShiftKeyDown()) return beginSelfCharge(caster, data, now);
 
-        BEAMS.add(new PendingBeam((ServerLevel) caster.level(), caster.getUUID(), target.getUUID(), now, now + 18L));
-        caster.sendSystemMessage(Component.literal(target.getScoreboardName() + " Antik Şehir ışınıyla şarj ediliyor."));
+        LivingEntity target = findBeamTarget(caster, 22.0);
+        Vec3 endpoint = target == null
+            ? caster.getEyePosition().add(caster.getLookAngle().normalize().scale(22.0))
+            : target.getEyePosition();
+        BEAMS.add(new PendingBeam((ServerLevel) caster.level(), caster.getUUID(), target, endpoint, now, now + 22L));
+        caster.sendSystemMessage(Component.literal(target == null
+            ? "Antik Şehir ışını boşluğa ateşlendi."
+            : target.getScoreboardName() + " Antik Şehir ışınıyla hedeflendi."));
         return true;
     }
 
-    private static ServerPlayer findBeamTarget(ServerPlayer caster, double range) {
+    private static boolean beginSelfCharge(ServerPlayer caster, PlayerPowerData data, long now) {
+        if (data.ancientExhausted(now) || data.ancientChargeCyclePresent()) {
+            caster.sendSystemMessage(Component.literal("Kendine yeni şarj vermeden önce mevcut Antik Şehir etkisinin bitmesi gerekiyor."));
+            return false;
+        }
+        if (caster.getHealth() <= SELF_CHARGE_HEALTH_COST) {
+            caster.sendSystemMessage(Component.literal("Kendi kendine şarj için üç kalpten fazla canın olmalı."));
+            return false;
+        }
+        boolean alreadyAnimating = SELF_CHARGES.stream().anyMatch(pending -> pending.caster.equals(caster.getUUID()));
+        if (alreadyAnimating) return false;
+
+        SELF_CHARGES.add(new PendingSelfCharge((ServerLevel) caster.level(), caster.getUUID(), now, now + SELF_CHARGE_ANIMATION_TICKS));
+        caster.sendSystemMessage(Component.literal("Dört sculk kolu Antik Kalbi oluşturmaya başladı..."));
+        return true;
+    }
+
+    private static LivingEntity findBeamTarget(ServerPlayer caster, double range) {
         Vec3 origin = caster.getEyePosition();
         Vec3 look = caster.getLookAngle().normalize();
-        ServerPlayer best = null;
+        Vec3 end = origin.add(look.scale(range));
+        AABB search = new AABB(origin, end).inflate(1.7);
+        LivingEntity best = null;
         double bestForward = range + 1.0;
-        for (ServerPlayer candidate : ((ServerLevel) caster.level()).players()) {
-            if (candidate == caster || candidate.isSpectator()) continue;
+        for (LivingEntity candidate : ((ServerLevel) caster.level()).getEntitiesOfClass(LivingEntity.class, search)) {
+            if (candidate == caster || candidate.isSpectator() || !candidate.isAlive()) continue;
             Vec3 to = candidate.getEyePosition().subtract(origin);
             double forward = to.dot(look);
             if (forward <= 0.6 || forward > range) continue;
             double side = to.subtract(look.scale(forward)).length();
-            if (side > 1.35 || !caster.hasLineOfSight(candidate)) continue;
+            double allowance = 1.55;
+            if (side > allowance || !caster.hasLineOfSight(candidate)) continue;
             if (forward < bestForward) {
                 best = candidate;
                 bestForward = forward;
@@ -173,92 +254,225 @@ public final class AncientChargeSystem {
         while (iterator.hasNext()) {
             PendingBeam beam = iterator.next();
             ServerPlayer caster = beam.level.getServer().getPlayerList().getPlayer(beam.caster);
-            ServerPlayer target = beam.level.getServer().getPlayerList().getPlayer(beam.target);
             long now = beam.level.getGameTime();
-            if (caster == null || target == null || caster.level() != beam.level || target.level() != beam.level) {
+            if (caster == null || caster.level() != beam.level) {
                 iterator.remove();
                 continue;
             }
 
-            drawBeamAnimation(beam.level, caster, target, now - beam.startTick);
+            LivingEntity target = beam.target;
+            Vec3 targetPoint = target != null && target.isAlive() && target.level() == beam.level
+                ? target.getEyePosition()
+                : beam.endpoint;
+            drawBeamAnimation(beam.level, caster, targetPoint, now - beam.startTick);
             if (now < beam.finishTick) continue;
 
-            if (caster.distanceToSqr(target) <= 25.0 * 25.0 && caster.hasLineOfSight(target)) {
-                if (grant(target, MAX_CHARGE_TICKS, false)) {
-                    beam.level.playSound(null, target.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.4F, 1.18F);
+            boolean transferred = false;
+            if (target != null && target.isAlive() && target.level() == beam.level
+                && caster.distanceToSqr(target) <= 25.0 * 25.0 && caster.hasLineOfSight(target)) {
+                if (target instanceof ServerPlayer targetPlayer) {
+                    transferred = grant(targetPlayer, MAX_CHARGE_TICKS, false, false);
                 } else {
-                    caster.sendSystemMessage(Component.literal("Hedef ışın tamamlanmadan başka bir şarj veya çöküş etkisi aldı."));
+                    transferred = grantMob(target, MAX_CHARGE_TICKS);
                 }
+            }
+
+            if (transferred) {
+                beam.level.playSound(null, target.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.5F, 1.15F);
             } else {
-                caster.sendSystemMessage(Component.literal("Antik Şehir ışını hedef bağlantısını kaybetti."));
+                beam.level.sendParticles(ParticleTypes.WITCH, targetPoint.x, targetPoint.y, targetPoint.z, 52, 0.65, 0.65, 0.65, 0.08);
+                beam.level.sendParticles(ParticleTypes.SCULK_SOUL, targetPoint.x, targetPoint.y, targetPoint.z, 30, 0.5, 0.5, 0.5, 0.04);
+                beam.level.playSound(null, caster.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.0F, 1.38F);
             }
             iterator.remove();
         }
     }
 
-    private static void drawBeamAnimation(ServerLevel level, ServerPlayer caster, ServerPlayer target, long age) {
+    private static void tickSelfCharges() {
+        Iterator<PendingSelfCharge> iterator = SELF_CHARGES.iterator();
+        while (iterator.hasNext()) {
+            PendingSelfCharge pending = iterator.next();
+            ServerPlayer caster = pending.level.getServer().getPlayerList().getPlayer(pending.caster);
+            long now = pending.level.getGameTime();
+            if (caster == null || !caster.isAlive() || caster.level() != pending.level) {
+                iterator.remove();
+                continue;
+            }
+
+            long age = now - pending.startTick;
+            drawSelfChargeAnimation(pending.level, caster, age, pending.finishTick - pending.startTick);
+            if (age % 8L == 0L) {
+                pending.level.playSound(null, caster.blockPosition(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 1.15F, 0.78F + age * 0.006F);
+            }
+            if (now < pending.finishTick) continue;
+
+            PlayerPowerData data = PlayerDataStore.get(caster.getUUID());
+            if (caster.getHealth() <= SELF_CHARGE_HEALTH_COST || data.ancientChargeCyclePresent() || data.ancientExhausted(now)) {
+                caster.sendSystemMessage(Component.literal("Antik Kalp göğsüne yerleşemedi; şarj iptal edildi."));
+                iterator.remove();
+                continue;
+            }
+
+            caster.setHealth(Math.max(1.0F, caster.getHealth() - SELF_CHARGE_HEALTH_COST));
+            if (grant(caster, MAX_CHARGE_TICKS, false, true)) {
+                pending.level.sendParticles(ParticleTypes.WITCH, caster.getX(), caster.getY() + 1.15, caster.getZ(), 150, 1.15, 1.35, 1.15, 0.1);
+                pending.level.sendParticles(ParticleTypes.SCULK_SOUL, caster.getX(), caster.getY() + 1.1, caster.getZ(), 95, 0.9, 1.1, 0.9, 0.055);
+                caster.sendSystemMessage(Component.literal("Antik Kalp göğsüne yerleşti. Üç kalp feda edildi; 20 saniyelik şarj başladı."));
+            } else {
+                caster.heal(SELF_CHARGE_HEALTH_COST);
+            }
+            iterator.remove();
+        }
+    }
+
+    private static boolean grantMob(LivingEntity target, int durationTicks) {
+        if (!target.isAlive()) return false;
+        long now = target.level().getGameTime();
+        MOB_CHARGES.removeIf(charge -> charge.target == target);
+        MOB_CHARGES.add(new ChargedMob((ServerLevel) target.level(), target, now + Math.min(MAX_CHARGE_TICKS, Math.max(1, durationTicks))));
+        ServerLevel level = (ServerLevel) target.level();
+        level.sendParticles(ParticleTypes.WITCH, target.getX(), target.getEyePosition().y - 0.30, target.getZ(), 82, 0.8, 0.9, 0.8, 0.08);
+        level.sendParticles(ParticleTypes.SCULK_SOUL, target.getX(), target.getEyePosition().y - 0.30, target.getZ(), 52, 0.65, 0.75, 0.65, 0.04);
+        return true;
+    }
+
+    private static void tickChargedMobs() {
+        Iterator<ChargedMob> iterator = MOB_CHARGES.iterator();
+        while (iterator.hasNext()) {
+            ChargedMob charge = iterator.next();
+            LivingEntity target = charge.target;
+            long now = charge.level.getGameTime();
+            if (!target.isAlive() || target.level() != charge.level) {
+                iterator.remove();
+                continue;
+            }
+            if (now >= charge.untilTick) {
+                target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 200, 4, false, true, true));
+                target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 200, 1, false, true, true));
+                charge.level.sendParticles(ParticleTypes.LARGE_SMOKE, target.getX(), target.getEyePosition().y - 0.35, target.getZ(), 32, 0.7, 0.8, 0.7, 0.025);
+                iterator.remove();
+                continue;
+            }
+
+            target.addEffect(new MobEffectInstance(MobEffects.GLOWING, 30, 0, false, false, true));
+            target.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 30, 2, false, false, true));
+            target.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, 1, false, false, true));
+            target.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 0, false, false, true));
+            if (now % 3L == 0L) {
+                double y = target.getY() + 0.2 + (now % 18L) / 18.0 * 1.45;
+                drawRing(charge.level, new Vec3(target.getX(), y, target.getZ()), 0.78, ParticleTypes.WITCH, 18);
+                charge.level.sendParticles(ParticleTypes.SCULK_SOUL, target.getX(), target.getEyePosition().y - 0.30, target.getZ(), 5, 0.4, 0.6, 0.4, 0.012);
+            }
+        }
+    }
+
+    private static void drawBeamAnimation(ServerLevel level, ServerPlayer caster, Vec3 targetPoint, long age) {
         Vec3 look = caster.getLookAngle().normalize();
-        Vec3 horizontal = new Vec3(look.x, 0.0, look.z);
-        if (horizontal.lengthSqr() < 0.0001) horizontal = new Vec3(0.0, 0.0, 1.0);
-        horizontal = horizontal.normalize();
+        Vec3 horizontal = horizontalDirection(look);
         Vec3 right = new Vec3(-horizontal.z, 0.0, horizontal.x);
         Vec3 body = caster.position().add(0.0, 1.05, 0.0);
         Vec3 back = body.subtract(horizontal.scale(0.62));
         Vec3 convergence = caster.getEyePosition().add(look.scale(1.35));
         double growth = Math.min(1.0, (age + 1.0) / 8.0);
 
-        Vec3[] roots = {
-            back.add(right.scale(0.62)).add(0.0, 0.58, 0.0),
-            back.subtract(right.scale(0.62)).add(0.0, 0.58, 0.0),
-            back.add(right.scale(0.72)).add(0.0, -0.18, 0.0),
-            back.subtract(right.scale(0.72)).add(0.0, -0.18, 0.0)
-        };
+        Vec3[] roots = armRoots(back, right);
         for (int i = 0; i < roots.length; i++) {
             double side = i % 2 == 0 ? 1.0 : -1.0;
             double height = i < 2 ? 0.35 : -0.20;
-            Vec3 bendFull = roots[i].add(right.scale(side * 0.78)).add(horizontal.scale(0.48)).add(0.0, height, 0.0);
+            Vec3 bendFull = roots[i].add(right.scale(side * 0.82)).add(horizontal.scale(0.50)).add(0.0, height, 0.0);
             Vec3 bend = roots[i].lerp(bendFull, growth);
             Vec3 end = roots[i].lerp(convergence, growth);
-            drawParticleLine(level, roots[i], bend, ParticleTypes.SCULK_SOUL, 7);
-            drawParticleLine(level, bend, end, ParticleTypes.WITCH, 8);
+            drawParticleLine(level, roots[i], bend, ParticleTypes.SCULK_SOUL, 10);
+            drawParticleLine(level, bend, end, ParticleTypes.WITCH, 12);
+            drawParticleLine(level, roots[i].add(0.0, 0.04, 0.0), end.add(0.0, 0.04, 0.0), ParticleTypes.SCULK_SOUL, 8);
         }
 
         if (age >= 6L) {
-            Vec3 targetPoint = target.getEyePosition();
-            drawParticleLine(level, convergence, targetPoint, ParticleTypes.WITCH, 26);
-            drawParticleLine(level, convergence, targetPoint, ParticleTypes.SCULK_SOUL, 18);
+            drawThickBeam(level, convergence, targetPoint, 0.10);
             if (age % 3L == 0L) {
                 level.sendParticles(ParticleTypes.SONIC_BOOM, convergence.x, convergence.y, convergence.z, 1, 0.0, 0.0, 0.0, 0.0);
             }
         }
     }
 
-    private static void drawMutation(ServerLevel level, ServerPlayer player, int phase, long now) {
+    private static void drawSelfChargeAnimation(ServerLevel level, ServerPlayer caster, long age, long duration) {
+        Vec3 look = caster.getLookAngle().normalize();
+        Vec3 horizontal = horizontalDirection(look);
+        Vec3 right = new Vec3(-horizontal.z, 0.0, horizontal.x);
+        Vec3 body = caster.position().add(0.0, 1.05, 0.0);
+        Vec3 back = body.subtract(horizontal.scale(0.62));
+        Vec3 chest = body.add(horizontal.scale(0.18));
+        Vec3 front = chest.add(horizontal.scale(1.05));
+        double progress = Math.max(0.0, Math.min(1.0, age / (double) Math.max(1L, duration)));
+        double armGrowth = Math.min(1.0, progress / 0.42);
+        double insertion = progress <= 0.58 ? 0.0 : (progress - 0.58) / 0.42;
+        insertion = insertion * insertion * (3.0 - 2.0 * insertion);
+        Vec3 heartCenter = front.lerp(chest, insertion);
+
+        Vec3[] roots = armRoots(back, right);
+        Vec3[] aroundHeart = {
+            heartCenter.add(right.scale(0.48)).add(0.0, 0.38, 0.0),
+            heartCenter.subtract(right.scale(0.48)).add(0.0, 0.38, 0.0),
+            heartCenter.add(right.scale(0.42)).add(0.0, -0.34, 0.0),
+            heartCenter.subtract(right.scale(0.42)).add(0.0, -0.34, 0.0)
+        };
+        for (int i = 0; i < roots.length; i++) {
+            Vec3 elbowFull = roots[i].lerp(aroundHeart[i], 0.52).subtract(horizontal.scale(0.32));
+            Vec3 elbow = roots[i].lerp(elbowFull, armGrowth);
+            Vec3 end = roots[i].lerp(aroundHeart[i], armGrowth);
+            drawParticleLine(level, roots[i], elbow, ParticleTypes.SCULK_SOUL, 10);
+            drawParticleLine(level, elbow, end, ParticleTypes.WITCH, 12);
+        }
+
+        if (progress >= 0.28) {
+            double pulse = 0.92 + Math.sin(age * 0.55) * 0.12;
+            drawPurpleHeart(level, heartCenter, right, pulse);
+            level.sendParticles(ParticleTypes.SCULK_SOUL, heartCenter.x, heartCenter.y, heartCenter.z, 5, 0.22, 0.25, 0.22, 0.01);
+        }
+        if (insertion > 0.05) {
+            drawParticleLine(level, front, chest, ParticleTypes.WITCH, 15);
+            drawRing(level, chest, 0.42 + insertion * 0.25, ParticleTypes.SCULK_SOUL, 26);
+        }
+    }
+
+    private static void drawPurpleHeart(ServerLevel level, Vec3 center, Vec3 right, double scale) {
+        Vec3 up = new Vec3(0.0, 1.0, 0.0);
+        int points = 32;
+        for (int i = 0; i < points; i++) {
+            double t = Math.PI * 2.0 * i / points;
+            double x = 16.0 * Math.pow(Math.sin(t), 3.0);
+            double y = 13.0 * Math.cos(t) - 5.0 * Math.cos(2.0 * t) - 2.0 * Math.cos(3.0 * t) - Math.cos(4.0 * t);
+            Vec3 point = center.add(right.scale(x * 0.022 * scale)).add(up.scale(y * 0.022 * scale));
+            level.sendParticles(i % 3 == 0 ? ParticleTypes.SCULK_SOUL : ParticleTypes.WITCH, point.x, point.y, point.z, 1, 0.0, 0.0, 0.0, 0.0);
+        }
+    }
+
+    private static void drawMutation(ServerLevel level, ServerPlayer player, int phase, long now, boolean ready) {
         if (now % 2L != 0L) return;
-        double radius = 0.50 + phase * 0.14;
-        int count = 5 + phase * 3;
-        double y = player.getY() + 0.25 + (now % 20L) / 20.0 * 1.45;
+        double radius = 0.62 + phase * 0.17;
+        int count = (ready ? 12 : 7) + phase * (ready ? 5 : 3);
+        double y = player.getY() + 0.20 + (now % 24L) / 24.0 * 1.65;
         for (int i = 0; i < count; i++) {
-            double angle = Math.PI * 2.0 * i / count + now * 0.08;
+            double angle = Math.PI * 2.0 * i / count + now * (ready ? 0.12 : 0.075);
             level.sendParticles(ParticleTypes.WITCH,
                 player.getX() + Math.cos(angle) * radius, y, player.getZ() + Math.sin(angle) * radius,
-                1, 0.0, 0.02, 0.0, 0.0);
+                1, 0.0, 0.025, 0.0, 0.0);
         }
-        level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), 2 + phase, 0.45 + phase * 0.1, 0.75, 0.45 + phase * 0.1, 0.01);
+        level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), (ready ? 7 : 4) + phase * 2, 0.62 + phase * 0.12, 0.9, 0.62 + phase * 0.12, 0.015);
+        drawRing(level, player.position().add(0.0, 0.10, 0.0), 0.85 + phase * 0.16, ready ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, 28 + phase * 8);
+        if (phase >= 2 || ready) drawRing(level, player.position().add(0.0, 1.05, 0.0), 0.72 + phase * 0.12, ParticleTypes.WITCH, 24 + phase * 7);
 
-        // Mutasyon ilerledikçe omuz ve sırttan çıkan sivri enerji uzantıları büyür.
-        Vec3 look = player.getLookAngle();
-        Vec3 horizontal = new Vec3(look.x, 0.0, look.z);
-        if (horizontal.lengthSqr() < 0.0001) horizontal = new Vec3(0.0, 0.0, 1.0);
-        horizontal = horizontal.normalize();
+        // Mutasyon ilerledikçe omuz ve sırttan çıkan dört sivri enerji uzantısı büyür.
+        Vec3 horizontal = horizontalDirection(player.getLookAngle());
         Vec3 right = new Vec3(-horizontal.z, 0.0, horizontal.x);
         Vec3 back = player.position().add(0.0, 1.05, 0.0).subtract(horizontal.scale(0.45));
-        double length = 0.55 + phase * 0.28;
-        drawParticleLine(level, back.add(right.scale(0.35)).add(0.0, 0.35, 0.0), back.add(right.scale(0.75)).add(horizontal.scale(-length)).add(0.0, 0.65, 0.0), ParticleTypes.WITCH, 6 + phase * 2);
-        drawParticleLine(level, back.subtract(right.scale(0.35)).add(0.0, 0.35, 0.0), back.subtract(right.scale(0.75)).add(horizontal.scale(-length)).add(0.0, 0.65, 0.0), ParticleTypes.WITCH, 6 + phase * 2);
-        if (phase >= 2) {
-            drawParticleLine(level, back.add(right.scale(0.32)).add(0.0, -0.20, 0.0), back.add(right.scale(0.72)).add(horizontal.scale(-length * 0.85)).add(0.0, -0.35, 0.0), ParticleTypes.SCULK_SOUL, 7);
-            drawParticleLine(level, back.subtract(right.scale(0.32)).add(0.0, -0.20, 0.0), back.subtract(right.scale(0.72)).add(horizontal.scale(-length * 0.85)).add(0.0, -0.35, 0.0), ParticleTypes.SCULK_SOUL, 7);
+        double length = 0.72 + phase * 0.36;
+        Vec3[] roots = armRoots(back, right);
+        for (int i = 0; i < roots.length; i++) {
+            double side = i % 2 == 0 ? 1.0 : -1.0;
+            double vertical = i < 2 ? 0.72 : -0.48;
+            Vec3 end = roots[i].add(right.scale(side * (0.62 + phase * 0.12))).subtract(horizontal.scale(length)).add(0.0, vertical, 0.0);
+            drawParticleLine(level, roots[i], end, i < 2 ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, 9 + phase * 3);
         }
 
         ParticleOptions classParticle = switch (PlayerDataStore.get(player.getUUID()).powerClass()) {
@@ -267,7 +481,7 @@ public final class AncientChargeSystem {
             case NATURE -> ParticleTypes.HAPPY_VILLAGER;
             default -> ParticleTypes.SCULK_SOUL;
         };
-        level.sendParticles(classParticle, player.getX(), player.getY() + 0.9, player.getZ(), 1 + phase, 0.35, 0.6, 0.35, 0.01);
+        level.sendParticles(classParticle, player.getX(), player.getY() + 0.9, player.getZ(), (ready ? 4 : 2) + phase, 0.42, 0.72, 0.42, 0.012);
     }
 
     public static float damage(float base, boolean charged) {
@@ -287,15 +501,53 @@ public final class AncientChargeSystem {
     }
 
     public static void emitChargedBurst(ServerLevel level, Vec3 center, PowerClass powerClass, double spread) {
-        level.sendParticles(ParticleTypes.WITCH, center.x, center.y, center.z, 38, spread, spread * 0.8, spread, 0.08);
-        level.sendParticles(ParticleTypes.SCULK_SOUL, center.x, center.y, center.z, 30, spread * 0.8, spread * 0.65, spread * 0.8, 0.04);
+        level.sendParticles(ParticleTypes.WITCH, center.x, center.y, center.z, 64, spread, spread * 0.9, spread, 0.1);
+        level.sendParticles(ParticleTypes.SCULK_SOUL, center.x, center.y, center.z, 48, spread * 0.82, spread * 0.72, spread * 0.82, 0.055);
+        drawRing(level, center, Math.max(0.8, spread * 0.78), ParticleTypes.WITCH, 52);
         ParticleOptions original = switch (powerClass) {
             case FIRE -> ParticleTypes.FLAME;
             case FLIGHT -> ParticleTypes.CLOUD;
             case NATURE -> ParticleTypes.HAPPY_VILLAGER;
             default -> ParticleTypes.SONIC_BOOM;
         };
-        level.sendParticles(original, center.x, center.y, center.z, powerClass == PowerClass.WARDEN ? 2 : 16, spread * 0.55, spread * 0.45, spread * 0.55, 0.03);
+        level.sendParticles(original, center.x, center.y, center.z, powerClass == PowerClass.WARDEN ? 3 : 24, spread * 0.58, spread * 0.5, spread * 0.58, 0.04);
+    }
+
+    private static Vec3 horizontalDirection(Vec3 look) {
+        Vec3 horizontal = new Vec3(look.x, 0.0, look.z);
+        if (horizontal.lengthSqr() < 0.0001) horizontal = new Vec3(0.0, 0.0, 1.0);
+        return horizontal.normalize();
+    }
+
+    private static Vec3[] armRoots(Vec3 back, Vec3 right) {
+        return new Vec3[] {
+            back.add(right.scale(0.62)).add(0.0, 0.58, 0.0),
+            back.subtract(right.scale(0.62)).add(0.0, 0.58, 0.0),
+            back.add(right.scale(0.72)).add(0.0, -0.18, 0.0),
+            back.subtract(right.scale(0.72)).add(0.0, -0.18, 0.0)
+        };
+    }
+
+    private static void drawThickBeam(ServerLevel level, Vec3 from, Vec3 to, double thickness) {
+        Vec3 direction = to.subtract(from);
+        Vec3 horizontal = horizontalDirection(direction);
+        Vec3 right = new Vec3(-horizontal.z, 0.0, horizontal.x).scale(thickness);
+        Vec3 up = new Vec3(0.0, thickness, 0.0);
+        drawParticleLine(level, from, to, ParticleTypes.WITCH, 34);
+        drawParticleLine(level, from.add(right), to.add(right), ParticleTypes.SCULK_SOUL, 28);
+        drawParticleLine(level, from.subtract(right), to.subtract(right), ParticleTypes.SCULK_SOUL, 28);
+        drawParticleLine(level, from.add(up), to.add(up), ParticleTypes.WITCH, 28);
+        drawParticleLine(level, from.subtract(up), to.subtract(up), ParticleTypes.WITCH, 28);
+    }
+
+    private static void drawRing(ServerLevel level, Vec3 center, double radius, ParticleOptions particle, int count) {
+        int safeCount = Math.max(8, count);
+        for (int i = 0; i < safeCount; i++) {
+            double angle = Math.PI * 2.0 * i / safeCount;
+            double x = center.x + Math.cos(angle) * radius;
+            double z = center.z + Math.sin(angle) * radius;
+            level.sendParticles(particle, x, center.y, z, 1, 0.0, 0.0, 0.0, 0.0);
+        }
     }
 
     private static void drawParticleLine(ServerLevel level, Vec3 from, Vec3 to, ParticleOptions particle, int points) {
@@ -306,5 +558,7 @@ public final class AncientChargeSystem {
         }
     }
 
-    private record PendingBeam(ServerLevel level, UUID caster, UUID target, long startTick, long finishTick) {}
+    private record PendingBeam(ServerLevel level, UUID caster, LivingEntity target, Vec3 endpoint, long startTick, long finishTick) {}
+    private record PendingSelfCharge(ServerLevel level, UUID caster, long startTick, long finishTick) {}
+    private record ChargedMob(ServerLevel level, LivingEntity target, long untilTick) {}
 }

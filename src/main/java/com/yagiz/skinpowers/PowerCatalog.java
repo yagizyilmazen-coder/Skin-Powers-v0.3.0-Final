@@ -21,7 +21,7 @@ public final class PowerCatalog {
             "Önündeki hedeflere yüksek hasarlı sonik enerji yollar.",
             "Yakındaki düşmanları duvar arkasından parlatır ve avlar.",
             "Güç, direnç, yenilenme ve hasar aurası kazandırır.",
-            "Dört sculk kolu tek ışında birleşir; vurduğu oyuncuya 20 saniyelik tek kullanımlık Antik Şehir Şarjı verir."
+            "Dört sculk kolu ışın oluşturur; oyuncu veya mobu şarj eder. Çömelerek kullanırsan üç kalp karşılığında Antik Kalbi kendi göğsüne yerleştirir."
         },
         {
             "Düşüş hasarını engeller; Y ile açıp kapatılır.",

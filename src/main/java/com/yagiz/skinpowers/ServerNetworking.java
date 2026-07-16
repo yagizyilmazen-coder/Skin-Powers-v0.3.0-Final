@@ -110,7 +110,7 @@ public final class ServerNetworking {
             (int) Math.max(0L, data.natureTreeUntil() - gameTime),
             (int) Math.max(0L, data.ancientChargeUntil() - gameTime),
             (int) Math.max(0L, data.ancientExhaustionUntil() - gameTime),
-            data.ancientChargeActive(gameTime),
+            data.ancientChargeAvailable(),
             data.masteryCopy(),
             player.experienceLevel,
             PowerCatalog.powerName(data.powerClass(), data.selectedPower())

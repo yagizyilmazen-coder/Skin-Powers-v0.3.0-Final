@@ -21,10 +21,17 @@ public final class PlayerPowerData {
     private long natureTreeUntil = 0L;
 
     // Antik Şehir Şarjı ortak durumu.
+    // Sayaç 20 saniye boyunca sürer; tek güç hakkı daha erken kullanılsa bile çöküş sayaç bitince başlar.
     private long ancientChargeStartedAt = 0L;
     private long ancientChargeUntil = 0L;
     private long ancientExhaustionUntil = 0L;
     private boolean ancientChargeAvailable = false;
+    private int ancientChargeUsedPower = 0;
+
+    // Kendi kendine şarjın üç kalplik bedeli ve yavaş geri kazanımı.
+    private boolean selfSacrificeActive = false;
+    private int sacrificedHealthPointsToRecover = 0;
+    private long nextSacrificedHeartRecoveryTick = 0L;
 
     // Şarjla başlatılan süreli güçlerin mor/kuvvetli hâli şarj bittikten sonra da sürer.
     private boolean chargedAwakening = false;
@@ -48,6 +55,10 @@ public final class PlayerPowerData {
     public long ancientChargeUntil() { return ancientChargeUntil; }
     public long ancientExhaustionUntil() { return ancientExhaustionUntil; }
     public boolean ancientChargeAvailable() { return ancientChargeAvailable; }
+    public int ancientChargeUsedPower() { return ancientChargeUsedPower; }
+    public boolean selfSacrificeActive() { return selfSacrificeActive; }
+    public int sacrificedHealthPointsToRecover() { return sacrificedHealthPointsToRecover; }
+    public long nextSacrificedHeartRecoveryTick() { return nextSacrificedHeartRecoveryTick; }
     public boolean chargedAwakening() { return chargedAwakening; }
     public boolean chargedFireRing() { return chargedFireRing; }
     public boolean chargedTemporaryElytra() { return chargedTemporaryElytra; }
@@ -78,6 +89,10 @@ public final class PlayerPowerData {
         ancientChargeUntil = 0L;
         ancientExhaustionUntil = 0L;
         ancientChargeAvailable = false;
+        ancientChargeUsedPower = 0;
+        selfSacrificeActive = false;
+        sacrificedHealthPointsToRecover = 0;
+        nextSacrificedHeartRecoveryTick = 0L;
         chargedAwakening = false;
         chargedFireRing = false;
         chargedTemporaryElytra = false;
@@ -125,7 +140,7 @@ public final class PlayerPowerData {
     }
 
     public int cooldownRemaining(int level, long gameTime) {
-        if (ancientChargeActive(gameTime) && level != 6) return 0;
+        if (ancientChargeReady(gameTime) && level != 6) return 0;
         return (int) Math.max(0L, cooldownUntil(level) - gameTime);
     }
 
@@ -134,16 +149,27 @@ public final class PlayerPowerData {
         cooldownUntil[index(level)] = gameTime + Math.max(0, ticks);
     }
 
+    /** 20 saniyelik şarj penceresi; tek kullanım hakkı harcansa bile sayaç sonuna kadar true kalır. */
     public boolean ancientChargeActive(long gameTime) {
-        return ancientChargeAvailable && ancientChargeUntil > gameTime;
+        return ancientChargeUntil > gameTime;
+    }
+
+    /** Güçlendirilmiş tek kullanım hakkı hâlâ mevcut mu? */
+    public boolean ancientChargeReady(long gameTime) {
+        return ancientChargeAvailable && ancientChargeActive(gameTime);
+    }
+
+    /** Süre bitmiş olsa bile henüz çöküşe çevrilmemiş bir şarj döngüsü var mı? */
+    public boolean ancientChargeCyclePresent() {
+        return ancientChargeUntil > 0L || ancientChargeStartedAt > 0L;
     }
 
     public boolean ancientExhausted(long gameTime) {
         return ancientExhaustionUntil > gameTime;
     }
 
-    /** Şarj verildiğinde mevcut bekleme sürelerini saklar ve geçici olarak sıfırlar. */
-    public void beginAncientCharge(long gameTime, int durationTicks) {
+    /** Şarj verildiğinde mevcut bekleme sürelerini saklar ve tek kullanım hakkı için geçici olarak sıfırlar. */
+    public void beginAncientCharge(long gameTime, int durationTicks, boolean selfSacrifice) {
         ensureArrays();
         for (int i = 0; i < STORAGE_SIZE; i++) {
             // Warden'ın 6. gücü şarjdan yararlanamaz ve bekleme süresi temizlenmez.
@@ -157,30 +183,51 @@ public final class PlayerPowerData {
         ancientChargeStartedAt = gameTime;
         ancientChargeUntil = gameTime + Math.max(1, Math.min(400, durationTicks));
         ancientChargeAvailable = true;
+        ancientChargeUsedPower = 0;
+        selfSacrificeActive = selfSacrifice;
     }
 
-    /** Kullanılan güç yeni cooldown'unu korur; diğer güçlerin eski cooldown'ları kaldığı yerden devam eder. */
+    public void beginAncientCharge(long gameTime, int durationTicks) {
+        beginAncientCharge(gameTime, durationTicks, false);
+    }
+
+    /** Kullanılan güç yeni cooldown'unu korur; diğer güçlerin eski cooldown'ları geri döner.
+     *  20 saniyelik şarj penceresi kapanmaz; çöküş ancak pencere bitince başlar. */
     public void consumeAncientCharge(long gameTime, int usedPower) {
-        ensureArrays();
-        int usedIndex = index(usedPower);
-        long usedCooldown = cooldownUntil[usedIndex];
-        for (int i = 0; i < STORAGE_SIZE; i++) {
-            if (i == 5 && powerClass() == PowerClass.WARDEN) {
-                frozenCooldownTicks[i] = 0;
-                continue;
-            }
-            cooldownUntil[i] = gameTime + Math.max(0, frozenCooldownTicks[i]);
-            frozenCooldownTicks[i] = 0;
-        }
-        cooldownUntil[usedIndex] = Math.max(gameTime, usedCooldown);
-        ancientChargeStartedAt = 0L;
-        ancientChargeUntil = 0L;
+        if (!ancientChargeReady(gameTime)) return;
+        restoreFrozenCooldowns(gameTime, usedPower);
         ancientChargeAvailable = false;
+        ancientChargeUsedPower = Math.max(1, Math.min(STORAGE_SIZE, usedPower));
     }
 
-    /** Şarj kullanılmadan biterse tüm eski cooldown'lar geri döner. */
+    /** Sayaç bittiğinde cooldown'ları geri yükler ve şarj döngüsünü kapatır. */
+    public void finishAncientCharge(long gameTime) {
+        if (ancientChargeAvailable) restoreFrozenCooldowns(gameTime, 0);
+        ancientChargeStartedAt = 0L;
+        ancientChargeUntil = 0L;
+        ancientChargeAvailable = false;
+        ancientChargeUsedPower = 0;
+    }
+
+    /** Komutla temizleme veya zorla yeni şarj verme için cezasız iptal. */
+    public void cancelAncientCharge(long gameTime) {
+        if (ancientChargeAvailable) restoreFrozenCooldowns(gameTime, 0);
+        ancientChargeStartedAt = 0L;
+        ancientChargeUntil = 0L;
+        ancientChargeAvailable = false;
+        ancientChargeUsedPower = 0;
+        selfSacrificeActive = false;
+    }
+
+    /** Eski çağrılarla uyumluluk: kullanılmadan biterse şarj döngüsünü kapatır. */
     public void expireAncientCharge(long gameTime) {
+        finishAncientCharge(gameTime);
+    }
+
+    private void restoreFrozenCooldowns(long gameTime, int usedPower) {
         ensureArrays();
+        int usedIndex = usedPower <= 0 ? -1 : index(usedPower);
+        long usedCooldown = usedIndex >= 0 ? cooldownUntil[usedIndex] : gameTime;
         for (int i = 0; i < STORAGE_SIZE; i++) {
             if (i == 5 && powerClass() == PowerClass.WARDEN) {
                 frozenCooldownTicks[i] = 0;
@@ -189,9 +236,25 @@ public final class PlayerPowerData {
             cooldownUntil[i] = gameTime + Math.max(0, frozenCooldownTicks[i]);
             frozenCooldownTicks[i] = 0;
         }
-        ancientChargeStartedAt = 0L;
-        ancientChargeUntil = 0L;
-        ancientChargeAvailable = false;
+        if (usedIndex >= 0) cooldownUntil[usedIndex] = Math.max(gameTime, usedCooldown);
+    }
+
+    public void startSacrificedHeartRecovery(long gameTime) {
+        if (!selfSacrificeActive) return;
+        selfSacrificeActive = false;
+        sacrificedHealthPointsToRecover = 6;
+        nextSacrificedHeartRecoveryTick = gameTime + 60L;
+    }
+
+    public void advanceSacrificedHeartRecovery(long nextTick) {
+        if (sacrificedHealthPointsToRecover > 0) sacrificedHealthPointsToRecover--;
+        nextSacrificedHeartRecoveryTick = sacrificedHealthPointsToRecover > 0 ? nextTick : 0L;
+    }
+
+    public void clearSacrificedHeartRecovery() {
+        selfSacrificeActive = false;
+        sacrificedHealthPointsToRecover = 0;
+        nextSacrificedHeartRecoveryTick = 0L;
     }
 
     public void setAncientExhaustionUntil(long value) { ancientExhaustionUntil = value; }
