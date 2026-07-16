@@ -51,7 +51,7 @@ public final class SkinPowersClient implements ClientModInitializer {
                 selectionScreenOpened = false;
             }
             if (ClientState.receivedState() && ClientState.powerClass() == com.yagiz.skinpowers.PowerClass.NONE
-                && !selectionScreenOpened && client.currentScreen == null) {
+                && !selectionScreenOpened && !isScreenOpen(client)) {
                 selectionScreenOpened = true;
                 client.setScreen(new SkinSelectionScreen());
             }
@@ -83,6 +83,38 @@ public final class SkinPowersClient implements ClientModInitializer {
             previousJumpDown = false;
             lastJumpPress = 0L;
         });
+    }
+
+
+    private static boolean isScreenOpen(Object client) {
+        // 26.1.x sürümlerinde ekran alanının adı dağıtıma göre currentScreen
+        // veya screen olabiliyor. Doğrudan alan adına bağlanmadan ikisini de destekle.
+        for (String fieldName : new String[]{"currentScreen", "screen"}) {
+            try {
+                java.lang.reflect.Field field = client.getClass().getField(fieldName);
+                return field.get(client) != null;
+            } catch (ReflectiveOperationException ignored) {
+                try {
+                    java.lang.reflect.Field field = client.getClass().getDeclaredField(fieldName);
+                    field.setAccessible(true);
+                    return field.get(client) != null;
+                } catch (ReflectiveOperationException ignoredAgain) {
+                    // Sıradaki ad denenir.
+                }
+            }
+        }
+
+        for (String methodName : new String[]{"currentScreen", "screen", "getScreen"}) {
+            try {
+                Object screen = client.getClass().getMethod(methodName).invoke(client);
+                return screen != null;
+            } catch (ReflectiveOperationException ignored) {
+                // Sıradaki ad denenir.
+            }
+        }
+
+        // Alan bulunamazsa seçim ekranının bir kez açılmasına izin ver.
+        return false;
     }
 
     private KeyMapping register(String translationKey, int keyCode) {

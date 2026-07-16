@@ -117,9 +117,15 @@ public final class SkinAnalyzer {
     }
 
     private static String findSkinUrl(GameProfile profile) throws Exception {
-        if (profile == null || profile.getProperties() == null) return null;
-        List<?> properties = new ArrayList<>(profile.getProperties().get("textures"));
-        for (Object property : properties) {
+        if (profile == null) return null;
+
+        // Authlib 7 (Minecraft 26.1.x) uses record-style accessors, while older
+        // versions used getProperties(). Reflection keeps this code compatible
+        // with both forms without directly compiling against a removed method.
+        Object propertyContainer = invokeNoArg(profile, "properties", "getProperties");
+        if (propertyContainer == null) return null;
+
+        for (Object property : textureProperties(propertyContainer)) {
             String value = extractPropertyValue(property);
             if (value == null || value.isBlank()) continue;
             String decoded = new String(Base64.getDecoder().decode(value), StandardCharsets.UTF_8);
@@ -127,6 +133,72 @@ public final class SkinAnalyzer {
             JsonObject textures = root.has("textures") ? root.getAsJsonObject("textures") : null;
             JsonObject skin = textures != null && textures.has("SKIN") ? textures.getAsJsonObject("SKIN") : null;
             if (skin != null && skin.has("url")) return skin.get("url").getAsString();
+        }
+        return null;
+    }
+
+    private static List<Object> textureProperties(Object propertyContainer) {
+        List<Object> result = new ArrayList<>();
+
+        // PropertyMap/Multimap biçimi: properties.get("textures")
+        Object named = invokeOneArg(propertyContainer, "get", "textures");
+        addAll(result, named, false);
+        if (!result.isEmpty()) return result;
+
+        // Yeni Authlib biçimi: doğrudan Property listesi.
+        addAll(result, propertyContainer, true);
+        return result;
+    }
+
+    private static void addAll(List<Object> target, Object source, boolean filterByName) {
+        if (source == null) return;
+        if (source instanceof Iterable<?> iterable) {
+            for (Object value : iterable) {
+                if (!filterByName || "textures".equals(extractPropertyName(value))) target.add(value);
+            }
+            return;
+        }
+        if (source.getClass().isArray()) {
+            int length = java.lang.reflect.Array.getLength(source);
+            for (int i = 0; i < length; i++) {
+                Object value = java.lang.reflect.Array.get(source, i);
+                if (!filterByName || "textures".equals(extractPropertyName(value))) target.add(value);
+            }
+        }
+    }
+
+    private static Object invokeNoArg(Object target, String... names) {
+        for (String name : names) {
+            try {
+                return target.getClass().getMethod(name).invoke(target);
+            } catch (ReflectiveOperationException ignored) {
+                // Sıradaki uyumlu method adı denenir.
+            }
+        }
+        return null;
+    }
+
+    private static Object invokeOneArg(Object target, String name, Object argument) {
+        for (java.lang.reflect.Method method : target.getClass().getMethods()) {
+            if (!method.getName().equals(name) || method.getParameterCount() != 1) continue;
+            try {
+                return method.invoke(target, argument);
+            } catch (ReflectiveOperationException | IllegalArgumentException ignored) {
+                // Aynı adlı başka overload denenir.
+            }
+        }
+        return null;
+    }
+
+    private static String extractPropertyName(Object property) {
+        if (property == null) return null;
+        for (String methodName : new String[]{"name", "getName"}) {
+            try {
+                Object result = property.getClass().getMethod(methodName).invoke(property);
+                if (result instanceof String string) return string;
+            } catch (ReflectiveOperationException ignored) {
+                // Authlib sürümleri arasında method adı değişebiliyor.
+            }
         }
         return null;
     }
