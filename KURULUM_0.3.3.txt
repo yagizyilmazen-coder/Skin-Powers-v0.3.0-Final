@@ -1,8 +1,0 @@
-SKIN POWERS 0.3.3 KURULUM
-
-1. Bu klasörün içindeki bütün dosyaları GitHub depo klasörünün ana dizinine kopyalayın.
-2. Sorulduğunda hedefteki dosyaları değiştirin.
-3. GitHub Desktop: Commit to main -> Push origin.
-4. GitHub Actions yeşil tik verdiğinde skinpowers-0.3.3-jar artifact'ini indirin.
-5. ZIP içindeki skinpowers-0.3.3.jar dosyasını mods klasörüne koyun.
-6. Eski skinpowers JAR dosyalarını mods klasöründen kaldırın.
