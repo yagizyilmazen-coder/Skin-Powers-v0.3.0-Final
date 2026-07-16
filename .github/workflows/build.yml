@@ -1,0 +1,42 @@
+name: Fabric JAR Derle
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@v4
+
+      - name: Java 25 kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Gradle 9.5.1 kur
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.1'
+
+      - name: JSON ve proje yapısını denetle
+        run: python3 tools/verify_project.py
+
+      - name: Modu derle
+        run: gradle clean build --stacktrace --warning-mode all
+
+      - name: Derlenen JAR dosyasını yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: skinpowers-0.3.0-jar
+          path: build/libs/skinpowers-0.3.0.jar
+          if-no-files-found: error

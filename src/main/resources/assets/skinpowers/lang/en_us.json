@@ -1,0 +1,15 @@
+{
+  "key.category.skinpowers.controls": "Skin Powers",
+  "key.skinpowers.active": "Use active power",
+  "key.skinpowers.toggle": "Toggle passive/vision",
+  "key.skinpowers.previous": "Previous power",
+  "key.skinpowers.next": "Next power",
+  "key.skinpowers.menu": "Open power menu",
+  "screen.skinpowers.title": "CHOOSE YOUR SKIN POWER",
+  "screen.skinpowers.scan": "Scanning skin colors...",
+  "screen.skinpowers.skip": "Skip Scan",
+  "screen.skinpowers.select": "SELECT",
+  "class.skinpowers.warden": "WARDEN",
+  "class.skinpowers.flight": "FLIGHT",
+  "class.skinpowers.fire": "FIRE"
+}

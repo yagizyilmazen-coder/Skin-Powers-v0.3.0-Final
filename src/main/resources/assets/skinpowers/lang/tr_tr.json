@@ -1,0 +1,15 @@
+{
+  "key.category.skinpowers.controls": "Skin Powers",
+  "key.skinpowers.active": "Aktif gücü kullan",
+  "key.skinpowers.toggle": "Pasif/görüş özelliğini aç-kapat",
+  "key.skinpowers.previous": "Önceki güç",
+  "key.skinpowers.next": "Sonraki güç",
+  "key.skinpowers.menu": "Güç menüsünü aç",
+  "screen.skinpowers.title": "SKIN GÜCÜNÜ SEÇ",
+  "screen.skinpowers.scan": "Skin renkleri taranıyor...",
+  "screen.skinpowers.skip": "Taramayı Geç",
+  "screen.skinpowers.select": "SEÇ",
+  "class.skinpowers.warden": "WARDEN",
+  "class.skinpowers.flight": "UÇUŞ",
+  "class.skinpowers.fire": "ATEŞ"
+}
