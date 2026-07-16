@@ -38,7 +38,7 @@ public final class ServerNetworking {
             if (data.powerClass() == PowerClass.NONE && selected != PowerClass.NONE) {
                 data.chooseClass(selected);
                 PlayerDataStore.markDirty();
-                player.displayClientMessage(Component.literal("Sınıfın seçildi: " + selected.displayName()), false);
+                player.sendSystemMessage(Component.literal("Sınıfın seçildi: " + selected.displayName()));
             }
         } else if (command.equals("UNLOCK")) {
             unlockNext(player, data);
@@ -61,24 +61,24 @@ public final class ServerNetworking {
 
     private static void unlockNext(ServerPlayer player, PlayerPowerData data) {
         if (data.powerClass() == PowerClass.NONE) {
-            player.displayClientMessage(Component.literal("Önce bir sınıf seçmelisin."), true);
+            player.sendSystemMessage(Component.literal("Önce bir sınıf seçmelisin."));
             return;
         }
         if (data.unlockedLevel() >= 5) {
-            player.displayClientMessage(Component.literal("Bütün seviyeler açık."), true);
+            player.sendSystemMessage(Component.literal("Bütün seviyeler açık."));
             return;
         }
         int nextLevel = data.unlockedLevel() + 1;
         int cost = PowerCatalog.xpCostForLevel(nextLevel);
         if (player.experienceLevel < cost && !player.isCreative()) {
-            player.displayClientMessage(Component.literal("Seviye " + nextLevel + " için " + cost + " XP seviyesi gerekiyor."), true);
+            player.sendSystemMessage(Component.literal("Seviye " + nextLevel + " için " + cost + " XP seviyesi gerekiyor."));
             return;
         }
         if (!player.isCreative()) player.giveExperienceLevels(-cost);
         data.unlockNextLevel();
         data.setSelectedPower(nextLevel);
         PlayerDataStore.markDirty();
-        player.displayClientMessage(Component.literal("Açıldı: " + PowerCatalog.powerName(data.powerClass(), nextLevel)), false);
+        player.sendSystemMessage(Component.literal("Açıldı: " + PowerCatalog.powerName(data.powerClass(), nextLevel)));
     }
 
     public static void sync(ServerPlayer player) {

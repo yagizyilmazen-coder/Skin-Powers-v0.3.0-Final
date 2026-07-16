@@ -90,7 +90,7 @@ public final class PowerSystem {
         PlayerPowerData data = PlayerDataStore.get(player.getUUID());
         if (data.powerClass() == PowerClass.NONE) return;
 
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = (ServerLevel) player.level();
         long now = level.getGameTime();
 
         switch (data.powerClass()) {
@@ -170,7 +170,7 @@ public final class PowerSystem {
                     data.setSkyImpactSlowUntil(now + 80L);
                     LAST_SKY_IMPACT.put(player.getUUID(), now);
                     level.sendParticles(ParticleTypes.CLOUD, target.getX(), target.getY() + 0.7, target.getZ(), 24, 0.7, 0.7, 0.7, 0.08);
-                    level.playSound(null, player.blockPosition(), SoundEvents.GENERIC_EXPLODE, SoundSource.PLAYERS, 0.7F, 1.5F);
+                    level.playSound(null, player.blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.7F, 1.5F);
                     break;
                 }
             }
@@ -211,7 +211,7 @@ public final class PowerSystem {
 
     public static void useSelectedPower(ServerPlayer player, PlayerPowerData data) {
         if (data.powerClass() == PowerClass.NONE || data.unlockedLevel() == 0) {
-            player.displayClientMessage(Component.literal("Önce O ekranından bir seviye açmalısın."), true);
+            player.sendSystemMessage(Component.literal("Önce O ekranından bir seviye açmalısın."));
             return;
         }
         int power = data.selectedPower();
@@ -220,7 +220,7 @@ public final class PowerSystem {
         long now = player.level().getGameTime();
         int remaining = data.cooldownRemaining(power, now);
         if (remaining > 0) {
-            player.displayClientMessage(Component.literal("Güç " + formatSeconds(remaining) + " saniye sonra hazır."), true);
+            player.sendSystemMessage(Component.literal("Güç " + formatSeconds(remaining) + " saniye sonra hazır."));
             return;
         }
 
@@ -243,11 +243,11 @@ public final class PowerSystem {
         if (data.powerClass() == PowerClass.FLIGHT && data.unlockedLevel() >= 1) {
             data.togglePassive();
             changed = true;
-            player.displayClientMessage(Component.literal("Yavaş Düşüş: " + (data.passiveEnabled() ? "AÇIK" : "KAPALI")), true);
+            player.sendSystemMessage(Component.literal("Yavaş Düşüş: " + (data.passiveEnabled() ? "AÇIK" : "KAPALI")));
         } else if ((data.powerClass() == PowerClass.WARDEN || data.powerClass() == PowerClass.FIRE) && data.unlockedLevel() >= 4) {
             data.toggleVision();
             changed = true;
-            player.displayClientMessage(Component.literal("Görüş modu: " + (data.visionEnabled() ? "AÇIK" : "KAPALI")), true);
+            player.sendSystemMessage(Component.literal("Görüş modu: " + (data.visionEnabled() ? "AÇIK" : "KAPALI")));
         }
         if (changed) {
             PlayerDataStore.markDirty();
@@ -268,14 +268,14 @@ public final class PowerSystem {
         player.fallDistance = 0.0F;
         data.setCooldown(3, now, Math.max(80, 160 - stage * 20));
         data.addMasteryUse(3);
-        player.serverLevel().sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY(), player.getZ(), 25, 0.5, 0.2, 0.5, 0.08);
-        player.serverLevel().playSound(null, player.blockPosition(), SoundEvents.FIREWORK_ROCKET_LAUNCH, SoundSource.PLAYERS, 0.8F, 1.25F);
+        ((ServerLevel) player.level()).sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY(), player.getZ(), 25, 0.5, 0.2, 0.5, 0.08);
+        ((ServerLevel) player.level()).playSound(null, player.blockPosition(), SoundEvents.FIREWORK_ROCKET_LAUNCH, SoundSource.PLAYERS, 0.8F, 1.25F);
         PlayerDataStore.markDirty();
         ServerNetworking.sync(player);
     }
 
     private static boolean useWarden(ServerPlayer player, PlayerPowerData data, int power, long now) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = (ServerLevel) player.level();
         int stage = data.masteryStage(power);
         switch (power) {
             case 1 -> {
@@ -307,7 +307,7 @@ public final class PowerSystem {
             }
             case 4 -> {
                 data.toggleVision();
-                player.displayClientMessage(Component.literal("Karanlık Görüş: " + (data.visionEnabled() ? "AÇIK" : "KAPALI")), true);
+                player.sendSystemMessage(Component.literal("Karanlık Görüş: " + (data.visionEnabled() ? "AÇIK" : "KAPALI")));
                 return true;
             }
             case 5 -> {
@@ -324,11 +324,11 @@ public final class PowerSystem {
     private static boolean useFlight(ServerPlayer player, PlayerPowerData data, int power, long now) {
         if (power == 1) {
             data.togglePassive();
-            player.displayClientMessage(Component.literal("Yavaş Düşüş: " + (data.passiveEnabled() ? "AÇIK" : "KAPALI")), true);
+            player.sendSystemMessage(Component.literal("Yavaş Düşüş: " + (data.passiveEnabled() ? "AÇIK" : "KAPALI")));
             return true;
         }
         if (power == 2) {
-            player.displayClientMessage(Component.literal("Bağlı kanatlar pasif olarak çalışıyor; uçmak için zıpla ve uçuş tuşunu kullan."), true);
+            player.sendSystemMessage(Component.literal("Bağlı kanatlar pasif olarak çalışıyor; uçmak için zıpla ve uçuş tuşunu kullan."));
             return false;
         }
         if (power == 3) {
@@ -342,22 +342,22 @@ public final class PowerSystem {
             return true;
         }
         if (power == 5) {
-            player.displayClientMessage(Component.literal("Gökyüzü Hâkimiyeti uçarken yüksek hızlı çarpışmalarda otomatik çalışır."), true);
+            player.sendSystemMessage(Component.literal("Gökyüzü Hâkimiyeti uçarken yüksek hızlı çarpışmalarda otomatik çalışır."));
             return false;
         }
         return false;
     }
 
     private static boolean useFire(ServerPlayer player, PlayerPowerData data, int power, long now) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = (ServerLevel) player.level();
         int stage = data.masteryStage(power);
         switch (power) {
             case 1 -> {
-                player.displayClientMessage(Component.literal("Ateş bağışıklığı sürekli aktif."), true);
+                player.sendSystemMessage(Component.literal("Ateş bağışıklığı sürekli aktif."));
                 return false;
             }
             case 2 -> {
-                player.displayClientMessage(Component.literal("Alevli yakın dövüş, saldırdığında otomatik çalışır."), true);
+                player.sendSystemMessage(Component.literal("Alevli yakın dövüş, saldırdığında otomatik çalışır."));
                 return false;
             }
             case 3 -> {
@@ -374,7 +374,7 @@ public final class PowerSystem {
             }
             case 4 -> {
                 data.toggleVision();
-                player.displayClientMessage(Component.literal("Ateş Görüşü: " + (data.visionEnabled() ? "AÇIK" : "KAPALI")), true);
+                player.sendSystemMessage(Component.literal("Ateş Görüşü: " + (data.visionEnabled() ? "AÇIK" : "KAPALI")));
                 return true;
             }
             case 5 -> {
@@ -387,7 +387,7 @@ public final class PowerSystem {
     }
 
     private static void sonicBlast(ServerPlayer player, PlayerPowerData data, int stage) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = (ServerLevel) player.level();
         Vec3 origin = player.getEyePosition();
         Vec3 look = player.getLookAngle().normalize();
         double range = 14.0 + stage * 2.0;
@@ -428,7 +428,7 @@ public final class PowerSystem {
     }
 
     private static void airBlast(ServerPlayer player, int stage) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = (ServerLevel) player.level();
         Vec3 origin = player.getEyePosition();
         Vec3 look = player.getLookAngle().normalize();
         double range = 10.0 + stage * 2.0;
@@ -463,7 +463,7 @@ public final class PowerSystem {
     }
 
     private static void scheduleMeteors(ServerPlayer player, PlayerPowerData data, int stage) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = (ServerLevel) player.level();
         long now = level.getGameTime();
         Vec3 center = player.position().add(player.getLookAngle().normalize().scale(20.0));
         RandomSource random = level.getRandom();
@@ -512,7 +512,7 @@ public final class PowerSystem {
 
         level.sendParticles(ParticleTypes.EXPLOSION, impact.x, impact.y + 0.5, impact.z, 8, 1.1, 0.8, 1.1, 0.05);
         level.sendParticles(ParticleTypes.FLAME, impact.x, impact.y + 0.5, impact.z, 70, 2.0, 1.3, 2.0, 0.12);
-        level.playSound(null, BlockPos.containing(impact), SoundEvents.GENERIC_EXPLODE, SoundSource.PLAYERS, 1.8F, 0.7F);
+        level.playSound(null, BlockPos.containing(impact), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.8F, 0.7F);
 
         AABB area = new AABB(impact, impact).inflate(5.0 + radius);
         for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, area)) {
@@ -576,14 +576,13 @@ public final class PowerSystem {
     }
 
     private static List<LivingEntity> nearbyLiving(ServerPlayer player, double radius) {
-        return player.serverLevel().getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(radius));
+        return ((ServerLevel) player.level()).getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(radius));
     }
 
     private static boolean protectedAlly(ServerPlayer source, LivingEntity target) {
         if (source.isAlliedTo(target)) return true;
         return target instanceof TamableAnimal tamable
-            && tamable.getOwnerUUID() != null
-            && tamable.getOwnerUUID().equals(source.getUUID());
+            && tamable.getOwner() == source;
     }
 
     private static boolean isChestArmorAllowed(ItemStack stack, int level) {
