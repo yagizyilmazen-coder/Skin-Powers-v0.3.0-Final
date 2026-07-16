@@ -29,6 +29,6 @@ public final class SkinPowersMod implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register(PowerSystem::tickServer);
         AttackEntityCallback.EVENT.register(PowerSystem::onAttackEntity);
 
-        LOGGER.info("Skin Powers 0.3.3 yüklendi.");
+        LOGGER.info("Skin Powers 0.3.4 yüklendi.");
     }
 }

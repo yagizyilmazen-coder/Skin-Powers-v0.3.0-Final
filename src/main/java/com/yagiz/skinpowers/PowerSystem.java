@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -38,6 +39,9 @@ import java.util.UUID;
 public final class PowerSystem {
     private static final List<PendingMeteor> METEORS = new ArrayList<>();
     private static final List<PendingHellfireOrb> HELLFIRE_ORBS = new ArrayList<>();
+    private static final List<PendingWaterOrb> WATER_ORBS = new ArrayList<>();
+    private static final List<PendingWhirlpool> WHIRLPOOLS = new ArrayList<>();
+    private static final List<PendingTsunami> TSUNAMIS = new ArrayList<>();
     private static final Map<UUID, Long> LAST_SKY_IMPACT = new HashMap<>();
     private static final Map<UUID, Vec3> LAST_FLIGHT_POSITION = new HashMap<>();
     private static final Map<UUID, long[]> LAST_MASTERY_CREDIT = new HashMap<>();
@@ -78,6 +82,9 @@ public final class PowerSystem {
         }
         tickMeteors();
         tickHellfireOrbs();
+        tickWaterOrbs();
+        tickWhirlpools();
+        tickTsunamis();
 
         long gameTime = server.overworld().getGameTime();
         if (gameTime - lastAutosaveTick >= 1200L) {
@@ -97,6 +104,7 @@ public final class PowerSystem {
             case WARDEN -> tickWarden(player, data, level, now);
             case FLIGHT -> tickFlight(player, data, level, now);
             case FIRE -> tickFire(player, data, level, now);
+            case WATER -> tickWater(player, data, level, now);
             default -> { }
         }
 
@@ -261,6 +269,55 @@ public final class PowerSystem {
         }
     }
 
+    private static void tickWater(ServerPlayer player, PlayerPowerData data, ServerLevel level, long now) {
+        if (data.unlockedLevel() >= 1 && isEyesInWater(player, level)) {
+            player.addEffect(new MobEffectInstance(MobEffects.WATER_BREATHING, 40, 0, false, false, true));
+            player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 40, 0, false, false, true));
+            player.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, 220, 0, false, false, true));
+            if (player.getDeltaMovement().lengthSqr() > 0.015) {
+                creditMastery(player, data, 1, now, 600L);
+            }
+        }
+
+        if (data.waterArmorUntil() > now) {
+            int stage = data.masteryStage(4);
+            player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 35, stage >= 3 ? 2 : 1, false, false, true));
+            player.setRemainingFireTicks(0);
+            player.fallDistance = 0.0F;
+
+            if (now % 2L == 0L) {
+                drawRing(level, player.position().add(0.0, 0.25, 0.0), 1.6 + stage * 0.12, ParticleTypes.SPLASH, 30);
+                level.sendParticles(ParticleTypes.BUBBLE_POP, player.getX(), player.getY() + 1.0, player.getZ(), 9, 0.75, 0.9, 0.75, 0.02);
+            }
+
+            AABB shield = player.getBoundingBox().inflate(3.3 + stage * 0.2);
+            for (Projectile projectile : level.getEntitiesOfClass(Projectile.class, shield)) {
+                if (projectile.getOwner() == player) continue;
+                Vec3 away = projectile.position().subtract(player.position());
+                if (away.lengthSqr() < 0.0001) away = player.getLookAngle().scale(-1.0);
+                away = away.normalize();
+                double speed = Math.max(0.85, projectile.getDeltaMovement().length() + 0.25);
+                projectile.setDeltaMovement(away.scale(speed).add(0.0, 0.10, 0.0));
+                projectile.setOwner(player);
+            }
+
+            if (now % 10L == 0L) {
+                for (LivingEntity target : nearbyLiving(player, 2.7 + stage * 0.2)) {
+                    if (target == player || protectedAlly(player, target)) continue;
+                    Vec3 away = target.position().subtract(player.position());
+                    if (away.lengthSqr() > 0.0001) {
+                        away = away.normalize().scale(0.22 + stage * 0.03);
+                        target.push(away.x, 0.05, away.z);
+                    }
+                }
+            }
+        } else if (data.waterArmorUntil() != 0L) {
+            data.setWaterArmorUntil(0L);
+            player.sendSystemMessage(Component.literal("Okyanus Zırhı sona erdi."));
+            PlayerDataStore.markDirty();
+        }
+    }
+
     public static void useSelectedPower(ServerPlayer player, PlayerPowerData data) {
         if (data.powerClass() == PowerClass.NONE || data.unlockedLevel() == 0) {
             player.sendSystemMessage(Component.literal("Önce O ekranından bir seviye açmalısın."));
@@ -280,6 +337,7 @@ public final class PowerSystem {
             case WARDEN -> useWarden(player, data, power, now);
             case FLIGHT -> useFlight(player, data, power, now);
             case FIRE -> useFire(player, data, power, now);
+            case WATER -> useWater(player, data, power, now);
             default -> false;
         };
 
@@ -307,6 +365,8 @@ public final class PowerSystem {
             player.sendSystemMessage(Component.literal("Sculk Avı aç/kapat değildir; 4. gücü seçip R ile kullan."));
         } else if (data.powerClass() == PowerClass.FIRE) {
             player.sendSystemMessage(Component.literal("Ateş sınıfındaki güçler R ile veya otomatik olarak çalışır."));
+        } else if (data.powerClass() == PowerClass.WATER) {
+            player.sendSystemMessage(Component.literal("Suda Yaşam otomatik; diğer Su güçleri R ile çalışır."));
         }
         if (changed) {
             PlayerDataStore.markDirty();
@@ -481,6 +541,46 @@ public final class PowerSystem {
         }
     }
 
+    private static boolean useWater(ServerPlayer player, PlayerPowerData data, int power, long now) {
+        ServerLevel level = (ServerLevel) player.level();
+        int stage = data.masteryStage(power);
+        switch (power) {
+            case 1 -> {
+                player.sendSystemMessage(Component.literal("Suda Yaşam, suya girdiğinde otomatik çalışır."));
+                return false;
+            }
+            case 2 -> {
+                launchWaterOrb(player, stage);
+                data.setCooldown(2, now, Math.max(80, 120 - stage * 10));
+                return true;
+            }
+            case 3 -> {
+                Vec3 look = horizontalDirection(player.getLookAngle());
+                Vec3 center = player.position().add(look.scale(7.0 + stage));
+                long duration = 100L + stage * 15L;
+                WHIRLPOOLS.add(new PendingWhirlpool(level, player.getUUID(), center, now + duration, stage));
+                level.sendParticles(ParticleTypes.SPLASH, center.x, center.y + 0.3, center.z, 55, 2.2, 0.35, 2.2, 0.08);
+                data.setCooldown(3, now, Math.max(220, 280 - stage * 20));
+                return true;
+            }
+            case 4 -> {
+                int duration = 240 + stage * 30;
+                data.setWaterArmorUntil(now + duration);
+                level.sendParticles(ParticleTypes.SPLASH, player.getX(), player.getY() + 1.0, player.getZ(), 70, 1.2, 1.2, 1.2, 0.10);
+                level.sendParticles(ParticleTypes.BUBBLE_POP, player.getX(), player.getY() + 1.0, player.getZ(), 32, 0.9, 1.0, 0.9, 0.04);
+                data.setCooldown(4, now, Math.max(380, 480 - stage * 30));
+                player.sendSystemMessage(Component.literal("Okyanus Zırhı: " + formatSeconds(duration) + " saniye."));
+                return true;
+            }
+            case 5 -> {
+                launchTsunami(player, stage);
+                data.setCooldown(5, now, Math.max(560, 700 - stage * 45));
+                return true;
+            }
+            default -> { return false; }
+        }
+    }
+
     private static void sonicBlast(ServerPlayer player, PlayerPowerData data, int stage) {
         ServerLevel level = (ServerLevel) player.level();
         Vec3 origin = player.getEyePosition();
@@ -547,6 +647,7 @@ public final class PowerSystem {
             ServerLevel level = orb.level;
             long now = level.getGameTime();
             ServerPlayer owner = level.getServer().getPlayerList().getPlayer(orb.owner);
+            clearHellfireVisual(orb);
 
             Vec3 from = orb.position;
             Vec3 to = from.add(orb.velocity);
@@ -575,16 +676,37 @@ public final class PowerSystem {
             }
 
             if (impact != null || now >= orb.expireTick) {
+                clearHellfireVisual(orb);
                 impactHellfireOrb(orb, impact == null ? to : impact, directTarget, owner);
                 iterator.remove();
                 continue;
             }
 
             orb.position = to;
-            level.sendParticles(ParticleTypes.FLAME, to.x, to.y, to.z, 18, 0.42, 0.42, 0.42, 0.025);
+            placeHellfireVisual(orb, to);
+            level.sendParticles(ParticleTypes.FLAME, to.x, to.y, to.z, 24, 0.50, 0.50, 0.50, 0.03);
             level.sendParticles(ParticleTypes.LAVA, to.x, to.y, to.z, 3, 0.24, 0.24, 0.24, 0.0);
             level.sendParticles(ParticleTypes.LARGE_SMOKE, from.x, from.y, from.z, 3, 0.20, 0.20, 0.20, 0.015);
         }
+    }
+
+    private static void placeHellfireVisual(PendingHellfireOrb orb, Vec3 position) {
+        BlockPos center = BlockPos.containing(position);
+        BlockPos[] shape = {center, center.above()};
+        for (BlockPos pos : shape) {
+            if (!orb.level.getBlockState(pos).isAir()) continue;
+            orb.level.setBlockAndUpdate(pos, Blocks.MAGMA_BLOCK.defaultBlockState());
+            orb.visualBlocks.add(new BlockPos(pos.getX(), pos.getY(), pos.getZ()));
+        }
+    }
+
+    private static void clearHellfireVisual(PendingHellfireOrb orb) {
+        for (BlockPos pos : orb.visualBlocks) {
+            if (orb.level.getBlockState(pos).is(Blocks.MAGMA_BLOCK)) {
+                orb.level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+            }
+        }
+        orb.visualBlocks.clear();
     }
 
     private static void impactHellfireOrb(
@@ -625,6 +747,221 @@ public final class PowerSystem {
         level.sendParticles(ParticleTypes.FLAME, impact.x, impact.y, impact.z, 70, 1.25, 1.25, 1.25, 0.11);
         level.sendParticles(ParticleTypes.LAVA, impact.x, impact.y, impact.z, 15, 0.85, 0.85, 0.85, 0.0);
         level.playSound(null, BlockPos.containing(impact), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.15F, 1.05F);
+    }
+
+    private static void launchWaterOrb(ServerPlayer player, int stage) {
+        ServerLevel level = (ServerLevel) player.level();
+        Vec3 direction = player.getLookAngle().normalize();
+        Vec3 start = player.getEyePosition().add(direction.scale(1.1));
+        Vec3 velocity = direction.scale(0.88 + stage * 0.08);
+        long now = level.getGameTime();
+        WATER_ORBS.add(new PendingWaterOrb(level, player.getUUID(), start, velocity, now + 32L + stage * 3L, stage));
+        level.sendParticles(ParticleTypes.SPLASH, start.x, start.y, start.z, 28, 0.38, 0.38, 0.38, 0.08);
+        level.sendParticles(ParticleTypes.BUBBLE_POP, start.x, start.y, start.z, 12, 0.28, 0.28, 0.28, 0.03);
+    }
+
+    private static void tickWaterOrbs() {
+        Iterator<PendingWaterOrb> iterator = WATER_ORBS.iterator();
+        while (iterator.hasNext()) {
+            PendingWaterOrb orb = iterator.next();
+            ServerLevel level = orb.level;
+            long now = level.getGameTime();
+            ServerPlayer owner = level.getServer().getPlayerList().getPlayer(orb.owner);
+            Vec3 from = orb.position;
+            Vec3 to = from.add(orb.velocity);
+            Vec3 impact = null;
+            LivingEntity directTarget = null;
+            int steps = Math.max(3, (int) Math.ceil(orb.velocity.length() / 0.22));
+
+            for (int step = 1; step <= steps; step++) {
+                Vec3 point = from.add(orb.velocity.scale(step / (double) steps));
+                BlockPos blockPos = BlockPos.containing(point);
+                BlockState state = level.getBlockState(blockPos);
+                boolean water = level.getFluidState(blockPos).is(FluidTags.WATER);
+                if (!state.isAir() && !water) {
+                    impact = point.subtract(orb.velocity.normalize().scale(0.16));
+                    break;
+                }
+                AABB contact = new AABB(point, point).inflate(0.78 + orb.stage * 0.06);
+                for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, contact)) {
+                    if (owner != null && (target == owner || protectedAlly(owner, target))) continue;
+                    directTarget = target;
+                    impact = target.getEyePosition();
+                    break;
+                }
+                if (impact != null) break;
+            }
+
+            if (impact != null || now >= orb.expireTick) {
+                impactWaterOrb(orb, impact == null ? to : impact, directTarget, owner);
+                iterator.remove();
+                continue;
+            }
+
+            orb.position = to;
+            level.sendParticles(ParticleTypes.SPLASH, to.x, to.y, to.z, 18, 0.34, 0.34, 0.34, 0.025);
+            level.sendParticles(ParticleTypes.BUBBLE_POP, from.x, from.y, from.z, 6, 0.22, 0.22, 0.22, 0.018);
+        }
+    }
+
+    private static void impactWaterOrb(PendingWaterOrb orb, Vec3 impact, LivingEntity directTarget, ServerPlayer owner) {
+        ServerLevel level = orb.level;
+        Vec3 pushDirection = horizontalDirection(orb.velocity);
+        if (directTarget != null) {
+            directTarget.hurtServer(level,
+                owner == null ? level.damageSources().generic() : level.damageSources().playerAttack(owner),
+                5.0F + orb.stage * 1.3F);
+            directTarget.setRemainingFireTicks(0);
+            Vec3 push = pushDirection.scale(1.25 + orb.stage * 0.14);
+            directTarget.push(push.x, 0.30, push.z);
+            directTarget.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 60, 1, false, true, true));
+        }
+
+        double radius = 2.4 + orb.stage * 0.25;
+        AABB area = new AABB(impact, impact).inflate(radius);
+        for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, area)) {
+            if (target == directTarget) continue;
+            if (owner != null && (target == owner || protectedAlly(owner, target))) continue;
+            if (target.distanceToSqr(impact) > radius * radius) continue;
+            target.hurtServer(level,
+                owner == null ? level.damageSources().generic() : level.damageSources().playerAttack(owner),
+                2.0F + orb.stage * 0.65F);
+            target.setRemainingFireTicks(0);
+            Vec3 push = pushDirection.scale(0.72 + orb.stage * 0.08);
+            target.push(push.x, 0.18, push.z);
+        }
+        level.sendParticles(ParticleTypes.SPLASH, impact.x, impact.y, impact.z, 70, 1.15, 0.85, 1.15, 0.13);
+        level.sendParticles(ParticleTypes.BUBBLE_POP, impact.x, impact.y, impact.z, 24, 0.85, 0.65, 0.85, 0.06);
+    }
+
+    private static void tickWhirlpools() {
+        Iterator<PendingWhirlpool> iterator = WHIRLPOOLS.iterator();
+        while (iterator.hasNext()) {
+            PendingWhirlpool whirlpool = iterator.next();
+            ServerLevel level = whirlpool.level;
+            long now = level.getGameTime();
+            ServerPlayer owner = level.getServer().getPlayerList().getPlayer(whirlpool.owner);
+            double radius = 5.0 + whirlpool.stage * 0.55;
+
+            if (now >= whirlpool.expireTick) {
+                AABB finishArea = new AABB(whirlpool.center, whirlpool.center).inflate(radius, 2.5, radius);
+                for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, finishArea)) {
+                    if (owner != null && (target == owner || protectedAlly(owner, target))) continue;
+                    Vec3 away = target.position().subtract(whirlpool.center);
+                    if (away.lengthSqr() > 0.0001) {
+                        away = away.normalize().scale(0.85 + whirlpool.stage * 0.08);
+                        target.push(away.x, 0.40, away.z);
+                    }
+                }
+                level.sendParticles(ParticleTypes.SPLASH, whirlpool.center.x, whirlpool.center.y + 0.5, whirlpool.center.z, 85, radius * 0.55, 0.8, radius * 0.55, 0.13);
+                iterator.remove();
+                continue;
+            }
+
+            if (now % 2L == 0L) {
+                drawRing(level, whirlpool.center.add(0.0, 0.15, 0.0), radius, ParticleTypes.SPLASH, 46);
+                drawRing(level, whirlpool.center.add(0.0, 0.28, 0.0), radius * 0.62, ParticleTypes.BUBBLE_POP, 32);
+            }
+
+            AABB area = new AABB(whirlpool.center, whirlpool.center).inflate(radius, 3.0, radius);
+            for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, area)) {
+                if (owner != null && (target == owner || protectedAlly(owner, target))) continue;
+                Vec3 toward = whirlpool.center.subtract(target.position());
+                double distance = Math.sqrt(toward.x * toward.x + toward.z * toward.z);
+                if (distance > radius || distance < 0.05) continue;
+                Vec3 pull = new Vec3(toward.x, 0.0, toward.z).normalize().scale(0.16 + (radius - distance) * 0.035 + whirlpool.stage * 0.015);
+                target.push(pull.x, -0.015, pull.z);
+                target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 30, whirlpool.stage >= 2 ? 2 : 1, false, true, true));
+                target.setRemainingFireTicks(0);
+                if (now % 20L == 0L) {
+                    target.hurtServer(level,
+                        owner == null ? level.damageSources().generic() : level.damageSources().playerAttack(owner),
+                        2.0F + whirlpool.stage * 0.6F);
+                }
+            }
+        }
+    }
+
+    private static void launchTsunami(ServerPlayer player, int stage) {
+        ServerLevel level = (ServerLevel) player.level();
+        Vec3 direction = horizontalDirection(player.getLookAngle());
+        Vec3 start = player.position().add(direction.scale(2.2));
+        long now = level.getGameTime();
+        int lifetime = 38 + stage * 4;
+        TSUNAMIS.add(new PendingTsunami(level, player.getUUID(), start, direction, now, now + lifetime, stage));
+        level.sendParticles(ParticleTypes.SPLASH, start.x, start.y + 2.0, start.z, 100, 3.8, 2.2, 3.8, 0.16);
+    }
+
+    private static void tickTsunamis() {
+        Iterator<PendingTsunami> iterator = TSUNAMIS.iterator();
+        while (iterator.hasNext()) {
+            PendingTsunami tsunami = iterator.next();
+            ServerLevel level = tsunami.level;
+            long now = level.getGameTime();
+            ServerPlayer owner = level.getServer().getPlayerList().getPlayer(tsunami.owner);
+            if (now >= tsunami.expireTick) {
+                level.sendParticles(ParticleTypes.SPLASH, tsunami.position.x, tsunami.position.y + 1.0, tsunami.position.z, 90, 3.0, 1.5, 3.0, 0.12);
+                iterator.remove();
+                continue;
+            }
+
+            tsunami.position = tsunami.position.add(tsunami.direction.scale(0.72 + tsunami.stage * 0.035));
+            double total = Math.max(1.0, tsunami.expireTick - tsunami.startTick);
+            double progress = Math.max(0.0, Math.min(1.0, (now - tsunami.startTick) / total));
+            double width = (8.0 + tsunami.stage) * (1.0 - progress * 0.42);
+            double height = (4.5 + tsunami.stage * 0.28) * (1.0 - progress * 0.48);
+            double thickness = 1.7 + tsunami.stage * 0.08;
+            Vec3 right = new Vec3(-tsunami.direction.z, 0.0, tsunami.direction.x);
+
+            int lateralSteps = Math.max(5, (int) Math.ceil(width));
+            int verticalSteps = Math.max(4, (int) Math.ceil(height * 1.35));
+            for (int li = 0; li <= lateralSteps; li++) {
+                double lateral = -width / 2.0 + width * li / lateralSteps;
+                for (int vi = 0; vi <= verticalSteps; vi++) {
+                    double vertical = height * vi / verticalSteps;
+                    Vec3 point = tsunami.position.add(right.scale(lateral)).add(0.0, vertical, 0.0);
+                    level.sendParticles(ParticleTypes.SPLASH, point.x, point.y, point.z, 1, 0.15, 0.12, 0.15, 0.02);
+                    if ((li + vi + now) % 3L == 0L) {
+                        level.sendParticles(ParticleTypes.BUBBLE_POP, point.x, point.y, point.z, 1, 0.08, 0.08, 0.08, 0.01);
+                    }
+                }
+            }
+
+            double boxRadius = Math.max(width / 2.0, thickness) + 1.0;
+            AABB area = new AABB(tsunami.position, tsunami.position).inflate(boxRadius, height + 1.0, boxRadius);
+            for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, area)) {
+                if (owner != null && (target == owner || protectedAlly(owner, target))) continue;
+                Vec3 relative = target.position().subtract(tsunami.position);
+                double lateral = relative.dot(right);
+                double forward = relative.dot(tsunami.direction);
+                if (Math.abs(lateral) > width / 2.0 + 0.8 || Math.abs(forward) > thickness + 0.8) continue;
+                if (relative.y < -1.5 || relative.y > height + 1.0) continue;
+
+                Vec3 push = tsunami.direction.scale(0.82 + tsunami.stage * 0.10);
+                target.push(push.x, 0.18, push.z);
+                target.setRemainingFireTicks(0);
+                target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 55, tsunami.stage >= 2 ? 2 : 1, false, true, true));
+
+                long lastDamage = tsunami.lastDamage.getOrDefault(target.getUUID(), Long.MIN_VALUE / 2);
+                if (now - lastDamage >= 20L) {
+                    float damage = lastDamage < -1000L ? 8.0F + tsunami.stage * 1.4F : 3.0F + tsunami.stage * 0.55F;
+                    target.hurtServer(level,
+                        owner == null ? level.damageSources().generic() : level.damageSources().playerAttack(owner),
+                        damage);
+                    tsunami.lastDamage.put(target.getUUID(), now);
+                }
+            }
+        }
+    }
+
+    private static Vec3 horizontalDirection(Vec3 direction) {
+        Vec3 horizontal = new Vec3(direction.x, 0.0, direction.z);
+        if (horizontal.lengthSqr() < 0.0001) return new Vec3(0.0, 0.0, 1.0);
+        return horizontal.normalize();
+    }
+
+    private static boolean isEyesInWater(ServerPlayer player, ServerLevel level) {
+        return level.getFluidState(BlockPos.containing(player.getEyePosition())).is(FluidTags.WATER);
     }
 
     private static double distanceToSegmentSqr(Vec3 point, Vec3 start, Vec3 end) {
@@ -768,8 +1105,12 @@ public final class PowerSystem {
 
     public static void clearAllMeteorVisuals() {
         for (PendingMeteor meteor : METEORS) clearMeteorVisual(meteor);
+        for (PendingHellfireOrb orb : HELLFIRE_ORBS) clearHellfireVisual(orb);
         METEORS.clear();
         HELLFIRE_ORBS.clear();
+        WATER_ORBS.clear();
+        WHIRLPOOLS.clear();
+        TSUNAMIS.clear();
         LAST_FLIGHT_POSITION.clear();
     }
 
@@ -916,6 +1257,7 @@ public final class PowerSystem {
         private final Vec3 velocity;
         private final long expireTick;
         private final int stage;
+        private final List<BlockPos> visualBlocks = new ArrayList<>();
 
         private PendingHellfireOrb(
             ServerLevel level,
@@ -929,6 +1271,61 @@ public final class PowerSystem {
             this.owner = owner;
             this.position = position;
             this.velocity = velocity;
+            this.expireTick = expireTick;
+            this.stage = stage;
+        }
+    }
+
+    private static final class PendingWaterOrb {
+        private final ServerLevel level;
+        private final UUID owner;
+        private Vec3 position;
+        private final Vec3 velocity;
+        private final long expireTick;
+        private final int stage;
+
+        private PendingWaterOrb(ServerLevel level, UUID owner, Vec3 position, Vec3 velocity, long expireTick, int stage) {
+            this.level = level;
+            this.owner = owner;
+            this.position = position;
+            this.velocity = velocity;
+            this.expireTick = expireTick;
+            this.stage = stage;
+        }
+    }
+
+    private static final class PendingWhirlpool {
+        private final ServerLevel level;
+        private final UUID owner;
+        private final Vec3 center;
+        private final long expireTick;
+        private final int stage;
+
+        private PendingWhirlpool(ServerLevel level, UUID owner, Vec3 center, long expireTick, int stage) {
+            this.level = level;
+            this.owner = owner;
+            this.center = center;
+            this.expireTick = expireTick;
+            this.stage = stage;
+        }
+    }
+
+    private static final class PendingTsunami {
+        private final ServerLevel level;
+        private final UUID owner;
+        private Vec3 position;
+        private final Vec3 direction;
+        private final long startTick;
+        private final long expireTick;
+        private final int stage;
+        private final Map<UUID, Long> lastDamage = new HashMap<>();
+
+        private PendingTsunami(ServerLevel level, UUID owner, Vec3 position, Vec3 direction, long startTick, long expireTick, int stage) {
+            this.level = level;
+            this.owner = owner;
+            this.position = position;
+            this.direction = direction;
+            this.startTick = startTick;
             this.expireTick = expireTick;
             this.stage = stage;
         }

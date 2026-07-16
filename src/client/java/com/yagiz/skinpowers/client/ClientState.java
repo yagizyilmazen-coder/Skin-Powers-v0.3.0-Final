@@ -15,6 +15,7 @@ public final class ClientState {
     private static boolean visionEnabled;
     private static int temporaryElytraTicks;
     private static int wardenHuntTicks;
+    private static int waterArmorTicks;
     private static int[] masteryUses = new int[5];
     private static int xpLevel;
     private static String powerName = "-";
@@ -34,6 +35,7 @@ public final class ClientState {
             visionEnabled = state.visionEnabled;
             temporaryElytraTicks = Math.max(0, state.temporaryElytraTicks);
             wardenHuntTicks = Math.max(0, state.wardenHuntTicks);
+            waterArmorTicks = Math.max(0, state.waterArmorTicks);
             masteryUses = state.masteryUses == null || state.masteryUses.length != 5 ? new int[5] : state.masteryUses;
             xpLevel = Math.max(0, state.xpLevel);
             powerName = state.powerName == null ? PowerCatalog.powerName(powerClass, selectedPower) : state.powerName;
@@ -47,6 +49,7 @@ public final class ClientState {
         if (cooldownTicks > 0) cooldownTicks--;
         if (temporaryElytraTicks > 0) temporaryElytraTicks--;
         if (wardenHuntTicks > 0) wardenHuntTicks--;
+        if (waterArmorTicks > 0) waterArmorTicks--;
     }
 
     public static void reset() {
@@ -58,6 +61,7 @@ public final class ClientState {
         visionEnabled = false;
         temporaryElytraTicks = 0;
         wardenHuntTicks = 0;
+        waterArmorTicks = 0;
         masteryUses = new int[5];
         xpLevel = 0;
         powerName = "-";
@@ -72,6 +76,7 @@ public final class ClientState {
     public static boolean visionEnabled() { return visionEnabled; }
     public static int temporaryElytraTicks() { return temporaryElytraTicks; }
     public static int wardenHuntTicks() { return wardenHuntTicks; }
+    public static int waterArmorTicks() { return waterArmorTicks; }
     public static int xpLevel() { return xpLevel; }
     public static String powerName() { return powerName; }
     public static boolean receivedState() { return receivedState; }
@@ -93,6 +98,7 @@ public final class ClientState {
         private boolean visionEnabled;
         private int temporaryElytraTicks;
         private int wardenHuntTicks;
+        private int waterArmorTicks;
         private int[] masteryUses;
         private int xpLevel;
         private String powerName;

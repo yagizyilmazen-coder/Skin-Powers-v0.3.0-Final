@@ -37,6 +37,7 @@ public final class HudOverlay {
             case WARDEN -> 0xFF35D7D0;
             case FLIGHT -> 0xFFEAF8FF;
             case FIRE -> 0xFFFFA826;
+            case WATER -> 0xFF63FFF1;
             default -> 0xFFBFC9D2;
         };
 
@@ -64,6 +65,9 @@ public final class HudOverlay {
                 ? String.format(java.util.Locale.ROOT, "Sculk Avı: %.1f sn", ClientState.wardenHuntTicks() / 20.0)
                 : "Sculk Avı: R ile kullan";
             case FIRE -> ClientState.unlockedLevel() >= 4 ? "Seviye 4: Ateş Küresi" : "Ateş bağışıklığı: AÇIK";
+            case WATER -> ClientState.waterArmorTicks() > 0
+                ? String.format(java.util.Locale.ROOT, "Su Zırhı: %.1f sn", ClientState.waterArmorTicks() / 20.0)
+                : "Suda Yaşam: AÇIK";
             default -> "";
         };
         graphics.text(client.font, fit(client, status, panelWidth - 18), x + 9, y + 40, 0xFFB8C8D3, false);

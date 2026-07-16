@@ -2,12 +2,14 @@ package com.yagiz.skinpowers;
 
 public final class PowerCatalog {
     public static final int[] XP_COSTS = {5, 15, 30, 40, 50};
+    public static final int[] WATER_XP_COSTS = {10, 20, 30, 40, 50};
 
     private static final String[][] NAMES = {
         {"-", "-", "-", "-", "-"},
         {"Warden Zırhı", "Yer Sarsıntısı", "Sonik Patlama", "Sculk Avı", "Warden Uyanışı"},
         {"Yavaş Düşüş", "Süreli Elytra", "Roketsiz Kalkış", "Hava Patlaması", "Gökyüzü Hâkimiyeti"},
-        {"Ateş Bağışıklığı", "Alevli Yakın Dövüş", "Ateş Çemberi", "Cehennem Küresi", "Meteor Yağmuru"}
+        {"Ateş Bağışıklığı", "Alevli Yakın Dövüş", "Ateş Çemberi", "Cehennem Küresi", "Meteor Yağmuru"},
+        {"Suda Yaşam", "Basınçlı Su Küresi", "Derin Girdap", "Okyanus Zırhı", "Büyük Tsunami"}
     };
 
     private static final String[][] DESCRIPTIONS = {
@@ -30,8 +32,15 @@ public final class PowerCatalog {
             "Ateş ve lav hasarına karşı sürekli koruma.",
             "Yakın dövüş vuruşlarına alev ve ek hasar ekler.",
             "Çevrende yakan ve hasar veren geniş bir halka.",
-            "Baktığın yöne ilerleyen büyük bir ateş küresi fırlatır; çarpınca patlar.",
+            "Baktığın yöne ilerleyen görünür büyük bir ateş küresi fırlatır.",
             "Çevrene görünür meteorlar indirir ve büyük kraterler açar."
+        },
+        {
+            "Su altında sınırsız nefes, daha net görüş ve hızlı yüzme sağlar.",
+            "Baktığın yöne hasar veren ve hedefleri güçlüce savuran su küresi yollar.",
+            "Bakılan noktada düşmanları merkeze çeken ve hasar veren girdap oluşturur.",
+            "Hasarı azaltan, ateşi söndüren ve mermileri saptıran su zırhı oluşturur.",
+            "Geniş bir su duvarını ileri yollar; canlıları sürükler, hasar verir ve küçülerek kaybolur."
         }
     };
 
@@ -50,8 +59,13 @@ public final class PowerCatalog {
     }
 
     public static int xpCostForLevel(int level) {
+        return xpCostForLevel(PowerClass.NONE, level);
+    }
+
+    public static int xpCostForLevel(PowerClass powerClass, int level) {
         if (level < 1 || level > 5) return Integer.MAX_VALUE;
-        return XP_COSTS[level - 1];
+        int[] costs = powerClass == PowerClass.WATER ? WATER_XP_COSTS : XP_COSTS;
+        return costs[level - 1];
     }
 
     public static int masteryStage(int uses) {

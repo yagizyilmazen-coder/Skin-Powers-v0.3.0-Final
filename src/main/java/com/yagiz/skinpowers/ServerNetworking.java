@@ -79,7 +79,7 @@ public final class ServerNetworking {
             return;
         }
         int nextLevel = data.unlockedLevel() + 1;
-        int cost = PowerCatalog.xpCostForLevel(nextLevel);
+        int cost = PowerCatalog.xpCostForLevel(data.powerClass(), nextLevel);
         if (player.experienceLevel < cost && !player.isCreative()) {
             player.sendSystemMessage(Component.literal("Seviye " + nextLevel + " için " + cost + " XP seviyesi gerekiyor."));
             return;
@@ -103,6 +103,7 @@ public final class ServerNetworking {
             data.visionEnabled(),
             (int) Math.max(0L, data.temporaryElytraUntil() - gameTime),
             (int) Math.max(0L, data.wardenHuntUntil() - gameTime),
+            (int) Math.max(0L, data.waterArmorUntil() - gameTime),
             data.masteryCopy(),
             player.experienceLevel,
             PowerCatalog.powerName(data.powerClass(), data.selectedPower())
@@ -119,6 +120,7 @@ public final class ServerNetworking {
         boolean visionEnabled,
         int temporaryElytraTicks,
         int wardenHuntTicks,
+        int waterArmorTicks,
         int[] masteryUses,
         int xpLevel,
         String powerName

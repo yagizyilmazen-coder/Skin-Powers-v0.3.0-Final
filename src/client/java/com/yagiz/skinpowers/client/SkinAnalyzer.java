@@ -32,6 +32,9 @@ public final class SkinAnalyzer {
     private static final int[][] FIRE_COLORS = {
         {235, 35, 20}, {246, 96, 13}, {255, 181, 24}, {173, 20, 9}, {249, 221, 54}
     };
+    private static final int[][] WATER_COLORS = {
+        {0, 188, 212}, {24, 168, 196}, {35, 205, 181}, {0, 139, 171}, {73, 218, 210}, {19, 118, 156}
+    };
 
     private SkinAnalyzer() {}
 
@@ -48,7 +51,7 @@ public final class SkinAnalyzer {
 
                 HttpRequest request = HttpRequest.newBuilder(URI.create(skinUrl))
                     .timeout(Duration.ofSeconds(8))
-                    .header("User-Agent", "SkinPowers/0.3.3")
+                    .header("User-Agent", "SkinPowers/0.3.4")
                     .GET()
                     .build();
                 HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
@@ -66,6 +69,7 @@ public final class SkinAnalyzer {
         double warden = 0.0;
         double flight = 0.0;
         double fire = 0.0;
+        double water = 0.0;
         int counted = 0;
         int matched = 0;
         Map<Integer, Integer> quantized = new HashMap<>();
@@ -86,11 +90,12 @@ public final class SkinAnalyzer {
                 counted++;
 
                 double[] scores = pixelScores(red, green, blue);
-                double best = Math.max(scores[0], Math.max(scores[1], scores[2]));
+                double best = Math.max(Math.max(scores[0], scores[1]), Math.max(scores[2], scores[3]));
                 if (best >= 0.18) {
                     warden += Math.pow(scores[0], 2.6);
                     flight += Math.pow(scores[1], 2.6);
                     fire += Math.pow(scores[2], 2.6);
+                    water += Math.pow(scores[3], 2.6);
                     matched++;
                 }
 
@@ -105,11 +110,11 @@ public final class SkinAnalyzer {
         if (counted == 0) return Result.unavailable();
         int[] dominant = quantized.entrySet().stream()
             .sorted(Map.Entry.<Integer, Integer>comparingByValue(Comparator.reverseOrder()))
-            .limit(3)
+            .limit(4)
             .mapToInt(Map.Entry::getKey)
             .toArray();
-        if (dominant.length < 3) {
-            int[] filled = {0x233044, 0x8FCBE8, 0xE95818};
+        if (dominant.length < 4) {
+            int[] filled = {0x233044, 0x8FCBE8, 0xE95818, 0x18B8C8};
             System.arraycopy(dominant, 0, filled, 0, dominant.length);
             dominant = filled;
         }
@@ -118,6 +123,7 @@ public final class SkinAnalyzer {
             warden / counted,
             flight / counted,
             fire / counted,
+            water / counted,
             dominant,
             true,
             skinPixels,
@@ -129,8 +135,9 @@ public final class SkinAnalyzer {
 
     private static double[] pixelScores(int r, int g, int b) {
         double warden = nearestSimilarity(r, g, b, WARDEN_COLORS, 58.0);
-        double flight = nearestSimilarity(r, g, b, FLIGHT_COLORS, 55.0);
+        double flight = nearestSimilarity(r, g, b, FLIGHT_COLORS, 52.0);
         double fire = nearestSimilarity(r, g, b, FIRE_COLORS, 52.0);
+        double water = nearestSimilarity(r, g, b, WATER_COLORS, 48.0);
 
         double max = Math.max(r, Math.max(g, b)) / 255.0;
         double min = Math.min(r, Math.min(g, b)) / 255.0;
@@ -140,17 +147,21 @@ public final class SkinAnalyzer {
         if (max < 0.34 && (b >= r * 0.82 || hue >= 220.0 && hue <= 310.0)) {
             warden = Math.max(warden, 0.72 + (0.34 - max) * 0.65);
         }
-        if (max > 0.66 && saturation < 0.30) {
-            flight = Math.max(flight, 0.72 + (max - 0.66) * 0.70);
+        if (max > 0.68 && saturation < 0.30) {
+            flight = Math.max(flight, 0.72 + (max - 0.68) * 0.70);
         }
-        if (max > 0.48 && hue >= 180.0 && hue <= 225.0) {
-            flight = Math.max(flight, 0.68 + Math.min(0.25, saturation * 0.25));
+        if (max > 0.68 && hue >= 198.0 && hue <= 230.0 && saturation < 0.55) {
+            flight = Math.max(flight, 0.66 + Math.min(0.24, (1.0 - saturation) * 0.28));
         }
         if (saturation > 0.42 && max > 0.30 && (hue <= 67.0 || hue >= 345.0)) {
             fire = Math.max(fire, 0.74 + Math.min(0.22, saturation * 0.22));
         }
+        if (saturation > 0.42 && max > 0.34 && hue >= 155.0 && hue <= 202.0) {
+            water = Math.max(water, 0.74 + Math.min(0.23, saturation * 0.23));
+            if (max > 0.76 && saturation < 0.62) flight *= 0.78;
+        }
 
-        return new double[]{clamp01(warden), clamp01(flight), clamp01(fire)};
+        return new double[]{clamp01(warden), clamp01(flight), clamp01(fire), clamp01(water)};
     }
 
     private static double hueDegrees(int r, int g, int b) {
@@ -192,7 +203,7 @@ public final class SkinAnalyzer {
         HttpRequest request = HttpRequest.newBuilder(
                 URI.create("https://sessionserver.mojang.com/session/minecraft/profile/" + compactUuid + "?unsigned=false"))
             .timeout(Duration.ofSeconds(7))
-            .header("User-Agent", "SkinPowers/0.3.3")
+            .header("User-Agent", "SkinPowers/0.3.4")
             .GET()
             .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -329,6 +340,7 @@ public final class SkinAnalyzer {
         double warden,
         double flight,
         double fire,
+        double water,
         int[] dominantColors,
         boolean fromSkin,
         int[] skinPixels,
@@ -337,31 +349,41 @@ public final class SkinAnalyzer {
         double matchedFraction
     ) {
         public static Result unavailable() {
-            return new Result(0.0, 0.0, 0.0, new int[]{0x233044, 0x8FCBE8, 0xE95818}, false, new int[0], 0, 0, 0.0);
+            return new Result(0.0, 0.0, 0.0, 0.0, new int[]{0x233044, 0x8FCBE8, 0xE95818, 0x18B8C8}, false, new int[0], 0, 0, 0.0);
         }
 
         public double score(int index) {
             return switch (index) {
                 case 0 -> warden;
                 case 1 -> flight;
-                default -> fire;
+                case 2 -> fire;
+                default -> water;
             };
         }
 
         public int bestIndex() {
             if (!hasRecommendation()) return -1;
-            if (warden >= flight && warden >= fire) return 0;
-            if (flight >= fire) return 1;
-            return 2;
+            double[] values = {warden, flight, fire, water};
+            int best = 0;
+            for (int i = 1; i < values.length; i++) {
+                if (values[i] > values[best]) best = i;
+            }
+            return best;
         }
 
         public boolean hasRecommendation() {
             if (!fromSkin || matchedFraction < 0.035) return false;
-            double best = Math.max(warden, Math.max(flight, fire));
-            double second;
-            if (best == warden) second = Math.max(flight, fire);
-            else if (best == flight) second = Math.max(warden, fire);
-            else second = Math.max(warden, flight);
+            double[] values = {warden, flight, fire, water};
+            double best = -1.0;
+            double second = -1.0;
+            for (double value : values) {
+                if (value > best) {
+                    second = best;
+                    best = value;
+                } else if (value > second) {
+                    second = value;
+                }
+            }
             return best >= 0.075 && best - second >= 0.015;
         }
 

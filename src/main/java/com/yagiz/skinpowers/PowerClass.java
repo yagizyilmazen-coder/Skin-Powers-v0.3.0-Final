@@ -4,7 +4,8 @@ public enum PowerClass {
     NONE("Sınıf seçilmedi"),
     WARDEN("Warden"),
     FLIGHT("Uçuş"),
-    FIRE("Ateş");
+    FIRE("Ateş"),
+    WATER("Su");
 
     private final String displayName;
 

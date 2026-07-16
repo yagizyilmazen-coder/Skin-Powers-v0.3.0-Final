@@ -15,6 +15,7 @@ public final class PlayerPowerData {
     private long skyImpactSlowUntil = 0L;
     private long temporaryElytraUntil = 0L;
     private long wardenHuntUntil = 0L;
+    private long waterArmorUntil = 0L;
 
     public PowerClass powerClass() { return powerClass == null ? PowerClass.NONE : powerClass; }
     public int unlockedLevel() { return Math.max(0, Math.min(5, unlockedLevel)); }
@@ -26,6 +27,7 @@ public final class PlayerPowerData {
     public long skyImpactSlowUntil() { return skyImpactSlowUntil; }
     public long temporaryElytraUntil() { return temporaryElytraUntil; }
     public long wardenHuntUntil() { return wardenHuntUntil; }
+    public long waterArmorUntil() { return waterArmorUntil; }
 
     public void chooseClass(PowerClass value) {
         if (powerClass() != PowerClass.NONE || value == null || value == PowerClass.NONE) return;
@@ -46,6 +48,7 @@ public final class PlayerPowerData {
         skyImpactSlowUntil = 0L;
         temporaryElytraUntil = 0L;
         wardenHuntUntil = 0L;
+        waterArmorUntil = 0L;
     }
 
     public void unlockNextLevel() {
@@ -104,6 +107,7 @@ public final class PlayerPowerData {
     public void setSkyImpactSlowUntil(long value) { skyImpactSlowUntil = value; }
     public void setTemporaryElytraUntil(long value) { temporaryElytraUntil = value; }
     public void setWardenHuntUntil(long value) { wardenHuntUntil = value; }
+    public void setWaterArmorUntil(long value) { waterArmorUntil = value; }
 
     public int[] masteryCopy() {
         ensureArrays();
