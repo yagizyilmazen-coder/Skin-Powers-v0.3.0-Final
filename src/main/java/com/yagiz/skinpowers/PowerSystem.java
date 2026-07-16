@@ -37,8 +37,9 @@ import java.util.UUID;
 
 public final class PowerSystem {
     private static final List<PendingMeteor> METEORS = new ArrayList<>();
-    private static final Map<UUID, Long> LAST_FIRE_BONUS = new HashMap<>();
+    private static final List<PendingHellfireOrb> HELLFIRE_ORBS = new ArrayList<>();
     private static final Map<UUID, Long> LAST_SKY_IMPACT = new HashMap<>();
+    private static final Map<UUID, Vec3> LAST_FLIGHT_POSITION = new HashMap<>();
     private static final Map<UUID, long[]> LAST_MASTERY_CREDIT = new HashMap<>();
     private static long lastAutosaveTick;
 
@@ -64,14 +65,10 @@ public final class PowerSystem {
         }
 
         long now = serverLevel.getGameTime();
-        long last = LAST_FIRE_BONUS.getOrDefault(target.getUUID(), Long.MIN_VALUE / 2);
-        if (now - last >= 160L) {
-            LAST_FIRE_BONUS.put(target.getUUID(), now);
-            target.hurtServer(serverLevel, serverLevel.damageSources().playerAttack(serverPlayer), 4.0F);
-            target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), 60));
-            serverLevel.sendParticles(ParticleTypes.FLAME, target.getX(), target.getY() + 1.0, target.getZ(), 12, 0.35, 0.45, 0.35, 0.02);
-            creditMastery(serverPlayer, data, 2, now, 20L);
-        }
+        target.hurtServer(serverLevel, serverLevel.damageSources().playerAttack(serverPlayer), 4.0F);
+        target.setRemainingFireTicks(80);
+        serverLevel.sendParticles(ParticleTypes.FLAME, target.getX(), target.getY() + 1.0, target.getZ(), 12, 0.35, 0.45, 0.35, 0.02);
+        creditMastery(serverPlayer, data, 2, now, 20L);
         return InteractionResult.PASS;
     }
 
@@ -80,6 +77,7 @@ public final class PowerSystem {
             tickPlayer(player);
         }
         tickMeteors();
+        tickHellfireOrbs();
 
         long gameTime = server.overworld().getGameTime();
         if (gameTime - lastAutosaveTick >= 1200L) {
@@ -178,7 +176,7 @@ public final class PowerSystem {
                 player.sendSystemMessage(Component.literal("Süreli Elytra çıkarıldığı için uçuş sona erdi."));
                 PlayerDataStore.markDirty();
                 temporaryFlight = false;
-            } else if (player.fallDistance > 0.0F && now % 2L == 0L) {
+            } else if (player.getDeltaMovement().lengthSqr() > 0.08 && now % 2L == 0L) {
                 Vec3 back = player.getLookAngle().scale(-0.75);
                 level.sendParticles(ParticleTypes.CLOUD,
                     player.getX() + back.x, player.getY() + 0.9, player.getZ() + back.z,
@@ -190,29 +188,45 @@ public final class PowerSystem {
             PlayerDataStore.markDirty();
         }
 
-        if (data.skyImpactSlowUntil() > now) {
-            player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 10, 3, false, false, true));
+        Vec3 currentPosition = player.position();
+        Vec3 previousPosition = LAST_FLIGHT_POSITION.put(player.getUUID(), currentPosition);
+        if (!temporaryFlight) {
+            LAST_FLIGHT_POSITION.remove(player.getUUID());
+            return;
         }
 
-        if (data.unlockedLevel() >= 5 && temporaryFlight && player.fallDistance > 0.0F
-            && player.getDeltaMovement().lengthSqr() > 1.05) {
+        if (data.unlockedLevel() >= 5 && player.getDeltaMovement().lengthSqr() > 0.42) {
+            // Gökyüzü Hâkimiyeti yüksek hızlı çarpma hasarını büyük ölçüde emer.
+            player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 6, 2, false, false, true));
+            player.fallDistance = 0.0F;
+        }
+
+        if (data.unlockedLevel() >= 5 && previousPosition != null
+            && previousPosition.distanceToSqr(currentPosition) <= 36.0
+            && player.getDeltaMovement().lengthSqr() > 0.42) {
             long lastImpact = LAST_SKY_IMPACT.getOrDefault(player.getUUID(), Long.MIN_VALUE / 2);
-            if (now - lastImpact >= 70L) {
+            if (now - lastImpact >= 24L) {
                 int stage = data.masteryStage(5);
-                for (LivingEntity target : nearbyLiving(player, 1.9 + stage * 0.15)) {
+                double hitRadius = 2.25 + stage * 0.20;
+                AABB sweptArea = new AABB(previousPosition, currentPosition).inflate(hitRadius);
+                for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, sweptArea)) {
                     if (target == player || protectedAlly(player, target)) continue;
+                    Vec3 targetCenter = target.getEyePosition();
+                    if (distanceToSegmentSqr(targetCenter, previousPosition, currentPosition) > hitRadius * hitRadius) continue;
+
                     target.hurtServer(level, level.damageSources().playerAttack(player), 12.0F + stage * 2.0F);
-                    Vec3 push = target.position().subtract(player.position());
-                    if (push.lengthSqr() > 0.0001) {
-                        push = push.normalize().scale(1.35 + stage * 0.15);
-                        target.push(push.x, 0.45, push.z);
-                    }
-                    player.setDeltaMovement(player.getDeltaMovement().scale(0.28));
-                    data.setSkyImpactSlowUntil(now + 60L);
+                    Vec3 push = player.getDeltaMovement();
+                    if (push.lengthSqr() < 0.0001) push = player.getLookAngle();
+                    push = push.normalize().scale(1.25 + stage * 0.14);
+                    target.push(push.x, 0.42, push.z);
+
+                    // Darbenin oyuncuya geri dönmesini azalt: hız yumuşatılır ve düşüş birikimi sıfırlanır.
+                    player.setDeltaMovement(player.getDeltaMovement().scale(0.58));
+                    player.fallDistance = 0.0F;
+                    player.hurtMarked = true;
                     LAST_SKY_IMPACT.put(player.getUUID(), now);
-                    level.sendParticles(ParticleTypes.CLOUD, target.getX(), target.getY() + 0.7, target.getZ(), 32, 0.8, 0.8, 0.8, 0.10);
-                    level.playSound(null, player.blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.9F, 1.45F);
-                    creditMastery(player, data, 5, now, 60L);
+                    level.sendParticles(ParticleTypes.CLOUD, target.getX(), target.getY() + 0.7, target.getZ(), 36, 0.9, 0.9, 0.9, 0.11);
+                    creditMastery(player, data, 5, now, 24L);
                     break;
                 }
             }
@@ -324,7 +338,6 @@ public final class PowerSystem {
         player.fallDistance = 0.0F;
         data.setCooldown(3, now, Math.max(70, 150 - stage * 20));
         ((ServerLevel) player.level()).sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY(), player.getZ(), 30, 0.6, 0.25, 0.6, 0.10);
-        ((ServerLevel) player.level()).playSound(null, player.blockPosition(), SoundEvents.FIREWORK_ROCKET_LAUNCH, SoundSource.PLAYERS, 0.9F, 1.2F);
         return true;
     }
 
@@ -412,7 +425,6 @@ public final class PowerSystem {
             data.setTemporaryElytraUntil(now + duration);
             data.setCooldown(2, now, Math.max(700, 1000 - stage * 100));
             ((ServerLevel) player.level()).sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY() + 1.0, player.getZ(), 36, 0.8, 0.8, 0.8, 0.05);
-            ((ServerLevel) player.level()).playSound(null, player.blockPosition(), SoundEvents.ELYTRA_FLYING, SoundSource.PLAYERS, 1.0F, 1.1F);
             player.sendSystemMessage(Component.literal("Süreli Elytra takıldı: " + formatSeconds(duration) + " saniye."));
             return true;
         }
@@ -511,64 +523,117 @@ public final class PowerSystem {
 
     private static void hellfireBeam(ServerPlayer player, int stage) {
         ServerLevel level = (ServerLevel) player.level();
-        Vec3 origin = player.getEyePosition();
-        Vec3 look = player.getLookAngle().normalize();
-        double range = 25.0 + stage * 3.0;
-        double travelled = range;
-        Vec3 impact = origin.add(look.scale(range));
+        Vec3 direction = player.getLookAngle().normalize();
+        Vec3 start = player.getEyePosition().add(direction.scale(1.15));
+        Vec3 velocity = direction.scale(1.05 + stage * 0.10);
+        long now = level.getGameTime();
+        HELLFIRE_ORBS.add(new PendingHellfireOrb(
+            level,
+            player.getUUID(),
+            start,
+            velocity,
+            now + 34L + stage * 4L,
+            stage
+        ));
+        level.sendParticles(ParticleTypes.FLAME, start.x, start.y, start.z, 24, 0.35, 0.35, 0.35, 0.05);
+        level.sendParticles(ParticleTypes.LAVA, start.x, start.y, start.z, 5, 0.20, 0.20, 0.20, 0.0);
+        level.playSound(null, player.blockPosition(), SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 1.3F, 0.72F);
+    }
 
-        for (double distance = 0.5; distance <= range; distance += 0.5) {
-            Vec3 point = origin.add(look.scale(distance));
-            BlockState state = level.getBlockState(BlockPos.containing(point));
-            if (!state.isAir() && !state.is(Blocks.FIRE)) {
-                impact = point.subtract(look.scale(0.35));
-                travelled = distance;
-                break;
+    private static void tickHellfireOrbs() {
+        Iterator<PendingHellfireOrb> iterator = HELLFIRE_ORBS.iterator();
+        while (iterator.hasNext()) {
+            PendingHellfireOrb orb = iterator.next();
+            ServerLevel level = orb.level;
+            long now = level.getGameTime();
+            ServerPlayer owner = level.getServer().getPlayerList().getPlayer(orb.owner);
+
+            Vec3 from = orb.position;
+            Vec3 to = from.add(orb.velocity);
+            Vec3 impact = null;
+            LivingEntity directTarget = null;
+            int steps = Math.max(3, (int) Math.ceil(Math.sqrt(orb.velocity.lengthSqr()) / 0.24));
+
+            for (int step = 1; step <= steps; step++) {
+                double fraction = step / (double) steps;
+                Vec3 point = from.add(orb.velocity.scale(fraction));
+                BlockState state = level.getBlockState(BlockPos.containing(point));
+                if (!state.isAir() && !state.is(Blocks.FIRE)) {
+                    impact = point.subtract(orb.velocity.normalize().scale(0.18));
+                    break;
+                }
+
+                double contactRadius = 0.95 + orb.stage * 0.08;
+                AABB contact = new AABB(point, point).inflate(contactRadius);
+                for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, contact)) {
+                    if (owner != null && (target == owner || protectedAlly(owner, target))) continue;
+                    directTarget = target;
+                    impact = target.getEyePosition();
+                    break;
+                }
+                if (impact != null) break;
             }
-            impact = point;
-            if (((int) (distance * 2.0)) % 2 == 0) {
-                level.sendParticles(ParticleTypes.FLAME, point.x, point.y, point.z, 3, 0.10, 0.10, 0.10, 0.01);
-                level.sendParticles(ParticleTypes.LAVA, point.x, point.y, point.z, 1, 0.06, 0.06, 0.06, 0.0);
+
+            if (impact != null || now >= orb.expireTick) {
+                impactHellfireOrb(orb, impact == null ? to : impact, directTarget, owner);
+                iterator.remove();
+                continue;
             }
+
+            orb.position = to;
+            level.sendParticles(ParticleTypes.FLAME, to.x, to.y, to.z, 18, 0.42, 0.42, 0.42, 0.025);
+            level.sendParticles(ParticleTypes.LAVA, to.x, to.y, to.z, 3, 0.24, 0.24, 0.24, 0.0);
+            level.sendParticles(ParticleTypes.LARGE_SMOKE, from.x, from.y, from.z, 3, 0.20, 0.20, 0.20, 0.015);
+        }
+    }
+
+    private static void impactHellfireOrb(
+        PendingHellfireOrb orb,
+        Vec3 impact,
+        LivingEntity directTarget,
+        ServerPlayer owner
+    ) {
+        ServerLevel level = orb.level;
+        if (directTarget != null) {
+            float directDamage = 13.0F + orb.stage * 2.5F;
+            directTarget.hurtServer(level,
+                owner == null ? level.damageSources().generic() : level.damageSources().playerAttack(owner),
+                directDamage);
+            directTarget.setRemainingFireTicks(180 + orb.stage * 35);
         }
 
-        double beamRadius = 1.25 + stage * 0.18;
-        AABB search = player.getBoundingBox().inflate(range + 2.0);
-        for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, search)) {
-            if (target == player || protectedAlly(player, target)) continue;
-            Vec3 toTarget = target.getEyePosition().subtract(origin);
-            double forward = toTarget.dot(look);
-            if (forward <= 0.0 || forward > travelled + 0.8) continue;
-            double sideDistance = toTarget.subtract(look.scale(forward)).length();
-            if (sideDistance > beamRadius) continue;
-
-            target.hurtServer(level, level.damageSources().playerAttack(player), 12.0F + stage * 2.0F);
-            target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), 160 + stage * 40));
-            Vec3 push = look.scale(0.55 + stage * 0.08);
-            target.push(push.x, 0.12, push.z);
-            level.sendParticles(ParticleTypes.FLAME, target.getX(), target.getY() + 0.9, target.getZ(), 22, 0.45, 0.55, 0.45, 0.05);
-        }
-
-        double blastRadius = 3.2 + stage * 0.45;
+        double blastRadius = 3.2 + orb.stage * 0.45;
         AABB blastArea = new AABB(impact, impact).inflate(blastRadius);
         for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, blastArea)) {
-            if (target == player || protectedAlly(player, target)) continue;
+            if (target == directTarget) continue;
+            if (owner != null && (target == owner || protectedAlly(owner, target))) continue;
             double distance = Math.sqrt(target.distanceToSqr(impact));
             if (distance > blastRadius) continue;
-            float damage = (float) Math.max(4.0, (9.0 + stage * 1.5) * (1.0 - distance / (blastRadius + 1.0)));
-            target.hurtServer(level, level.damageSources().playerAttack(player), damage);
-            target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), 120));
+            float damage = (float) Math.max(4.0, (9.0 + orb.stage * 1.8) * (1.0 - distance / (blastRadius + 1.0)));
+            target.hurtServer(level,
+                owner == null ? level.damageSources().generic() : level.damageSources().playerAttack(owner),
+                damage);
+            target.setRemainingFireTicks(130 + orb.stage * 25);
             Vec3 push = target.position().subtract(impact);
             if (push.lengthSqr() > 0.0001) {
-                push = push.normalize().scale(0.85);
-                target.push(push.x, 0.35, push.z);
+                push = push.normalize().scale(0.90 + orb.stage * 0.08);
+                target.push(push.x, 0.36, push.z);
             }
         }
 
-        level.sendParticles(ParticleTypes.EXPLOSION, impact.x, impact.y, impact.z, 4, 0.45, 0.45, 0.45, 0.0);
-        level.sendParticles(ParticleTypes.FLAME, impact.x, impact.y, impact.z, 55, 1.1, 1.1, 1.1, 0.10);
-        level.playSound(null, player.blockPosition(), SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 1.4F, 0.65F);
-        level.playSound(null, BlockPos.containing(impact), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.1F, 1.1F);
+        level.sendParticles(ParticleTypes.EXPLOSION, impact.x, impact.y, impact.z, 5, 0.55, 0.55, 0.55, 0.0);
+        level.sendParticles(ParticleTypes.FLAME, impact.x, impact.y, impact.z, 70, 1.25, 1.25, 1.25, 0.11);
+        level.sendParticles(ParticleTypes.LAVA, impact.x, impact.y, impact.z, 15, 0.85, 0.85, 0.85, 0.0);
+        level.playSound(null, BlockPos.containing(impact), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.15F, 1.05F);
+    }
+
+    private static double distanceToSegmentSqr(Vec3 point, Vec3 start, Vec3 end) {
+        Vec3 segment = end.subtract(start);
+        double lengthSqr = segment.lengthSqr();
+        if (lengthSqr < 1.0E-7) return point.distanceToSqr(start);
+        double projection = point.subtract(start).dot(segment) / lengthSqr;
+        projection = Math.max(0.0, Math.min(1.0, projection));
+        return point.distanceToSqr(start.add(segment.scale(projection)));
     }
 
     private static void airBlast(ServerPlayer player, int stage) {
@@ -603,7 +668,6 @@ public final class PowerSystem {
             double spread = 0.08 * i;
             level.sendParticles(ParticleTypes.CLOUD, point.x, point.y, point.z, 4, spread, spread, spread, 0.03);
         }
-        level.playSound(null, player.blockPosition(), SoundEvents.ELYTRA_FLYING, SoundSource.PLAYERS, 1.0F, 1.4F);
     }
 
     private static void scheduleMeteors(ServerPlayer player, PlayerPowerData data, int stage) {
@@ -611,7 +675,7 @@ public final class PowerSystem {
         long now = level.getGameTime();
         Vec3 center = player.position();
         RandomSource random = level.getRandom();
-        int count = 7 + stage;
+        int count = 8 + stage;
 
         player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 36, 6, false, true, true));
         player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 36, 4, false, true, true));
@@ -705,6 +769,8 @@ public final class PowerSystem {
     public static void clearAllMeteorVisuals() {
         for (PendingMeteor meteor : METEORS) clearMeteorVisual(meteor);
         METEORS.clear();
+        HELLFIRE_ORBS.clear();
+        LAST_FLIGHT_POSITION.clear();
     }
 
     private static void impactMeteor(PendingMeteor meteor) {
@@ -840,6 +906,32 @@ public final class PowerSystem {
 
     private static String formatSeconds(int ticks) {
         return String.format(java.util.Locale.ROOT, "%.1f", ticks / 20.0);
+    }
+
+
+    private static final class PendingHellfireOrb {
+        private final ServerLevel level;
+        private final UUID owner;
+        private Vec3 position;
+        private final Vec3 velocity;
+        private final long expireTick;
+        private final int stage;
+
+        private PendingHellfireOrb(
+            ServerLevel level,
+            UUID owner,
+            Vec3 position,
+            Vec3 velocity,
+            long expireTick,
+            int stage
+        ) {
+            this.level = level;
+            this.owner = owner;
+            this.position = position;
+            this.velocity = velocity;
+            this.expireTick = expireTick;
+            this.stage = stage;
+        }
     }
 
     private static final class PendingMeteor {

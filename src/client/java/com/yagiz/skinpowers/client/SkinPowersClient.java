@@ -61,7 +61,10 @@ public final class SkinPowersClient implements ClientModInitializer {
             while (previousKey.consumeClick()) send("PREV");
             while (nextKey.consumeClick()) send("NEXT");
             while (menuKey.consumeClick()) {
-                if (ClientState.powerClass() == com.yagiz.skinpowers.PowerClass.NONE) {
+                Object currentScreen = getCurrentScreen(client);
+                if (currentScreen instanceof PowerMenuScreen) {
+                    client.setScreen(null);
+                } else if (ClientState.powerClass() == com.yagiz.skinpowers.PowerClass.NONE) {
                     client.setScreen(new SkinSelectionScreen());
                 } else {
                     client.setScreen(new PowerMenuScreen());
@@ -87,17 +90,21 @@ public final class SkinPowersClient implements ClientModInitializer {
 
 
     private static boolean isScreenOpen(Object client) {
+        return getCurrentScreen(client) != null;
+    }
+
+    private static Object getCurrentScreen(Object client) {
         // 26.1.x sürümlerinde ekran alanının adı dağıtıma göre currentScreen
         // veya screen olabiliyor. Doğrudan alan adına bağlanmadan ikisini de destekle.
         for (String fieldName : new String[]{"currentScreen", "screen"}) {
             try {
                 java.lang.reflect.Field field = client.getClass().getField(fieldName);
-                return field.get(client) != null;
+                return field.get(client);
             } catch (ReflectiveOperationException ignored) {
                 try {
                     java.lang.reflect.Field field = client.getClass().getDeclaredField(fieldName);
                     field.setAccessible(true);
-                    return field.get(client) != null;
+                    return field.get(client);
                 } catch (ReflectiveOperationException ignoredAgain) {
                     // Sıradaki ad denenir.
                 }
@@ -106,15 +113,12 @@ public final class SkinPowersClient implements ClientModInitializer {
 
         for (String methodName : new String[]{"currentScreen", "screen", "getScreen"}) {
             try {
-                Object screen = client.getClass().getMethod(methodName).invoke(client);
-                return screen != null;
+                return client.getClass().getMethod(methodName).invoke(client);
             } catch (ReflectiveOperationException ignored) {
                 // Sıradaki ad denenir.
             }
         }
-
-        // Alan bulunamazsa seçim ekranının bir kez açılmasına izin ver.
-        return false;
+        return null;
     }
 
     private KeyMapping register(String translationKey, int keyCode) {

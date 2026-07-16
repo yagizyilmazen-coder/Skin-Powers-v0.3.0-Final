@@ -24,7 +24,7 @@ EXPECTED_PROPERTIES = {
     "loader_version": "0.19.3",
     "loom_version": "1.17-SNAPSHOT",
     "fabric_api_version": "0.154.2+26.1.2",
-    "mod_version": "0.3.2",
+    "mod_version": "0.3.3",
     "maven_group": "com.yagiz",
     "archives_base_name": "skinpowers",
 }

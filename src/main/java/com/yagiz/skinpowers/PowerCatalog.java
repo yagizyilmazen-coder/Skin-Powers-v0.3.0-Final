@@ -7,7 +7,7 @@ public final class PowerCatalog {
         {"-", "-", "-", "-", "-"},
         {"Warden Zırhı", "Yer Sarsıntısı", "Sonik Patlama", "Sculk Avı", "Warden Uyanışı"},
         {"Yavaş Düşüş", "Süreli Elytra", "Roketsiz Kalkış", "Hava Patlaması", "Gökyüzü Hâkimiyeti"},
-        {"Ateş Bağışıklığı", "Alevli Yakın Dövüş", "Ateş Çemberi", "Cehennem Işını", "Meteor Yağmuru"}
+        {"Ateş Bağışıklığı", "Alevli Yakın Dövüş", "Ateş Çemberi", "Cehennem Küresi", "Meteor Yağmuru"}
     };
 
     private static final String[][] DESCRIPTIONS = {
@@ -24,13 +24,13 @@ public final class PowerCatalog {
             "R ile göğüs yuvasına süreli Elytra takar; süre bitince silinir.",
             "Geçici Elytra açıkken çift zıplamayla havalanırsın.",
             "Öndeki canlıları ve mermileri güçlü biçimde savurur.",
-            "Süreli Elytra ile hızlı çarpışmalarda otomatik darbe vurur."
+            "Süreli Elytra ile uçuş yolundaki hedeflere çarpar; darbeyi yumuşatıp hasar verir."
         },
         {
             "Ateş ve lav hasarına karşı sürekli koruma.",
             "Yakın dövüş vuruşlarına alev ve ek hasar ekler.",
             "Çevrende yakan ve hasar veren geniş bir halka.",
-            "25+ blok ilerleyen, delip geçen ve uçta patlayan ışın.",
+            "Baktığın yöne ilerleyen büyük bir ateş küresi fırlatır; çarpınca patlar.",
             "Çevrene görünür meteorlar indirir ve büyük kraterler açar."
         }
     };

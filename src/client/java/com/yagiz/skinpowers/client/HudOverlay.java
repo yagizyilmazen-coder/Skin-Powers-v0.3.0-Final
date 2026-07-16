@@ -28,9 +28,11 @@ public final class HudOverlay {
             }
         }
 
-        int x = 8;
-        int y = 8;
-        int panelWidth = 228;
+        // Önceki 228x64 panelin yaklaşık %80 boyutu.
+        int x = 6;
+        int y = 6;
+        int panelWidth = 182;
+        int panelHeight = 51;
         int accent = switch (powerClass) {
             case WARDEN -> 0xFF35D7D0;
             case FLIGHT -> 0xFFEAF8FF;
@@ -38,15 +40,21 @@ public final class HudOverlay {
             default -> 0xFFBFC9D2;
         };
 
-        graphics.fill(x, y, x + panelWidth, y + 64, 0xC005080D);
-        graphics.fill(x, y, x + 5, y + 64, accent);
-        graphics.outline(x, y, panelWidth, 64, accent);
-        graphics.text(client.font, powerClass.displayName() + "  |  Seviye " + ClientState.selectedPower(), x + 11, y + 7, 0xFFFFFFFF, true);
-        graphics.text(client.font, ClientState.powerName(), x + 11, y + 20, 0xFFDCE7ED, false);
+        graphics.fill(x, y, x + panelWidth, y + panelHeight, 0xC005080D);
+        graphics.fill(x, y, x + 4, y + panelHeight, accent);
+        graphics.outline(x, y, panelWidth, panelHeight, accent);
+
+        int stage = ClientState.masteryStage(ClientState.selectedPower());
+        String mastery = PowerCatalog.masteryStageName(stage);
+        String title = powerClass.displayName() + "  S" + ClientState.selectedPower();
+        int titleWidth = panelWidth - 20 - client.font.width(mastery);
+        graphics.text(client.font, fit(client, title, titleWidth), x + 9, y + 5, 0xFFFFFFFF, true);
+        graphics.text(client.font, mastery, x + panelWidth - client.font.width(mastery) - 7, y + 5, accent, true);
+        graphics.text(client.font, fit(client, ClientState.powerName(), panelWidth - 18), x + 9, y + 16, 0xFFDCE7ED, false);
 
         int cooldown = ClientState.cooldownTicks();
         String ready = cooldown <= 0 ? "R: HAZIR" : String.format(java.util.Locale.ROOT, "R: %.1f sn", cooldown / 20.0);
-        graphics.text(client.font, ready, x + 11, y + 34, cooldown <= 0 ? 0xFF8CFFB0 : 0xFFFFD27A, true);
+        graphics.text(client.font, ready, x + 9, y + 29, cooldown <= 0 ? 0xFF8CFFB0 : 0xFFFFD27A, true);
 
         String status = switch (powerClass) {
             case FLIGHT -> ClientState.temporaryElytraTicks() > 0
@@ -55,13 +63,17 @@ public final class HudOverlay {
             case WARDEN -> ClientState.wardenHuntTicks() > 0
                 ? String.format(java.util.Locale.ROOT, "Sculk Avı: %.1f sn", ClientState.wardenHuntTicks() / 20.0)
                 : "Sculk Avı: R ile kullan";
-            case FIRE -> ClientState.unlockedLevel() >= 4 ? "Seviye 4: Cehennem Işını" : "Ateş bağışıklığı: AÇIK";
+            case FIRE -> ClientState.unlockedLevel() >= 4 ? "Seviye 4: Ateş Küresi" : "Ateş bağışıklığı: AÇIK";
             default -> "";
         };
-        graphics.text(client.font, status, x + 11, y + 48, 0xFFB8C8D3, false);
+        graphics.text(client.font, fit(client, status, panelWidth - 18), x + 9, y + 40, 0xFFB8C8D3, false);
+    }
 
-        int stage = ClientState.masteryStage(ClientState.selectedPower());
-        String mastery = PowerCatalog.masteryStageName(stage);
-        graphics.text(client.font, mastery, x + panelWidth - client.font.width(mastery) - 9, y + 7, accent, true);
+    private static String fit(Minecraft client, String text, int maxWidth) {
+        if (client.font.width(text) <= maxWidth) return text;
+        String suffix = "...";
+        int length = text.length();
+        while (length > 0 && client.font.width(text.substring(0, length) + suffix) > maxWidth) length--;
+        return text.substring(0, Math.max(0, length)) + suffix;
     }
 }

@@ -46,9 +46,6 @@ public final class PowerMenuScreen extends Screen {
             }
         }
 
-        addRenderableWidget(Button.builder(Component.literal("KAPAT"), button -> onClose())
-            .bounds((width - 96) / 2, height - 27, 96, 20)
-            .build());
     }
 
     @Override
@@ -90,14 +87,16 @@ public final class PowerMenuScreen extends Screen {
         graphics.outline(layout.totalLeft(), top, layout.totalWidth(), bottom - top, withAlpha(colors[2], 190));
 
         drawClassEmblem(graphics, powerClass, layout.totalLeft() + 20, 21, colors[2]);
-        String heading = powerClass.displayName() + " GÜÇ AĞACI";
-        graphics.text(font, heading, layout.totalLeft() + 62, 18, 0xFFFFFFFF, true);
-        graphics.text(font, "Gücünü seç, ustalığını geliştir ve R ile kullan.", layout.totalLeft() + 62, 35, 0xFFBFD0DA, false);
-        graphics.text(font, "Sol/Sağ: güç değiştir   •   O: menü   •   Y: yardımcı özellik", layout.totalLeft() + 62, 49, 0xFF8799A5, false);
-
         String xp = "XP  " + ClientState.xpLevel();
         int xpWidth = Math.max(70, font.width(xp) + 18);
         int xpX = layout.totalLeft() + layout.totalWidth() - xpWidth - 14;
+        int headerTextX = layout.totalLeft() + 62;
+        int headerTextWidth = Math.max(90, xpX - headerTextX - 12);
+        String heading = fit(powerClass.displayName() + " GÜÇ AĞACI", headerTextWidth);
+        graphics.text(font, heading, headerTextX, 18, 0xFFFFFFFF, true);
+        graphics.text(font, fit("Gücünü seç, ustalığını geliştir ve R ile kullan.", headerTextWidth), headerTextX, 35, 0xFFBFD0DA, false);
+        graphics.text(font, fit("Sol/Sağ: güç değiştir   •   O / ESC: menü", headerTextWidth), headerTextX, 49, 0xFF8799A5, false);
+
         graphics.fill(xpX, 20, xpX + xpWidth, 45, withAlpha(colors[2], 65));
         graphics.outline(xpX, 20, xpWidth, 25, colors[2]);
         graphics.text(font, xp, xpX + (xpWidth - font.width(xp)) / 2, 29, 0xFFFFFFFF, true);
@@ -131,12 +130,12 @@ public final class PowerMenuScreen extends Screen {
 
         int textX = layout.listLeft() + 60;
         int textRight = layout.listLeft() + layout.listWidth() - 118;
-        String name = PowerCatalog.powerName(powerClass, level);
-        graphics.text(font, name, textX, y + 8, unlocked ? 0xFFFFFFFF : 0xFF8B969E, true);
-
         String stageName = PowerCatalog.masteryStageName(stage);
         int chipWidth = font.width(stageName) + 12;
-        int chipX = Math.max(textX + 110, textRight - chipWidth);
+        int chipX = Math.max(textX + 92, textRight - chipWidth);
+        String name = fit(PowerCatalog.powerName(powerClass, level), Math.max(50, chipX - textX - 8));
+        graphics.text(font, name, textX, y + 8, unlocked ? 0xFFFFFFFF : 0xFF8B969E, true);
+
         graphics.fill(chipX, y + 6, chipX + chipWidth, y + 19, unlocked ? withAlpha(colors[2], 50 + stage * 28) : 0x332B3238);
         graphics.outline(chipX, y + 6, chipWidth, 13, unlocked ? withAlpha(colors[2], 180) : 0x5559636B);
         graphics.text(font, stageName, chipX + 6, y + 9, unlocked ? 0xFFFFFFFF : 0xFF77828A, false);
@@ -301,7 +300,7 @@ public final class PowerMenuScreen extends Screen {
 
     private Layout layout() {
         int totalWidth = Math.min(930, Math.max(430, width - 28));
-        boolean wide = totalWidth >= 760;
+        boolean wide = totalWidth >= 760 && height >= 520;
         int detailWidth = wide ? 252 : 0;
         int gapToDetail = wide ? 14 : 0;
         int listWidth = totalWidth - detailWidth - gapToDetail;
@@ -310,7 +309,7 @@ public final class PowerMenuScreen extends Screen {
         int detailLeft = listLeft + listWidth + gapToDetail;
         int rowTop = 78;
         int gap = 7;
-        int footerSpace = wide ? 42 : 76;
+        int footerSpace = wide ? 26 : 52;
         int available = Math.max(250, height - rowTop - footerSpace - gap * 4);
         int rowHeight = Math.max(48, Math.min(66, available / 5));
         return new Layout(totalLeft, totalWidth, listLeft, listWidth, detailLeft, detailWidth, rowTop, rowHeight, gap, wide);
