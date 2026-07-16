@@ -1,4 +1,4 @@
-# Skin Powers 0.3.4 — Doğrulama Raporu
+# Skin Powers 0.3.5 — Doğrulama Raporu
 
 ## Paket hazırlanırken yapılan kontroller
 
@@ -23,7 +23,7 @@ Fabric Loader 0.19.3
 Fabric API 0.154.2+26.1.2
 ```
 
-İş akışı önce `python3 tools/verify_project.py`, ardından `gradle clean build --stacktrace --warning-mode all` komutunu çalıştırır. Başarılı olursa `build/libs/skinpowers-0.3.4.jar` dosyasını artifact olarak verir.
+İş akışı önce `python3 tools/verify_project.py`, ardından `gradle clean build --stacktrace --warning-mode all` komutunu çalıştırır. Başarılı olursa `build/libs/skinpowers-0.3.5.jar` dosyasını artifact olarak verir.
 
 ## Sınırlama
 

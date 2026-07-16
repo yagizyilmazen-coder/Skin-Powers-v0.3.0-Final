@@ -1,4 +1,4 @@
-# Özellik Durumu — 0.3.4
+# Özellik Durumu — 0.3.5
 
 - Skin analizi, ilk sınıf seçimi ve UUID tabanlı kayıt: mevcut.
 - Warden, Uçuş, Ateş ve Su sınıfları: mevcut.

@@ -1,4 +1,4 @@
-# Skin Powers 0.3.4 — Fabric 26.1.2
+# Skin Powers 0.3.5 — Fabric 26.1.2
 
 Minecraft skinindeki gerçek piksel renklerini analiz ederek Warden, Uçuş, Ateş ve Su sınıflarını öneren beş seviyeli Fabric modudur. Skin alınamazsa mod puan veya öneri uydurmaz; oyuncu dört sınıftan birini kendisi seçer.
 
@@ -8,9 +8,9 @@ Minecraft skinindeki gerçek piksel renklerini analiz ederek Warden, Uçuş, Ate
 - Fabric Loader: **0.19.3**
 - Fabric API: **0.154.2+26.1.2**
 - Java: **25**
-- Mod: **0.3.4**
+- Mod: **0.3.5**
 
-GitHub Actions başarılı olduğunda `skinpowers-0.3.4-jar` artifact’ini indirin ve içindeki `skinpowers-0.3.4.jar` dosyasını `mods` klasörüne koyun.
+GitHub Actions başarılı olduğunda `skinpowers-0.3.5-jar` artifact’ini indirin ve içindeki `skinpowers-0.3.5.jar` dosyasını `mods` klasörüne koyun.
 
 ## Kontroller
 
@@ -29,7 +29,7 @@ GitHub Actions başarılı olduğunda `skinpowers-0.3.4-jar` artifact’ini indi
 4. **Okyanus Zırhı — 40 XP:** Hasarı azaltır, mermileri saptırır ve oyuncuyu söndürür.
 5. **Büyük Tsunami — 50 XP:** Geniş su duvarı ileri gider; canlıları sürükler, hasar verir ve giderek küçülür.
 
-## 0.3.4 değişiklikleri
+## 0.3.5 değişiklikleri
 
 - İlk seçim ekranı dört kart için yeniden ölçeklendirildi; dar ekranlarda yazı ve düğme çarpışmasını azaltan dinamik yerleşim eklendi.
 - Warden kartında Warden, Uçuş kartında Elytra, Ateş kartında görünür ateş küresi ve Su kartında tsunami görseli bulunur.

@@ -286,8 +286,7 @@ public final class PowerSystem {
             player.fallDistance = 0.0F;
 
             if (now % 2L == 0L) {
-                drawRing(level, player.position().add(0.0, 0.25, 0.0), 1.6 + stage * 0.12, ParticleTypes.SPLASH, 30);
-                level.sendParticles(ParticleTypes.BUBBLE_POP, player.getX(), player.getY() + 1.0, player.getZ(), 9, 0.75, 0.9, 0.75, 0.02);
+                drawWaterArmorVisual(level, player.position(), 1.65 + stage * 0.12, now);
             }
 
             AABB shield = player.getBoundingBox().inflate(3.3 + stage * 0.2);
@@ -559,7 +558,9 @@ public final class PowerSystem {
                 Vec3 center = player.position().add(look.scale(7.0 + stage));
                 long duration = 100L + stage * 15L;
                 WHIRLPOOLS.add(new PendingWhirlpool(level, player.getUUID(), center, now + duration, stage));
-                level.sendParticles(ParticleTypes.SPLASH, center.x, center.y + 0.3, center.z, 55, 2.2, 0.35, 2.2, 0.08);
+                level.sendParticles(ParticleTypes.SPLASH, center.x, center.y + 0.55, center.z, 150, 2.8, 0.75, 2.8, 0.10);
+                level.sendParticles(ParticleTypes.BUBBLE_POP, center.x, center.y + 0.45, center.z, 70, 2.2, 0.65, 2.2, 0.06);
+                level.sendParticles(ParticleTypes.CLOUD, center.x, center.y + 0.65, center.z, 30, 2.4, 0.35, 2.4, 0.025);
                 data.setCooldown(3, now, Math.max(220, 280 - stage * 20));
                 return true;
             }
@@ -756,8 +757,9 @@ public final class PowerSystem {
         Vec3 velocity = direction.scale(0.88 + stage * 0.08);
         long now = level.getGameTime();
         WATER_ORBS.add(new PendingWaterOrb(level, player.getUUID(), start, velocity, now + 32L + stage * 3L, stage));
-        level.sendParticles(ParticleTypes.SPLASH, start.x, start.y, start.z, 28, 0.38, 0.38, 0.38, 0.08);
-        level.sendParticles(ParticleTypes.BUBBLE_POP, start.x, start.y, start.z, 12, 0.28, 0.28, 0.28, 0.03);
+        level.sendParticles(ParticleTypes.SPLASH, start.x, start.y, start.z, 95, 0.72, 0.72, 0.72, 0.09);
+        level.sendParticles(ParticleTypes.BUBBLE_POP, start.x, start.y, start.z, 40, 0.58, 0.58, 0.58, 0.045);
+        level.sendParticles(ParticleTypes.CLOUD, start.x, start.y, start.z, 16, 0.50, 0.50, 0.50, 0.02);
     }
 
     private static void tickWaterOrbs() {
@@ -799,8 +801,9 @@ public final class PowerSystem {
             }
 
             orb.position = to;
-            level.sendParticles(ParticleTypes.SPLASH, to.x, to.y, to.z, 18, 0.34, 0.34, 0.34, 0.025);
-            level.sendParticles(ParticleTypes.BUBBLE_POP, from.x, from.y, from.z, 6, 0.22, 0.22, 0.22, 0.018);
+            drawWaterOrbVisual(level, to, 0.82 + orb.stage * 0.07, now);
+            level.sendParticles(ParticleTypes.SPLASH, from.x, from.y, from.z, 16, 0.26, 0.26, 0.26, 0.025);
+            level.sendParticles(ParticleTypes.BUBBLE_POP, from.x, from.y, from.z, 10, 0.24, 0.24, 0.24, 0.018);
         }
     }
 
@@ -830,8 +833,9 @@ public final class PowerSystem {
             Vec3 push = pushDirection.scale(0.72 + orb.stage * 0.08);
             target.push(push.x, 0.18, push.z);
         }
-        level.sendParticles(ParticleTypes.SPLASH, impact.x, impact.y, impact.z, 70, 1.15, 0.85, 1.15, 0.13);
-        level.sendParticles(ParticleTypes.BUBBLE_POP, impact.x, impact.y, impact.z, 24, 0.85, 0.65, 0.85, 0.06);
+        level.sendParticles(ParticleTypes.SPLASH, impact.x, impact.y, impact.z, 180, 1.75, 1.25, 1.75, 0.16);
+        level.sendParticles(ParticleTypes.BUBBLE_POP, impact.x, impact.y, impact.z, 75, 1.35, 1.0, 1.35, 0.08);
+        level.sendParticles(ParticleTypes.CLOUD, impact.x, impact.y + 0.35, impact.z, 30, 1.20, 0.65, 1.20, 0.05);
     }
 
     private static void tickWhirlpools() {
@@ -853,14 +857,15 @@ public final class PowerSystem {
                         target.push(away.x, 0.40, away.z);
                     }
                 }
-                level.sendParticles(ParticleTypes.SPLASH, whirlpool.center.x, whirlpool.center.y + 0.5, whirlpool.center.z, 85, radius * 0.55, 0.8, radius * 0.55, 0.13);
+                level.sendParticles(ParticleTypes.SPLASH, whirlpool.center.x, whirlpool.center.y + 0.7, whirlpool.center.z, 210, radius * 0.72, 1.4, radius * 0.72, 0.15);
+                level.sendParticles(ParticleTypes.BUBBLE_POP, whirlpool.center.x, whirlpool.center.y + 0.6, whirlpool.center.z, 90, radius * 0.58, 1.1, radius * 0.58, 0.08);
+                level.sendParticles(ParticleTypes.CLOUD, whirlpool.center.x, whirlpool.center.y + 0.7, whirlpool.center.z, 45, radius * 0.62, 0.55, radius * 0.62, 0.04);
                 iterator.remove();
                 continue;
             }
 
             if (now % 2L == 0L) {
-                drawRing(level, whirlpool.center.add(0.0, 0.15, 0.0), radius, ParticleTypes.SPLASH, 46);
-                drawRing(level, whirlpool.center.add(0.0, 0.28, 0.0), radius * 0.62, ParticleTypes.BUBBLE_POP, 32);
+                drawWhirlpoolVisual(level, whirlpool.center, radius, now, whirlpool.stage);
             }
 
             AABB area = new AABB(whirlpool.center, whirlpool.center).inflate(radius, 3.0, radius);
@@ -889,7 +894,9 @@ public final class PowerSystem {
         long now = level.getGameTime();
         int lifetime = 38 + stage * 4;
         TSUNAMIS.add(new PendingTsunami(level, player.getUUID(), start, direction, now, now + lifetime, stage));
-        level.sendParticles(ParticleTypes.SPLASH, start.x, start.y + 2.0, start.z, 100, 3.8, 2.2, 3.8, 0.16);
+        level.sendParticles(ParticleTypes.SPLASH, start.x, start.y + 2.2, start.z, 320, 4.5, 2.8, 2.0, 0.18);
+        level.sendParticles(ParticleTypes.BUBBLE_POP, start.x, start.y + 2.0, start.z, 120, 4.0, 2.4, 1.8, 0.09);
+        level.sendParticles(ParticleTypes.CLOUD, start.x, start.y + 4.3, start.z, 70, 4.3, 0.6, 1.8, 0.05);
     }
 
     private static void tickTsunamis() {
@@ -900,7 +907,9 @@ public final class PowerSystem {
             long now = level.getGameTime();
             ServerPlayer owner = level.getServer().getPlayerList().getPlayer(tsunami.owner);
             if (now >= tsunami.expireTick) {
-                level.sendParticles(ParticleTypes.SPLASH, tsunami.position.x, tsunami.position.y + 1.0, tsunami.position.z, 90, 3.0, 1.5, 3.0, 0.12);
+                level.sendParticles(ParticleTypes.SPLASH, tsunami.position.x, tsunami.position.y + 1.4, tsunami.position.z, 260, 3.8, 2.2, 3.8, 0.16);
+                level.sendParticles(ParticleTypes.BUBBLE_POP, tsunami.position.x, tsunami.position.y + 1.2, tsunami.position.z, 95, 3.1, 1.7, 3.1, 0.08);
+                level.sendParticles(ParticleTypes.CLOUD, tsunami.position.x, tsunami.position.y + 1.8, tsunami.position.z, 50, 3.2, 0.8, 3.2, 0.05);
                 iterator.remove();
                 continue;
             }
@@ -913,18 +922,17 @@ public final class PowerSystem {
             double thickness = 1.7 + tsunami.stage * 0.08;
             Vec3 right = new Vec3(-tsunami.direction.z, 0.0, tsunami.direction.x);
 
-            int lateralSteps = Math.max(5, (int) Math.ceil(width));
-            int verticalSteps = Math.max(4, (int) Math.ceil(height * 1.35));
-            for (int li = 0; li <= lateralSteps; li++) {
-                double lateral = -width / 2.0 + width * li / lateralSteps;
-                for (int vi = 0; vi <= verticalSteps; vi++) {
-                    double vertical = height * vi / verticalSteps;
-                    Vec3 point = tsunami.position.add(right.scale(lateral)).add(0.0, vertical, 0.0);
-                    level.sendParticles(ParticleTypes.SPLASH, point.x, point.y, point.z, 1, 0.15, 0.12, 0.15, 0.02);
-                    if ((li + vi + now) % 3L == 0L) {
-                        level.sendParticles(ParticleTypes.BUBBLE_POP, point.x, point.y, point.z, 1, 0.08, 0.08, 0.08, 0.01);
-                    }
-                }
+            if (now % 2L == 0L) {
+                drawTsunamiVisual(level, tsunami.position, tsunami.direction, right, width, height, thickness, now);
+            } else {
+                level.sendParticles(ParticleTypes.SPLASH,
+                    tsunami.position.x, tsunami.position.y + height * 0.52, tsunami.position.z,
+                    80, width * 0.38, height * 0.40, thickness * 0.48, 0.03);
+                level.sendParticles(ParticleTypes.CLOUD,
+                    tsunami.position.x + tsunami.direction.x * 0.7,
+                    tsunami.position.y + height,
+                    tsunami.position.z + tsunami.direction.z * 0.7,
+                    24, width * 0.40, 0.20, thickness * 0.52, 0.03);
             }
 
             double boxRadius = Math.max(width / 2.0, thickness) + 1.0;
@@ -952,6 +960,139 @@ public final class PowerSystem {
                 }
             }
         }
+    }
+
+
+    private static void drawWaterOrbVisual(ServerLevel level, Vec3 center, double radius, long now) {
+        double spin = now * 0.34;
+        level.sendParticles(ParticleTypes.SPLASH, center.x, center.y, center.z,
+            58, radius * 0.52, radius * 0.52, radius * 0.52, 0.025);
+        level.sendParticles(ParticleTypes.BUBBLE_POP, center.x, center.y, center.z,
+            22, radius * 0.42, radius * 0.42, radius * 0.42, 0.018);
+
+        int points = 14;
+        for (int ring = -1; ring <= 1; ring++) {
+            double y = center.y + ring * radius * 0.48;
+            double ringRadius = radius * (ring == 0 ? 1.0 : 0.72);
+            for (int i = 0; i < points; i++) {
+                double angle = spin + Math.PI * 2.0 * i / points + ring * 0.45;
+                double x = center.x + Math.cos(angle) * ringRadius;
+                double z = center.z + Math.sin(angle) * ringRadius;
+                level.sendParticles(ParticleTypes.SPLASH, x, y, z, 2, 0.035, 0.035, 0.035, 0.012);
+            }
+        }
+        level.sendParticles(ParticleTypes.CLOUD, center.x, center.y + radius * 0.72, center.z,
+            5, radius * 0.42, 0.08, radius * 0.42, 0.015);
+    }
+
+    private static void drawWhirlpoolVisual(ServerLevel level, Vec3 center, double radius, long now, int stage) {
+        double spin = now * (0.24 + stage * 0.018);
+        int layers = 5;
+        for (int layer = 0; layer < layers; layer++) {
+            double fraction = layer / (double) (layers - 1);
+            double layerRadius = radius * (1.0 - fraction * 0.72);
+            double y = center.y + 0.18 + fraction * (1.9 + stage * 0.12);
+            int points = Math.max(14, 30 - layer * 3);
+            for (int i = 0; i < points; i++) {
+                double angle = spin * (1.0 + fraction * 0.55) + Math.PI * 2.0 * i / points + layer * 0.55;
+                double wobble = Math.sin(angle * 3.0 + now * 0.12) * 0.12;
+                double x = center.x + Math.cos(angle) * (layerRadius + wobble);
+                double z = center.z + Math.sin(angle) * (layerRadius + wobble);
+                level.sendParticles(ParticleTypes.SPLASH, x, y, z, 2, 0.07, 0.10, 0.07, 0.02);
+                if ((i + layer) % 3 == 0) {
+                    level.sendParticles(ParticleTypes.BUBBLE_POP, x, y + 0.08, z, 1, 0.04, 0.06, 0.04, 0.012);
+                }
+            }
+        }
+
+        level.sendParticles(ParticleTypes.SPLASH, center.x, center.y + 0.9, center.z,
+            90, radius * 0.48, 1.15, radius * 0.48, 0.065);
+        level.sendParticles(ParticleTypes.CLOUD, center.x, center.y + 0.38, center.z,
+            18, radius * 0.72, 0.16, radius * 0.72, 0.025);
+    }
+
+    private static void drawWaterArmorVisual(ServerLevel level, Vec3 center, double radius, long now) {
+        double spin = now * 0.28;
+        for (int band = 0; band < 3; band++) {
+            double y = center.y + 0.35 + band * 0.58;
+            double bandRadius = radius * (1.0 - band * 0.08);
+            int points = 18;
+            for (int i = 0; i < points; i++) {
+                double angle = spin * (band % 2 == 0 ? 1.0 : -1.0) + Math.PI * 2.0 * i / points + band * 0.7;
+                double x = center.x + Math.cos(angle) * bandRadius;
+                double z = center.z + Math.sin(angle) * bandRadius;
+                level.sendParticles(ParticleTypes.SPLASH, x, y, z, 2, 0.045, 0.08, 0.045, 0.015);
+                if ((i + band) % 4 == 0) {
+                    level.sendParticles(ParticleTypes.BUBBLE_POP, x, y, z, 1, 0.03, 0.05, 0.03, 0.01);
+                }
+            }
+        }
+        level.sendParticles(ParticleTypes.SPLASH, center.x, center.y + 1.0, center.z,
+            30, radius * 0.52, 0.92, radius * 0.52, 0.035);
+    }
+
+    private static void drawTsunamiVisual(
+        ServerLevel level,
+        Vec3 center,
+        Vec3 direction,
+        Vec3 right,
+        double width,
+        double height,
+        double thickness,
+        long now
+    ) {
+        int columns = Math.max(11, (int) Math.ceil(width * 1.55));
+        double crestForward = 0.72 + Math.sin(now * 0.22) * 0.10;
+
+        // Her sütun çok sayıda su parçacığı üretir; böylece seyrek noktalar yerine dolu bir su duvarı görünür.
+        for (int column = 0; column <= columns; column++) {
+            double lateral = -width / 2.0 + width * column / columns;
+            Vec3 columnBase = center.add(right.scale(lateral));
+            int waterCount = Math.max(18, (int) Math.round(height * 7.0));
+            level.sendParticles(
+                ParticleTypes.SPLASH,
+                columnBase.x,
+                columnBase.y + height * 0.50,
+                columnBase.z,
+                waterCount,
+                Math.max(0.12, width / columns * 0.48),
+                height * 0.48,
+                thickness * 0.46,
+                0.028
+            );
+            level.sendParticles(
+                ParticleTypes.BUBBLE_POP,
+                columnBase.x,
+                columnBase.y + height * 0.46,
+                columnBase.z,
+                Math.max(6, waterCount / 4),
+                Math.max(0.10, width / columns * 0.40),
+                height * 0.40,
+                thickness * 0.38,
+                0.018
+            );
+
+            Vec3 crest = columnBase.add(direction.scale(crestForward)).add(0.0, height, 0.0);
+            level.sendParticles(ParticleTypes.CLOUD, crest.x, crest.y, crest.z,
+                7, Math.max(0.12, width / columns * 0.65), 0.20, thickness * 0.62, 0.025);
+            level.sendParticles(ParticleTypes.SPLASH, crest.x, crest.y - 0.10, crest.z,
+                11, Math.max(0.12, width / columns * 0.55), 0.28, thickness * 0.58, 0.045);
+
+            Vec3 baseSpray = columnBase.add(direction.scale(-thickness * 0.28)).add(0.0, 0.22, 0.0);
+            level.sendParticles(ParticleTypes.SPLASH, baseSpray.x, baseSpray.y, baseSpray.z,
+                8, Math.max(0.10, width / columns * 0.45), 0.18, thickness * 0.72, 0.055);
+        }
+
+        // Dalganın gövdesini dolduran ek hacim; uzaktan bakıldığında da büyük bir su kütlesi olarak seçilir.
+        level.sendParticles(ParticleTypes.SPLASH, center.x, center.y + height * 0.52, center.z,
+            Math.max(90, (int) Math.round(width * height * 3.2)),
+            width * 0.42, height * 0.42, thickness * 0.50, 0.022);
+        level.sendParticles(ParticleTypes.CLOUD,
+            center.x + direction.x * crestForward,
+            center.y + height,
+            center.z + direction.z * crestForward,
+            Math.max(28, (int) Math.round(width * 4.0)),
+            width * 0.44, 0.22, thickness * 0.58, 0.032);
     }
 
     private static Vec3 horizontalDirection(Vec3 direction) {

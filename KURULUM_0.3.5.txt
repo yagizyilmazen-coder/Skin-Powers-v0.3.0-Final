@@ -1,0 +1,8 @@
+Skin Powers 0.3.5
+
+1. Bu klasörün içindeki tüm dosyaları GitHub projesinin ana klasörüne kopyalayın.
+2. Hedefteki dosyaları değiştir seçeneğini onaylayın.
+3. GitHub Desktop: Commit to main -> Push origin.
+4. Actions yeşil olduğunda skinpowers-0.3.5-jar artifactini indirin.
+5. ZIP içindeki skinpowers-0.3.5.jar dosyasını mods klasörüne koyun.
+6. Eski Skin Powers JAR dosyasını kaldırın.

@@ -24,7 +24,7 @@ EXPECTED_PROPERTIES = {
     "loader_version": "0.19.3",
     "loom_version": "1.17-SNAPSHOT",
     "fabric_api_version": "0.154.2+26.1.2",
-    "mod_version": "0.3.4",
+    "mod_version": "0.3.5",
     "maven_group": "com.yagiz",
     "archives_base_name": "skinpowers",
 }
@@ -128,6 +128,21 @@ for name in ["warden", "flight", "fire", "water"]:
         errors.append(f"Eksik sınıf kartı görseli: {card.relative_to(ROOT)}")
     elif card.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
         errors.append(f"Geçersiz PNG kartı: {card.relative_to(ROOT)}")
+
+# Dense water visuals must remain present.
+power_system = ROOT / "src/main/java/com/yagiz/skinpowers/PowerSystem.java"
+if power_system.exists():
+    water_visual_source = power_system.read_text(encoding="utf-8")
+    for required_text in [
+        "drawWaterOrbVisual",
+        "drawWhirlpoolVisual",
+        "drawWaterArmorVisual",
+        "drawTsunamiVisual",
+        "waterCount = Math.max",
+        "ParticleTypes.CLOUD",
+    ]:
+        if required_text not in water_visual_source:
+            errors.append(f"Yoğun Su görsel sisteminde eksik ifade: {required_text}")
 
 # Four-card selection screen and compact-layout collision guards
 selection_path = ROOT / "src/client/java/com/yagiz/skinpowers/client/SkinSelectionScreen.java"

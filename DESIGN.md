@@ -1,4 +1,4 @@
-# Skin Powers 0.3.4 Tasarım Özeti
+# Skin Powers 0.3.5 Tasarım Özeti
 
 ## İlk sınıf seçimi
 - Oyuncunun skinindeki görünür ana ve ikinci katman pikselleri analiz edilir.
