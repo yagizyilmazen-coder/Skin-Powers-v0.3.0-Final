@@ -489,7 +489,7 @@ public final class AncientChargeSystem {
         }
         ParticleOptions classParticle = switch (PlayerDataStore.get(player.getUUID()).powerClass()) {
             case FIRE -> ParticleTypes.FLAME;
-            case FLIGHT -> ParticleTypes.DRAGON_BREATH;
+            case FLIGHT -> ParticleTypes.REVERSE_PORTAL;
             case NATURE -> ParticleTypes.HAPPY_VILLAGER;
             case ANOMALY -> ParticleTypes.END_ROD;
             default -> ParticleTypes.SCULK_SOUL;
@@ -519,7 +519,7 @@ public final class AncientChargeSystem {
         drawRing(level, center, Math.max(0.8, spread * 0.78), ParticleTypes.WITCH, 20);
         ParticleOptions original = switch (powerClass) {
             case FIRE -> ParticleTypes.FLAME;
-            case FLIGHT -> ParticleTypes.DRAGON_BREATH;
+            case FLIGHT -> ParticleTypes.REVERSE_PORTAL;
             case NATURE -> ParticleTypes.HAPPY_VILLAGER;
             case ANOMALY -> ParticleTypes.END_ROD;
             default -> ParticleTypes.SONIC_BOOM;

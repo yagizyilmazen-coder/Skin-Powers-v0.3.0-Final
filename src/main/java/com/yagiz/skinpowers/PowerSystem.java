@@ -229,7 +229,7 @@ public final class PowerSystem {
             int stage = data.masteryStage(3);
             player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, stage >= 2 ? 2 : 1, false, false, true));
             if (now % 4L == 0L) {
-                level.sendParticles(ParticleTypes.DRAGON_BREATH, player.getX(), player.getY() + 1.0, player.getZ(), 10, 0.75, 0.9, 0.75, 0.015);
+                level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 10, 0.75, 0.9, 0.75, 0.015);
             }
             for (Projectile projectile : level.getEntitiesOfClass(Projectile.class, player.getBoundingBox().inflate(3.2))) {
                 if (projectile.getOwner() == player) continue;
@@ -254,13 +254,13 @@ public final class PowerSystem {
             if (now % 5L == 0L) {
                 Vec3 side = horizontalDirection(player.getLookAngle()).cross(new Vec3(0.0, 1.0, 0.0)).normalize();
                 Vec3 back = player.position().add(player.getLookAngle().scale(-0.8)).add(0.0, 1.1, 0.0);
-                level.sendParticles(ParticleTypes.DRAGON_BREATH, back.x + side.x * 0.7, back.y, back.z + side.z * 0.7, 8, 0.28, 0.42, 0.28, 0.025);
+                level.sendParticles(ParticleTypes.REVERSE_PORTAL, back.x + side.x * 0.7, back.y, back.z + side.z * 0.7, 8, 0.28, 0.42, 0.28, 0.025);
                 level.sendParticles(ParticleTypes.WITCH, back.x - side.x * 0.7, back.y, back.z - side.z * 0.7, 6, 0.24, 0.38, 0.24, 0.02);
             }
         } else {
             if (data.dragonFormUntil() != 0L) {
                 data.setDragonFormUntil(0L);
-                level.sendParticles(ParticleTypes.DRAGON_BREATH, player.getX(), player.getY() + 1.0, player.getZ(), 55, 0.9, 1.0, 0.9, 0.045);
+                level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 55, 0.9, 1.0, 0.9, 0.045);
                 PlayerDataStore.markDirty();
             }
             if (!player.isCreative() && !player.isSpectator() && player.getAbilities().mayfly) {
@@ -626,7 +626,7 @@ public final class PowerSystem {
         player.fallDistance = 0.0F;
         LAST_SKY_IMPACT.put(player.getUUID(), now);
         ServerLevel level = (ServerLevel) player.level();
-        level.sendParticles(ParticleTypes.DRAGON_BREATH, player.getX(), player.getY() + 0.7, player.getZ(), 22, 0.48, 0.35, 0.48, 0.06);
+        level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 0.7, player.getZ(), 22, 0.48, 0.35, 0.48, 0.06);
     }
 
     private static void removeTemporaryElytra(ServerPlayer player, PlayerPowerData data) {
@@ -724,7 +724,7 @@ public final class PowerSystem {
                 int trailSteps = Math.max(2, (int) Math.ceil(delta.length() * 2.0));
                 for (int i = 1; i <= trailSteps; i++) {
                     Vec3 point = start.add(delta.scale(i / (double) trailSteps)).add(0.0, 0.9, 0.0);
-                    level.sendParticles(i % 2 == 0 ? ParticleTypes.DRAGON_BREATH : ParticleTypes.WITCH, point.x, point.y, point.z, 3, 0.22, 0.35, 0.22, 0.01);
+                    level.sendParticles(i % 2 == 0 ? ParticleTypes.REVERSE_PORTAL : ParticleTypes.WITCH, point.x, point.y, point.z, 3, 0.22, 0.35, 0.22, 0.01);
                 }
                 for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().expandTowards(delta).inflate(1.3))) {
                     if (target == player || protectedAlly(player, target)) continue;
@@ -749,7 +749,7 @@ public final class PowerSystem {
                     double d = i * 0.5;
                     Vec3 point = origin.add(look.scale(d));
                     double spread = 0.12 + d * 0.055;
-                    level.sendParticles(ParticleTypes.DRAGON_BREATH, point.x, point.y, point.z, formBoost ? 7 : 4, spread, spread, spread, 0.015);
+                    level.sendParticles(ParticleTypes.REVERSE_PORTAL, point.x, point.y, point.z, formBoost ? 7 : 4, spread, spread, spread, 0.015);
                     if (i % 3 == 0) level.sendParticles(ParticleTypes.WITCH, point.x, point.y, point.z, 2, spread * 0.6, spread * 0.6, spread * 0.6, 0.01);
                 }
                 AABB coneBox = player.getBoundingBox().expandTowards(look.scale(range)).inflate(range * 0.45);
@@ -768,7 +768,7 @@ public final class PowerSystem {
             case 3 -> {
                 int duration = AncientChargeSystem.duration(130 + stage * 25, charged || formBoost);
                 data.setDragonScalesUntil(now + duration);
-                level.sendParticles(ParticleTypes.DRAGON_BREATH, player.getX(), player.getY() + 1.0, player.getZ(), 58, 0.95, 1.05, 0.95, 0.045);
+                level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 58, 0.95, 1.05, 0.95, 0.045);
                 level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 1.15F, 0.72F);
                 data.setCooldown(3, now, Math.max(360, 560 - stage * 45));
                 return true;
@@ -783,7 +783,7 @@ public final class PowerSystem {
                         target.setDeltaMovement(throwDirection.scale(formBoost ? 2.2 : 1.65).add(0.0, 0.55, 0.0));
                         target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(8.0F + stage * 1.4F, charged || formBoost));
                         target.hurtMarked = true;
-                        level.sendParticles(ParticleTypes.DRAGON_BREATH, target.getX(), target.getY() + 0.8, target.getZ(), 42, 0.55, 0.7, 0.55, 0.055);
+                        level.sendParticles(ParticleTypes.REVERSE_PORTAL, target.getX(), target.getY() + 0.8, target.getZ(), 42, 0.55, 0.7, 0.55, 0.055);
                     }
                     clearDragonClaw(player.getUUID());
                     data.setCooldown(4, now, Math.max(300, 430 - stage * 35));
@@ -821,7 +821,7 @@ public final class PowerSystem {
                     if (away.lengthSqr() > 0.0001) projectile.setDeltaMovement(away.normalize().scale(1.35));
                     projectile.setOwner(player);
                 }
-                drawRing(level, player.position(), radius, ParticleTypes.DRAGON_BREATH, formBoost ? 110 : 78);
+                drawRing(level, player.position(), radius, ParticleTypes.REVERSE_PORTAL, formBoost ? 110 : 78);
                 level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ROAR, SoundSource.PLAYERS, 1.8F, 0.68F);
                 ServerNetworking.sendScreenShake(level, player.position(), 38.0, formBoost ? 1.8F : 1.25F, 18);
                 data.setCooldown(5, now, Math.max(520, 760 - stage * 55));
@@ -835,7 +835,7 @@ public final class PowerSystem {
                     player.onUpdateAbilities();
                 }
                 player.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration, 2, false, true, true));
-                level.sendParticles(ParticleTypes.DRAGON_BREATH, player.getX(), player.getY() + 1.0, player.getZ(), 120, 1.35, 1.25, 1.35, 0.075);
+                level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 120, 1.35, 1.25, 1.35, 0.075);
                 level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 65, 1.1, 1.0, 1.1, 0.055);
                 level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ROAR, SoundSource.PLAYERS, 2.0F, 0.55F);
                 ServerNetworking.sendScreenShake(level, player.position(), 42.0, 1.9F, 22);

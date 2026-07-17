@@ -109,7 +109,7 @@ public final class AwakeningSystem {
                 player.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 30, 1, false, false, true));
                 player.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, 1, false, false, true));
                 if (now % 5L == 0L) {
-                    level.sendParticles(ParticleTypes.DRAGON_BREATH, player.getX(), player.getY() + 1.0, player.getZ(), 15, 1.15, 0.9, 1.15, 0.025);
+                    level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 15, 1.15, 0.9, 1.15, 0.025);
                     level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.1, player.getZ(), 7, 0.85, 0.75, 0.85, 0.02);
                 }
             }
@@ -165,7 +165,7 @@ public final class AwakeningSystem {
             case FIRE -> ParticleTypes.FLAME;
             case NATURE -> ParticleTypes.HAPPY_VILLAGER;
             case ANOMALY -> ParticleTypes.WITCH;
-            case FLIGHT -> ParticleTypes.DRAGON_BREATH;
+            case FLIGHT -> ParticleTypes.REVERSE_PORTAL;
             default -> ParticleTypes.END_ROD;
         };
         level.sendParticles(particle, center.x, center.y, center.z, count, 1.25, 1.15, 1.25, 0.055);
