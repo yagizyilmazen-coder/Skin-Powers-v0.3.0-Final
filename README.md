@@ -1,8 +1,8 @@
-# Skin Powers 1.0.6
+# Skin Powers 1.0.7
 
 Skin Powers, oyuncunun Minecraft skinindeki renkleri analiz ederek uygun güç sınıfları öneren Fabric modudur. İlk seçimde bütün sınıflar görünür; gerçek skin analizi başarılıysa yalnızca en yüksek ve ikinci en yüksek öneri seçilebilir.
 
-## 1.0.6 ana değişiklikleri
+## 1.0.7 ana değişiklikleri
 
 - Eski **Uçuş/Kuş sınıfı**, kayıtlar bozulmadan **Kadim Ejderha** sınıfına dönüştürüldü.
 - Beş sınıf için hasar alıp verdikçe dolan **Uyanış çubuğu** eklendi. `G` ile etkinleşir; çubuk ne kadar doluysa form o kadar uzun sürer. Sabit üç dakikalık bekleme yoktur.
@@ -21,7 +21,7 @@ Warden Zırhı, Yer Sarsıntısı, Sonik Patlama, Sculk Avı, Warden Uyanışı 
 
 ### Kadim Ejderha
 
-1. **Ejderha Atılışı:** Yerde veya havada uzun mor atılış; yolundakilere hasar ve savurma.
+1. **Kuyruk Kasırgası:** Çevrende dönen mor kuyruk dalgası; yakındaki düşmanlara hasar verir ve uzağa savurur.
 2. **Ejderha Nefesi:** Blok yakmayan geniş mor enerji konisi.
 3. **Kadim Pullar:** Hasar azaltma ve yakındaki mermileri geri sektirme.
 4. **Avcı Pençesi:** Hedefi yakalama; ikinci kullanımda baktığın yöne fırlatma.
@@ -132,7 +132,7 @@ Sınıf adları doğrudan `/skinpower warden` biçiminde çalışmaz; önce `deg
 1. Proje dosyalarını deponun ana dizinine kopyalayın.
 2. GitHub Desktop'ta commit ve `Push origin` yapın.
 3. GitHub'da **Actions → Fabric JAR Derle** çalışmasını açın.
-4. Yeşil tamamlanınca `skinpowers-1.0.6-jar` artifact'ini indirin.
-5. İçindeki `skinpowers-1.0.6.jar` dosyasını Minecraft `mods` klasörüne koyun.
+4. Yeşil tamamlanınca `skinpowers-1.0.7-jar` artifact'ini indirin.
+5. İçindeki `skinpowers-1.0.7.jar` dosyasını Minecraft `mods` klasörüne koyun.
 
 Eski Skin Powers JAR'larını aynı anda `mods` klasöründe bırakmayın.

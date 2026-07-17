@@ -34,6 +34,7 @@ public final class ClientState {
     private static int anomalyBonusHealthTicks;
     private static double anomalyBonusHealth;
     private static int dragonScalesTicks;
+    private static int dragonScaleCharges;
     private static int dragonFormTicks;
     private static float awakeningEnergy;
     private static int classAwakeningTicks;
@@ -79,6 +80,7 @@ public final class ClientState {
             anomalyBonusHealthTicks = Math.max(0, state.anomalyBonusHealthTicks);
             anomalyBonusHealth = Math.max(0.0D, state.anomalyBonusHealth);
             dragonScalesTicks = Math.max(0, state.dragonScalesTicks);
+            dragonScaleCharges = Math.max(0, state.dragonScaleCharges);
             dragonFormTicks = Math.max(0, state.dragonFormTicks);
             awakeningEnergy = Math.max(0.0F, Math.min(100.0F, state.awakeningEnergy));
             classAwakeningTicks = Math.max(0, state.classAwakeningTicks);
@@ -161,6 +163,7 @@ public final class ClientState {
         anomalyBonusHealthTicks = 0;
         anomalyBonusHealth = 0.0D;
         dragonScalesTicks = 0;
+        dragonScaleCharges = 0;
         dragonFormTicks = 0;
         awakeningEnergy = 0.0F;
         classAwakeningTicks = 0;
@@ -199,6 +202,7 @@ public final class ClientState {
     public static int anomalyBonusHealthTicks() { return anomalyBonusHealthTicks; }
     public static double anomalyBonusHealth() { return anomalyBonusHealth; }
     public static int dragonScalesTicks() { return dragonScalesTicks; }
+    public static int dragonScaleCharges() { return dragonScaleCharges; }
     public static int dragonFormTicks() { return dragonFormTicks; }
     public static float awakeningEnergy() { return awakeningEnergy; }
     public static int classAwakeningTicks() { return classAwakeningTicks; }
@@ -246,6 +250,7 @@ public final class ClientState {
         private int anomalyBonusHealthTicks;
         private double anomalyBonusHealth;
         private int dragonScalesTicks;
+        private int dragonScaleCharges;
         private int dragonFormTicks;
         private float awakeningEnergy;
         private int classAwakeningTicks;

@@ -72,46 +72,73 @@ public final class AwakeningSystem {
             return;
         }
 
+        // Uyanış sırasında bütün aktif güçler PowerSystem içinde güçlendirilmiş sürüm olarak çalışır.
+        if (now % 5L == 0L) data.reduceAllCooldowns(now, 10);
         switch (data.powerClass()) {
             case WARDEN -> {
-                player.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 30, 2, false, false, true));
-                player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 1, false, false, true));
-                if (now % 8L == 0L) level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), 10, 0.75, 0.85, 0.75, 0.025);
+                player.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 30, 3, false, false, true));
+                player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 2, false, false, true));
+                player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 30, 1, false, false, true));
+                if (now % 10L == 0L) level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), 22, 1.15, 1.1, 1.15, 0.045);
+                if (now % 20L == 0L) pulseEnemies(player, level, 8.5, 8.0F, 0.9, 0.45, ParticleTypes.SCULK_SOUL);
             }
             case FIRE -> {
                 player.setRemainingFireTicks(0);
                 player.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 30, 0, false, false, true));
-                player.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 30, 1, false, false, true));
-                if (now % 7L == 0L) level.sendParticles(ParticleTypes.FLAME, player.getX(), player.getY() + 0.9, player.getZ(), 12, 0.72, 0.8, 0.72, 0.025);
+                player.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 30, 2, false, false, true));
+                player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 1, false, false, true));
+                if (now % 8L == 0L) level.sendParticles(ParticleTypes.FLAME, player.getX(), player.getY() + 0.9, player.getZ(), 24, 1.05, 1.0, 1.05, 0.045);
+                if (now % 20L == 0L) {
+                    pulseEnemies(player, level, 8.0, 7.0F, 0.7, 0.35, ParticleTypes.FLAME);
+                    for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(8.0))) {
+                        if (target != player && !PowerSystem.isProtectedAlly(player, target)) target.setRemainingFireTicks(Math.max(100, target.getRemainingFireTicks()));
+                    }
+                }
             }
             case NATURE -> {
-                player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 30, 1, false, false, true));
-                player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 0, false, false, true));
-                if (now % 9L == 0L) level.sendParticles(ParticleTypes.HAPPY_VILLAGER, player.getX(), player.getY() + 0.6, player.getZ(), 9, 0.8, 0.65, 0.8, 0.015);
+                player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 30, 2, false, false, true));
+                player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 2, false, false, true));
+                player.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 30, 1, false, false, true));
+                if (now % 8L == 0L) level.sendParticles(ParticleTypes.HAPPY_VILLAGER, player.getX(), player.getY() + 0.6, player.getZ(), 20, 1.15, 0.85, 1.15, 0.035);
+                if (now % 20L == 0L) {
+                    for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(9.0))) {
+                        if (target == player || PowerSystem.isProtectedAlly(player, target)) target.heal(2.0F);
+                        else {
+                            target.hurtServer(level, level.damageSources().playerAttack(player), 5.0F);
+                            target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 35, 3, false, true, true));
+                        }
+                    }
+                }
             }
             case ANOMALY -> {
-                player.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, 1, false, false, true));
-                player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 0, false, false, true));
-                if (now % 10L == 0L) data.reduceAllCooldowns(now, 7);
+                player.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, 3, false, false, true));
+                player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 2, false, false, true));
+                if (now % 5L == 0L) data.reduceAllCooldowns(now, 18);
+                for (net.minecraft.world.entity.projectile.Projectile projectile : level.getEntitiesOfClass(net.minecraft.world.entity.projectile.Projectile.class, player.getBoundingBox().inflate(8.0))) {
+                    if (projectile.getOwner() == player) continue;
+                    Vec3 velocity = projectile.getDeltaMovement();
+                    if (velocity.lengthSqr() > 0.001) projectile.setDeltaMovement(velocity.scale(-1.08));
+                    projectile.setOwner(player);
+                }
                 if (now % 6L == 0L) {
-                    level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 10, 0.85, 0.95, 0.85, 0.03);
-                    level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 5, 0.65, 0.75, 0.65, 0.02);
+                    level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 20, 1.2, 1.2, 1.2, 0.055);
+                    level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 12, 0.9, 1.0, 0.9, 0.035);
                 }
             }
             case FLIGHT -> {
-                if (!player.isCreative() && !player.isSpectator()) {
-                    if (!player.getAbilities().mayfly) {
-                        player.getAbilities().mayfly = true;
-                        player.onUpdateAbilities();
-                    }
+                if (!player.isCreative() && !player.isSpectator() && !player.getAbilities().mayfly) {
+                    player.getAbilities().mayfly = true;
+                    player.onUpdateAbilities();
                 }
                 player.fallDistance = 0.0F;
-                player.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 30, 1, false, false, true));
-                player.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, 1, false, false, true));
+                player.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 30, 3, false, false, true));
+                player.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, 2, false, false, true));
+                player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 1, false, false, true));
                 if (now % 5L == 0L) {
-                    level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 15, 1.15, 0.9, 1.15, 0.025);
-                    level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.1, player.getZ(), 7, 0.85, 0.75, 0.85, 0.02);
+                    level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 28, 1.45, 1.15, 1.45, 0.055);
+                    level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.1, player.getZ(), 14, 1.0, 0.95, 1.0, 0.04);
                 }
+                if (now % 20L == 0L) pulseEnemies(player, level, 9.5, 9.0F, 1.45, 0.85, ParticleTypes.REVERSE_PORTAL);
             }
             default -> { }
         }
@@ -137,26 +164,41 @@ public final class AwakeningSystem {
     }
 
     private static void emitFinalPulse(ServerPlayer player, PlayerPowerData data, ServerLevel level, PowerClass powerClass) {
-        double radius = powerClass == PowerClass.ANOMALY ? 10.0 : 8.0;
+        double radius = powerClass == PowerClass.ANOMALY || powerClass == PowerClass.FLIGHT ? 13.0 : 11.0;
         for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(radius))) {
             if (target == player || PowerSystem.isProtectedAlly(player, target)) continue;
             float damage = switch (powerClass) {
-                case WARDEN -> 10.0F;
-                case FIRE -> 9.0F;
-                case NATURE -> 6.0F;
-                case ANOMALY -> 8.0F;
-                case FLIGHT -> 11.0F;
+                case WARDEN -> 16.0F;
+                case FIRE -> 15.0F;
+                case NATURE -> 11.0F;
+                case ANOMALY -> 14.0F;
+                case FLIGHT -> 18.0F;
                 default -> 0.0F;
             };
             if (damage > 0.0F) target.hurtServer(level, level.damageSources().playerAttack(player), damage);
             Vec3 push = target.position().subtract(player.position());
             if (push.lengthSqr() > 0.0001) {
-                push = push.normalize().scale(powerClass == PowerClass.FLIGHT ? 1.2 : 0.75);
-                target.push(push.x, 0.28, push.z);
+                push = push.normalize().scale(powerClass == PowerClass.FLIGHT ? 2.35 : 1.45);
+                target.push(push.x, powerClass == PowerClass.FLIGHT ? 1.15 : 0.72, push.z);
             }
         }
         emitBurst(level, player.position().add(0.0, 0.8, 0.0), powerClass, 110);
         ServerNetworking.sendScreenShake(level, player.position(), 36.0, 1.55F, 18);
+    }
+
+    private static void pulseEnemies(ServerPlayer player, ServerLevel level, double radius, float damage,
+                                     double horizontalPush, double verticalPush,
+                                     net.minecraft.core.particles.ParticleOptions particle) {
+        for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(radius))) {
+            if (target == player || PowerSystem.isProtectedAlly(player, target)) continue;
+            target.hurtServer(level, level.damageSources().playerAttack(player), damage);
+            Vec3 push = target.position().subtract(player.position());
+            if (push.lengthSqr() > 0.0001) {
+                push = push.normalize().scale(horizontalPush);
+                target.push(push.x, verticalPush, push.z);
+            }
+        }
+        PowerSystem.drawExternalRing(level, player.position(), radius, particle, 84);
     }
 
     private static void emitBurst(ServerLevel level, Vec3 center, PowerClass powerClass, int count) {

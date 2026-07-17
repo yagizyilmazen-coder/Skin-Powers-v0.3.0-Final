@@ -55,9 +55,12 @@ public final class PowerSystem {
     private static final Map<UUID, Vec3> LAST_FLIGHT_POSITION = new HashMap<>();
     private static final Map<UUID, UUID> DRAGON_CLAW_TARGET = new HashMap<>();
     private static final Map<UUID, Long> DRAGON_CLAW_UNTIL = new HashMap<>();
+    private static final Map<UUID, Integer> DRAGON_CLAW_ESCAPE_PRESSES = new HashMap<>();
+    private static final Map<UUID, DragonBreathState> DRAGON_BREATHS = new HashMap<>();
     private static final Map<UUID, Long> DRAGON_SILENCE_UNTIL = new HashMap<>();
     private static final Map<UUID, long[]> LAST_MASTERY_CREDIT = new HashMap<>();
     private static long lastAutosaveTick;
+    private static boolean reflectingDragonScaleDamage;
 
     private PowerSystem() {}
 
@@ -225,22 +228,34 @@ public final class PowerSystem {
             player.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 30, 0, false, false, true));
         }
 
-        if (data.dragonScalesUntil() > now) {
-            int stage = data.masteryStage(3);
-            player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, stage >= 2 ? 2 : 1, false, false, true));
-            if (now % 4L == 0L) {
-                level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 10, 0.75, 0.9, 0.75, 0.015);
+        if (data.dragonScalesUntil() > now && data.dragonScaleCharges() > 0) {
+            int charges = data.dragonScaleCharges();
+            if (now % 3L == 0L) {
+                for (int i = 0; i < charges; i++) {
+                    double angle = now * 0.12 + Math.PI * 2.0 * i / Math.max(1, charges);
+                    double x = player.getX() + Math.cos(angle) * 1.25;
+                    double z = player.getZ() + Math.sin(angle) * 1.25;
+                    level.sendParticles(i % 2 == 0 ? ParticleTypes.REVERSE_PORTAL : ParticleTypes.WITCH,
+                        x, player.getY() + 1.05 + Math.sin(angle * 1.7) * 0.28, z, 3, 0.08, 0.14, 0.08, 0.01);
+                }
             }
             for (Projectile projectile : level.getEntitiesOfClass(Projectile.class, player.getBoundingBox().inflate(3.2))) {
                 if (projectile.getOwner() == player) continue;
                 Vec3 velocity = projectile.getDeltaMovement();
                 if (velocity.lengthSqr() < 0.001) continue;
-                projectile.setDeltaMovement(velocity.scale(-1.15).add(0.0, 0.05, 0.0));
+                projectile.setDeltaMovement(velocity.scale(-1.35).add(0.0, 0.08, 0.0));
                 projectile.setOwner(player);
             }
-        } else if (data.dragonScalesUntil() != 0L) {
+        } else if (data.dragonScalesUntil() != 0L || data.dragonScaleCharges() != 0) {
             data.setDragonScalesUntil(0L);
+            data.setDragonScaleCharges(0);
             PlayerDataStore.markDirty();
+        }
+
+        DragonBreathState breath = DRAGON_BREATHS.get(player.getUUID());
+        if (breath != null) {
+            if (breath.untilTick <= now || !player.isAlive()) DRAGON_BREATHS.remove(player.getUUID());
+            else tickDragonBreath(player, breath, level, now);
         }
 
         if (formActive || awakeningActive) {
@@ -278,6 +293,7 @@ public final class PowerSystem {
                 Vec3 anchor = player.position().add(player.getLookAngle().normalize().scale(2.2)).add(0.0, 1.0, 0.0);
                 target.setPos(anchor.x, anchor.y, anchor.z);
                 target.setDeltaMovement(Vec3.ZERO);
+                if (now % 20L == 0L) target.hurtServer(level, level.damageSources().playerAttack(player), 1.0F);
                 level.sendParticles(ParticleTypes.WITCH, target.getX(), target.getY() + 0.8, target.getZ(), 5, 0.35, 0.5, 0.35, 0.015);
             } else {
                 clearDragonClaw(player.getUUID());
@@ -358,7 +374,10 @@ public final class PowerSystem {
         if (data.natureTreeUntil() != 0L && data.natureTreeUntil() <= now) {
             data.setNatureTreeUntil(0L);
         data.setDragonScalesUntil(0L);
+        data.setDragonScaleCharges(0);
         data.setDragonFormUntil(0L);
+        DRAGON_BREATHS.remove(player.getUUID());
+        clearDragonClaw(player.getUUID());
             PlayerDataStore.markDirty();
         }
     }
@@ -413,9 +432,10 @@ public final class PowerSystem {
             && data.comboStarterPower() == PowerCatalog.comboStarterPower(data.powerClass())
             && power == PowerCatalog.comboFinisherPower(data.powerClass());
         boolean charged = AncientChargeSystem.isUsableCharge(data, now, power);
+        boolean awakened = data.classAwakeningActive(now);
 
         if (expectedFinisher) {
-            boolean comboUsed = useComboFinisher(player, data, power, now, charged);
+            boolean comboUsed = useComboFinisher(player, data, power, now, charged || awakened);
             if (comboUsed) {
                 recordMasteryUse(player, data, power);
                 AnomalySystem.recordPowerUse(player, data.powerClass(), power);
@@ -437,7 +457,7 @@ public final class PowerSystem {
             && data.unlockedLevel() >= PowerCatalog.comboFinisherPower(data.powerClass())
             && PowerCatalog.isComboStarter(data.powerClass(), power);
         // Antik Şehir hakkı ilk hazırlık gücünde harcanmaz; yalnızca birleşik saldırıyı güçlendirir.
-        boolean normalCharged = charged && !comboStarter;
+        boolean normalCharged = awakened || (charged && !comboStarter);
         boolean used = switch (data.powerClass()) {
             case WARDEN -> useWarden(player, data, power, now, normalCharged);
             case FLIGHT -> useFlight(player, data, power, now, normalCharged);
@@ -453,7 +473,7 @@ public final class PowerSystem {
             PowerCollisionSystem.registerCast(player, data, power, now, normalCharged);
             recordMasteryUse(player, data, power);
             AnomalySystem.recordPowerUse(player, data.powerClass(), power);
-            if (normalCharged) AncientChargeSystem.consume(player, data, power, now);
+            if (charged) AncientChargeSystem.consume(player, data, power, now);
             PlayerDataStore.markDirty();
             ServerNetworking.sync(player);
         }
@@ -711,66 +731,53 @@ public final class PowerSystem {
         boolean formBoost = data.dragonFormUntil() > now || data.classAwakeningActive(now);
         switch (power) {
             case 1 -> {
-                double distance = (formBoost ? 15.0 : 12.0) + stage;
-                Vec3 direction = player.getLookAngle().normalize();
-                Vec3 start = player.position();
-                Vec3 best = start;
-                for (double step = 0.75; step <= distance; step += 0.75) {
-                    Vec3 candidate = start.add(direction.scale(step));
-                    if (!level.noCollision(player, player.getBoundingBox().move(candidate.subtract(start)))) break;
-                    best = candidate;
+                // Kuyruk Kasırgası: ışınlanma değil, oyuncunun çevresinde dönen fiziksel alan saldırısı.
+                double radius = (formBoost ? 8.5 : 6.5) + stage * 0.55;
+                for (int ring = 0; ring < 3; ring++) {
+                    double ringRadius = radius * (0.55 + ring * 0.22);
+                    for (int i = 0; i < 42; i++) {
+                        double angle = Math.PI * 2.0 * i / 42.0 + ring * 0.45;
+                        double y = player.getY() + 0.65 + Math.sin(angle * 2.0) * 0.28 + ring * 0.15;
+                        level.sendParticles(ring % 2 == 0 ? ParticleTypes.REVERSE_PORTAL : ParticleTypes.WITCH,
+                            player.getX() + Math.cos(angle) * ringRadius, y,
+                            player.getZ() + Math.sin(angle) * ringRadius, formBoost ? 3 : 2, 0.10, 0.12, 0.10, 0.015);
+                    }
                 }
-                Vec3 delta = best.subtract(start);
-                int trailSteps = Math.max(2, (int) Math.ceil(delta.length() * 2.0));
-                for (int i = 1; i <= trailSteps; i++) {
-                    Vec3 point = start.add(delta.scale(i / (double) trailSteps)).add(0.0, 0.9, 0.0);
-                    level.sendParticles(i % 2 == 0 ? ParticleTypes.REVERSE_PORTAL : ParticleTypes.WITCH, point.x, point.y, point.z, 3, 0.22, 0.35, 0.22, 0.01);
-                }
-                for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().expandTowards(delta).inflate(1.3))) {
+                for (LivingEntity target : nearbyLiving(player, radius)) {
                     if (target == player || protectedAlly(player, target)) continue;
-                    target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(7.0F + stage * 1.5F, charged || formBoost));
-                    Vec3 push = direction.scale(0.9 + stage * 0.12);
-                    target.push(push.x, 0.25, push.z);
+                    target.hurtServer(level, level.damageSources().playerAttack(player),
+                        AncientChargeSystem.damage(8.0F + stage * 1.8F, charged || formBoost));
+                    Vec3 away = target.position().subtract(player.position());
+                    if (away.lengthSqr() > 0.0001) {
+                        away = away.normalize().scale(formBoost ? 2.45 : 1.85);
+                        target.push(away.x, formBoost ? 0.78 : 0.58, away.z);
+                    }
                 }
-                player.setPos(best.x, best.y, best.z);
-                player.setDeltaMovement(direction.scale(0.58).add(0.0, Math.max(0.0, direction.y * 0.35), 0.0));
-                player.hurtMarked = true;
-                player.fallDistance = 0.0F;
-                level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0F, 1.25F);
-                ServerNetworking.sendScreenShake(level, player.position(), 22.0, 0.65F, 7);
-                data.setCooldown(1, now, Math.max(75, 130 - stage * 12));
+                level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ROAR, SoundSource.PLAYERS, 1.25F, 1.45F);
+                ServerNetworking.sendScreenShake(level, player.position(), 30.0, formBoost ? 1.35F : 0.95F, 12);
+                data.setCooldown(1, now, Math.max(110, 190 - stage * 16));
                 return true;
             }
             case 2 -> {
-                Vec3 origin = player.getEyePosition();
-                Vec3 look = player.getLookAngle().normalize();
-                double range = formBoost ? 18.0 : 14.0;
-                for (int i = 1; i <= (int) (range * 2.0); i++) {
-                    double d = i * 0.5;
-                    Vec3 point = origin.add(look.scale(d));
-                    double spread = 0.12 + d * 0.055;
-                    level.sendParticles(ParticleTypes.REVERSE_PORTAL, point.x, point.y, point.z, formBoost ? 7 : 4, spread, spread, spread, 0.015);
-                    if (i % 3 == 0) level.sendParticles(ParticleTypes.WITCH, point.x, point.y, point.z, 2, spread * 0.6, spread * 0.6, spread * 0.6, 0.01);
-                }
-                AABB coneBox = player.getBoundingBox().expandTowards(look.scale(range)).inflate(range * 0.45);
-                for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, coneBox)) {
-                    if (target == player || protectedAlly(player, target)) continue;
-                    Vec3 to = target.getEyePosition().subtract(origin);
-                    double dist = to.length();
-                    if (dist <= 0.01 || dist > range || look.dot(to.normalize()) < 0.72) continue;
-                    target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(8.0F + stage * 1.8F, charged || formBoost));
-                    target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 80 + stage * 15, 1, false, true, true));
-                }
-                level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ROAR, SoundSource.PLAYERS, 1.25F, 1.35F);
-                data.setCooldown(2, now, Math.max(150, 250 - stage * 24));
+                // Süreli ve yönlendirilebilir nefes; oyuncu nişanını çevirdikçe saldırı da döner.
+                long duration = 48L + stage * 8L + (charged || formBoost ? 28L : 0L);
+                DRAGON_BREATHS.put(player.getUUID(), new DragonBreathState(now + duration, stage, charged || formBoost));
+                level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ROAR, SoundSource.PLAYERS, 1.30F, 1.18F);
+                player.sendSystemMessage(Component.literal("Ejderha Nefesi başladı; bakış yönünle nefesi yönlendir."));
+                data.setCooldown(2, now, Math.max(260, 390 - stage * 28));
                 return true;
             }
             case 3 -> {
-                int duration = AncientChargeSystem.duration(130 + stage * 25, charged || formBoost);
+                // Sıradan direnç yerine sınırlı sayıda tam saldırı engelleyen ve yansıtan pullar.
+                int charges = 3 + stage / 2 + (charged || formBoost ? 2 : 0);
+                long duration = 360L + stage * 45L + (charged || formBoost ? 160L : 0L);
+                data.setDragonScaleCharges(charges);
                 data.setDragonScalesUntil(now + duration);
-                level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 58, 0.95, 1.05, 0.95, 0.045);
-                level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 1.15F, 0.72F);
-                data.setCooldown(3, now, Math.max(360, 560 - stage * 45));
+                level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 72, 1.05, 1.15, 1.05, 0.055);
+                level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 35, 0.8, 0.95, 0.8, 0.035);
+                level.playSound(null, player.blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.75F, 1.65F);
+                player.sendSystemMessage(Component.literal("Kadim Pullar: " + charges + " saldırı engelleme hakkı."));
+                data.setCooldown(3, now, Math.max(520, 760 - stage * 55));
                 return true;
             }
             case 4 -> {
@@ -796,6 +803,7 @@ public final class PowerSystem {
                 }
                 DRAGON_CLAW_TARGET.put(player.getUUID(), target.getUUID());
                 DRAGON_CLAW_UNTIL.put(player.getUUID(), now + (formBoost ? 110L : 80L));
+                DRAGON_CLAW_ESCAPE_PRESSES.put(target.getUUID(), 0);
                 target.setDeltaMovement(Vec3.ZERO);
                 level.sendParticles(ParticleTypes.WITCH, target.getX(), target.getY() + 1.0, target.getZ(), 54, 0.7, 0.9, 0.7, 0.06);
                 player.sendSystemMessage(Component.literal("Hedef yakalandı. Avcı Pençesini tekrar kullanarak fırlat."));
@@ -808,8 +816,8 @@ public final class PowerSystem {
                     target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(6.0F + stage * 1.4F, charged || formBoost));
                     Vec3 push = target.position().subtract(player.position());
                     if (push.lengthSqr() > 0.0001) {
-                        push = push.normalize().scale(formBoost ? 1.75 : 1.25);
-                        target.push(push.x, 0.42, push.z);
+                        push = push.normalize().scale(formBoost ? 3.15 : 2.35);
+                        target.push(push.x, formBoost ? 1.45 : 1.05, push.z);
                     }
                     if (target instanceof ServerPlayer targetPlayer) {
                         DRAGON_SILENCE_UNTIL.put(targetPlayer.getUUID(), now + (formBoost ? 100L : 70L));
@@ -2431,6 +2439,8 @@ public final class PowerSystem {
         LAST_FLIGHT_POSITION.clear();
         DRAGON_CLAW_TARGET.clear();
         DRAGON_CLAW_UNTIL.clear();
+        DRAGON_CLAW_ESCAPE_PRESSES.clear();
+        DRAGON_BREATHS.clear();
         DRAGON_SILENCE_UNTIL.clear();
         AncientChargeSystem.clearPendingBeams();
     }
@@ -2578,15 +2588,111 @@ public final class PowerSystem {
         return true;
     }
 
+    public static void tryEscapeDragonClaw(ServerPlayer trappedPlayer) {
+        UUID trappedId = trappedPlayer.getUUID();
+        UUID holderId = null;
+        for (Map.Entry<UUID, UUID> entry : DRAGON_CLAW_TARGET.entrySet()) {
+            if (trappedId.equals(entry.getValue())) {
+                holderId = entry.getKey();
+                break;
+            }
+        }
+        if (holderId == null) return;
+        int presses = DRAGON_CLAW_ESCAPE_PRESSES.merge(trappedId, 1, Integer::sum);
+        trappedPlayer.sendSystemMessage(Component.literal("Pençeden kaçış: " + Math.min(10, presses) + "/10"));
+        if (presses < 10) return;
+        ServerLevel level = (ServerLevel) trappedPlayer.level();
+        ServerPlayer holder = level.getServer().getPlayerList().getPlayer(holderId);
+        Vec3 away = holder == null ? trappedPlayer.getLookAngle().scale(-1.0) : trappedPlayer.position().subtract(holder.position());
+        if (away.lengthSqr() < 0.0001) away = new Vec3(0.0, 0.0, 1.0);
+        away = away.normalize().scale(1.55);
+        trappedPlayer.setDeltaMovement(away.x, 0.65, away.z);
+        trappedPlayer.hurtMarked = true;
+        level.sendParticles(ParticleTypes.REVERSE_PORTAL, trappedPlayer.getX(), trappedPlayer.getY() + 1.0, trappedPlayer.getZ(), 48, 0.65, 0.8, 0.65, 0.08);
+        trappedPlayer.sendSystemMessage(Component.literal("Avcı Pençesinden kaçtın!"));
+        if (holder != null) holder.sendSystemMessage(Component.literal(trappedPlayer.getName().getString() + " Avcı Pençesinden kaçtı."));
+        clearDragonClaw(holderId);
+    }
+
+    public static boolean allowDragonScalesDamage(LivingEntity victim, net.minecraft.world.damagesource.DamageSource source, float amount) {
+        if (reflectingDragonScaleDamage || amount <= 0.0F || !(victim instanceof ServerPlayer player)) return true;
+        PlayerPowerData data = PlayerDataStore.get(player.getUUID());
+        long now = player.level().getGameTime();
+        if (data.powerClass() != PowerClass.FLIGHT || data.dragonScalesUntil() <= now || data.dragonScaleCharges() <= 0) return true;
+        if (!data.consumeDragonScaleCharge()) return true;
+        ServerLevel level = (ServerLevel) player.level();
+        level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 45, 0.75, 0.9, 0.75, 0.07);
+        level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 24, 0.55, 0.7, 0.55, 0.04);
+        level.playSound(null, player.blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.8F, 1.7F);
+        Entity attacker = source.getEntity();
+        if (attacker instanceof LivingEntity living && living != player && !protectedAlly(player, living)) {
+            reflectingDragonScaleDamage = true;
+            try {
+                living.hurtServer(level, level.damageSources().playerAttack(player), Math.max(3.0F, amount * 0.65F));
+                Vec3 push = living.position().subtract(player.position());
+                if (push.lengthSqr() > 0.0001) {
+                    push = push.normalize().scale(1.25);
+                    living.push(push.x, 0.45, push.z);
+                }
+            } finally {
+                reflectingDragonScaleDamage = false;
+            }
+        }
+        player.sendSystemMessage(Component.literal("Kadim Pul kırıldı. Kalan: " + data.dragonScaleCharges()));
+        PlayerDataStore.markDirty();
+        ServerNetworking.sync(player);
+        return false;
+    }
+
+    private static void tickDragonBreath(ServerPlayer player, DragonBreathState breath, ServerLevel level, long now) {
+        Vec3 origin = player.getEyePosition().add(player.getLookAngle().normalize().scale(0.65));
+        Vec3 look = player.getLookAngle().normalize();
+        double range = breath.empowered ? 18.0 : 14.0;
+        for (int i = 1; i <= 22; i++) {
+            double d = range * i / 22.0;
+            Vec3 point = origin.add(look.scale(d));
+            double spread = 0.16 + d * 0.075;
+            level.sendParticles(i % 3 == 0 ? ParticleTypes.WITCH : ParticleTypes.REVERSE_PORTAL,
+                point.x, point.y, point.z, breath.empowered ? 7 : 4, spread, spread * 0.72, spread, 0.025);
+        }
+        if (now % 5L != 0L) return;
+        AABB box = player.getBoundingBox().expandTowards(look.scale(range)).inflate(range * 0.48);
+        for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, box)) {
+            if (target == player || protectedAlly(player, target)) continue;
+            Vec3 to = target.getEyePosition().subtract(origin);
+            double distance = to.length();
+            if (distance <= 0.01 || distance > range || look.dot(to.normalize()) < 0.68) continue;
+            float pulseDamage = (float) (1.8 + breath.stage * 0.45 + (breath.empowered ? 1.7 : 0.0));
+            target.hurtServer(level, level.damageSources().playerAttack(player), pulseDamage);
+            target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 45, breath.empowered ? 2 : 1, false, true, true));
+            target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), breath.empowered ? 60 : 30));
+            Vec3 push = look.scale(breath.empowered ? 0.42 : 0.25);
+            target.push(push.x, 0.05, push.z);
+        }
+    }
+
     private static void clearDragonClaw(UUID playerId) {
-        DRAGON_CLAW_TARGET.remove(playerId);
+        UUID target = DRAGON_CLAW_TARGET.remove(playerId);
         DRAGON_CLAW_UNTIL.remove(playerId);
+        if (target != null) DRAGON_CLAW_ESCAPE_PRESSES.remove(target);
     }
 
     public static String formatSeconds(int ticks) {
         return String.format(java.util.Locale.ROOT, "%.1f", ticks / 20.0);
     }
 
+
+    private static final class DragonBreathState {
+        private final long untilTick;
+        private final int stage;
+        private final boolean empowered;
+
+        private DragonBreathState(long untilTick, int stage, boolean empowered) {
+            this.untilTick = untilTick;
+            this.stage = stage;
+            this.empowered = empowered;
+        }
+    }
 
     private static final class PendingHellfireOrb {
         private final ServerLevel level;

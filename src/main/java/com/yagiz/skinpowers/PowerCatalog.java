@@ -10,7 +10,7 @@ public final class PowerCatalog {
     private static final String[][] NAMES = {
         {"-", "-", "-", "-", "-", "-"},
         {"Warden Zırhı", "Yer Sarsıntısı", "Sonik Patlama", "Sculk Avı", "Warden Uyanışı", "Şarj Et Beni Antik Şehir"},
-        {"Ejderha Atılışı", "Ejderha Nefesi", "Kadim Pullar", "Avcı Pençesi", "Kadim Kükreme", "Ejderha Hükümdarı"},
+        {"Kuyruk Kasırgası", "Ejderha Nefesi", "Kadim Pullar", "Avcı Pençesi", "Kadim Kükreme", "Ejderha Hükümdarı"},
         {"Ateş Bağışıklığı", "Alevli Yakın Dövüş", "Ateş Çemberi", "Cehennem Küresi", "Meteor Yağmuru", "-"},
         {"Doğanın Canı", "Dikenli Tohum", "Sarmaşık Kapanı", "Yaşam Ağacı", "Kadim Orman Hükmü", "-"},
         {"Kırık Adım", "Tersine Çevir", "?", "Hasar Mevcut Değil", "Varlıktan Çıkar", "404: Gerçeklik Bulunamadı"}
@@ -27,9 +27,9 @@ public final class PowerCatalog {
             "Dört sculk kolu hedefe Antik Şehir enerjisi aktarır; çömelerek kendine uygulayabilirsin."
         },
         {
-            "Yerde veya havada 12-15 blok ileri atılır; yolundakileri mor kanat enerjisiyle savurur.",
-            "Geniş bir konide blok yakmayan mor ejderha enerjisi üfler ve hedefleri zayıflatır.",
-            "Kadim mor pullar hasarı azaltır, savrulmayı önler ve yakındaki mermileri geri sektirir.",
+            "Etrafında tam tur dönen dev mor kuyruk oluşturur; yakındaki düşmanları ezer ve uzağa savurur.",
+            "Birkaç saniye boyunca baktığın yöne yönlendirilebilen mor ejderha nefesi püskürtür.",
+            "Kadim pul yükleri kazanırsın; her pul bir saldırıyı tamamen engeller ve saldırganı geri vurur.",
             "Hedefi mor enerji pençesiyle yakalar; ikinci kullanımda baktığın yöne fırlatır.",
             "Geniş kükreme dalgası düşmanları savurur, mermileri bozar ve oyuncuların güçlerini kısa süre susturur.",
             "Mor enerji kanatları açar; uçuş, güç, hız ve güçlendirilmiş Ejderha saldırıları kazandırır."

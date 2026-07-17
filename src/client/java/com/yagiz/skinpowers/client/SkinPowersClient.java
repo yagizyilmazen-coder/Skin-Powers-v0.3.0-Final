@@ -34,6 +34,7 @@ public final class SkinPowersClient implements ClientModInitializer {
     private final KeyMapping awakeningKey = register("key.skinpowers.awakening", GLFW.GLFW_KEY_G);
     private final KeyMapping anomalyHealthKey = register("key.skinpowers.anomaly_health", GLFW.GLFW_KEY_V);
     private final KeyMapping anomalyReturnKey = register("key.skinpowers.anomaly_return", GLFW.GLFW_KEY_X);
+    private final KeyMapping dragonEscapeKey = register("key.skinpowers.dragon_escape", GLFW.GLFW_KEY_Z);
 
     private boolean selectionScreenOpened;
     private boolean previousJumpDown;
@@ -92,6 +93,7 @@ public final class SkinPowersClient implements ClientModInitializer {
             while (awakeningKey.consumeClick()) send("AWAKEN");
             while (anomalyHealthKey.consumeClick()) send("ANOMALY_HEALTH");
             while (anomalyReturnKey.consumeClick()) send("ANOMALY_RETURN");
+            while (dragonEscapeKey.consumeClick()) send("DRAGON_ESCAPE");
             while (menuKey.consumeClick()) {
                 Object currentScreen = getCurrentScreen(client);
                 if (currentScreen instanceof PowerMenuScreen) {

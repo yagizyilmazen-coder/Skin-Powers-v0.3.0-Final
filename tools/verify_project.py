@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.0.6"
+VERSION = "1.0.7"
 errors: list[str] = []
 checks: list[str] = []
 
@@ -39,7 +39,7 @@ def text(relative: str) -> str:
 
 required_files = [
     "build.gradle", "gradle.properties", "settings.gradle", "README.md", "VALIDATION.md", "FEATURE_STATUS.md",
-    "CHANGELOG_1.0.6.md", ".github/workflows/build.yml", "src/main/resources/fabric.mod.json",
+    "CHANGELOG_1.0.7.md", ".github/workflows/build.yml", "src/main/resources/fabric.mod.json",
     "src/main/resources/assets/skinpowers/lang/tr_tr.json",
     "src/main/resources/assets/skinpowers/lang/en_us.json",
     "src/main/java/com/yagiz/skinpowers/AwakeningSystem.java",
@@ -69,7 +69,7 @@ if f"skinpowers-{VERSION}-jar" not in workflow or f"skinpowers-{VERSION}.jar" no
 if "java-version: '25'" not in workflow or "gradle-version: '9.5.1'" not in workflow:
     fail("GitHub Actions Java 25 / Gradle 9.5.1 ayarı eksik")
 if "Kadim Ejderha" not in mod_json or "Uyanış" not in mod_json:
-    fail("fabric.mod.json 1.0.6 açıklamasını içermiyor")
+    fail("fabric.mod.json 1.0.7 açıklamasını içermiyor")
 
 power_class = text("src/main/java/com/yagiz/skinpowers/PowerClass.java")
 catalog = text("src/main/java/com/yagiz/skinpowers/PowerCatalog.java")
@@ -98,12 +98,12 @@ required_tokens = {
         'FLIGHT("Kadim Ejderha")', 'normalized.equals("EJDERHA")', 'normalized.equals("TIME")', "return ANOMALY"
     ],
     catalog: [
-        "Ejderha Atılışı", "Ejderha Nefesi", "Kadim Pullar", "Avcı Pençesi", "Kadim Kükreme",
+        "Kuyruk Kasırgası", "Ejderha Nefesi", "Kadim Pullar", "Avcı Pençesi", "Kadim Kükreme",
         "Ejderha Hükümdarı", "DRAGON_XP_COSTS", "Mor Ejderha Fırtınası",
         "Kırık Adım", '"?"', "404: Gerçeklik Bulunamadı"
     ],
     data: [
-        "dragonScalesUntil", "dragonFormUntil", "awakeningEnergy", "classAwakeningUntil",
+        "dragonScalesUntil", "dragonScaleCharges", "dragonFormUntil", "awakeningEnergy", "classAwakeningUntil",
         "beginClassAwakening", "Math.round(energy * 4.8F)", "copiedPowerClass", "anomalyStoredDamage"
     ],
     awakening: [
@@ -115,17 +115,17 @@ required_tokens = {
         "FROZEN_PROJECTILES", "SONUÇ REDDEDİLDİ", "handleDisconnect"
     ],
     power_system: [
-        "tickFlight", "Kadim Ejderha pasifi", "DRAGON_CLAW_TARGET", "DRAGON_SILENCE_UNTIL",
-        "data.setDragonScalesUntil", "data.setDragonFormUntil", "dragon_dash", "dragon_breath",
+        "tickFlight", "Kadim Ejderha pasifi", "DRAGON_CLAW_TARGET", "DRAGON_CLAW_ESCAPE_PRESSES", "DRAGON_BREATHS", "DRAGON_SILENCE_UNTIL",
+        "data.setDragonScalesUntil", "data.setDragonScaleCharges", "data.setDragonFormUntil", "dragon_dash", "dragon_breath",
         "dragon_roar", "dragon_form", "ServerNetworking.sendCastAnimation", "PowerCollisionSystem.registerCast",
         "DuelSystem.protects", "WorldEventSystem.tick", "data.beginCombo(2, now, 80)"
     ],
     network: [
-        'command.equals("AWAKEN")', "dragonScalesTicks", "awakeningEnergy", "classAwakeningTicks",
+        'command.equals("AWAKEN")', "dragonScalesTicks", "dragonScaleCharges", "awakeningEnergy", "classAwakeningTicks",
         "duelActive", "sendCastAnimation"
     ],
     client: [
-        "GLFW.GLFW_KEY_G", 'send("AWAKEN")', "GLFW.GLFW_KEY_V", "GLFW.GLFW_KEY_X", "CAST_"
+        "GLFW.GLFW_KEY_G", 'send("AWAKEN")', "GLFW.GLFW_KEY_V", "GLFW.GLFW_KEY_X", "GLFW.GLFW_KEY_Z", 'send("DRAGON_ESCAPE")', "CAST_"
     ],
     client_state: [
         "dragonScalesTicks", "dragonFormTicks", "awakeningEnergy", "classAwakeningTicks",
@@ -150,7 +150,7 @@ required_tokens = {
         '"KADİM EJDERHA"', "drawDragonStorm", "drawAncientCity", "drawLavaCave", "drawForest", "drawAnomalyGlitch",
         "cardProgress >= 0.85F"
     ],
-    analyzer: ["FLIGHT_COLORS", "ANOMALY_COLORS", "SkinPowers/1.0.6"],
+    analyzer: ["FLIGHT_COLORS", "ANOMALY_COLORS", "SkinPowers/1.0.7"],
     commands: [
         'Commands.literal("degistir")', 'selfClass("ejderha"', 'Commands.literal("duello")',
         'Commands.literal("trigger")', 'triggerLiteral("dragon_breath")', 'triggerLiteral("dragon_form")'
@@ -158,7 +158,7 @@ required_tokens = {
     mod: [
         "ServerLivingEntityEvents.ALLOW_DAMAGE.register(DuelSystem::allowDamage)",
         "ServerLivingEntityEvents.ALLOW_DAMAGE.register(AwakeningSystem::allowDamage)",
-        "Skin Powers 1.0.6 yüklendi"
+        "Skin Powers 1.0.7 yüklendi"
     ],
     store: ["migrateLegacyClassNames", "JsonParser.parseReader"],
     duel: [

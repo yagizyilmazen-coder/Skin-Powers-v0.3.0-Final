@@ -22,6 +22,7 @@ public final class PlayerPowerData {
 
     // 1.0.6: Kadim Ejderha ve tüm sınıfların enerjiye bağlı Uyanış Formu.
     private long dragonScalesUntil = 0L;
+    private int dragonScaleCharges = 0;
     private long dragonFormUntil = 0L;
     private float awakeningEnergy = 0.0F;
     private long classAwakeningUntil = 0L;
@@ -83,6 +84,7 @@ public final class PlayerPowerData {
     public long wardenHuntUntil() { return wardenHuntUntil; }
     public long natureTreeUntil() { return natureTreeUntil; }
     public long dragonScalesUntil() { return dragonScalesUntil; }
+    public int dragonScaleCharges() { return Math.max(0, dragonScaleCharges); }
     public long dragonFormUntil() { return dragonFormUntil; }
     public float awakeningEnergy() { return Math.max(0.0F, Math.min(100.0F, awakeningEnergy)); }
     public long classAwakeningUntil() { return classAwakeningUntil; }
@@ -154,6 +156,7 @@ public final class PlayerPowerData {
         wardenHuntUntil = 0L;
         natureTreeUntil = 0L;
         dragonScalesUntil = 0L;
+        dragonScaleCharges = 0;
         dragonFormUntil = 0L;
         awakeningEnergy = 0.0F;
         classAwakeningUntil = 0L;
@@ -410,7 +413,17 @@ public final class PlayerPowerData {
     public void setTemporaryElytraUntil(long value) { temporaryElytraUntil = value; }
     public void setWardenHuntUntil(long value) { wardenHuntUntil = value; }
     public void setNatureTreeUntil(long value) { natureTreeUntil = value; }
-    public void setDragonScalesUntil(long value) { dragonScalesUntil = Math.max(0L, value); }
+    public void setDragonScalesUntil(long value) {
+        dragonScalesUntil = Math.max(0L, value);
+        if (dragonScalesUntil == 0L) dragonScaleCharges = 0;
+    }
+    public void setDragonScaleCharges(int value) { dragonScaleCharges = Math.max(0, Math.min(9, value)); }
+    public boolean consumeDragonScaleCharge() {
+        if (dragonScaleCharges <= 0) return false;
+        dragonScaleCharges--;
+        if (dragonScaleCharges == 0) dragonScalesUntil = 0L;
+        return true;
+    }
     public void setDragonFormUntil(long value) { dragonFormUntil = Math.max(0L, value); }
     public void setClassAwakeningUntil(long value) { classAwakeningUntil = Math.max(0L, value); }
     public void setAwakeningEnergy(float value) { awakeningEnergy = Math.max(0.0F, Math.min(100.0F, value)); }

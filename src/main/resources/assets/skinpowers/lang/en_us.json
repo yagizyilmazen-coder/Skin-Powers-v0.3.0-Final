@@ -20,5 +20,6 @@
   "class.skinpowers.anomaly": "ANOMALY",
   "key.skinpowers.anomaly_health": "Anomaly: convert stored damage to hearts",
   "key.skinpowers.anomaly_return": "Anomaly: return stored damage",
-  "key.skinpowers.awakening": "Awakening Form"
+  "key.skinpowers.awakening": "Awakening Form",
+  "key.skinpowers.dragon_escape": "Escape Dragon Claw"
 }

@@ -13,6 +13,8 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -20,7 +22,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-/** Sunucuda arada bir oluşan, bloklara kalıcı zarar vermeyen sınıf temalı dünya olayları. */
+/** Sunucuda arada bir oluşan sınıf temalı dünya olayları. Meteor blok hasarı sunucu ayarına bağlıdır. */
 public final class WorldEventSystem {
     private static final long EVENT_DURATION = 2400L; // 2 dakika
     private static final double RADIUS = 34.0;
@@ -94,6 +96,7 @@ public final class WorldEventSystem {
         if (active == null) return;
         for (ServerPlayer online : server.getPlayerList().getPlayers()) online.sendSystemMessage(Component.literal("Dünya olayı sona erdi: " + active.type.display));
         active = null;
+        for (PendingStrike strike : STRIKES) clearStrikeVisual(strike);
         STRIKES.clear();
     }
 
@@ -171,7 +174,7 @@ public final class WorldEventSystem {
         int y = event.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
             (int) Math.floor(target.x), (int) Math.floor(target.z));
         target = new Vec3(target.x, y, target.z);
-        STRIKES.add(new PendingStrike(event.level, target, now + 24L));
+        STRIKES.add(new PendingStrike(event.level, target, now, now + 52L));
         event.level.sendParticles(ParticleTypes.FLAME, target.x, target.y + 0.2, target.z, 35, 1.4, 0.1, 1.4, 0.02);
     }
 
@@ -181,38 +184,87 @@ public final class WorldEventSystem {
             PendingStrike strike = iterator.next();
             long now = strike.level.getGameTime();
             if (now < strike.impactAt) {
-                Vec3 high = strike.target.add(0.0, Math.max(3.0, (strike.impactAt - now) * 1.2), 0.0);
-                strike.level.sendParticles(ParticleTypes.FLAME, high.x, high.y, high.z, 6, 0.4, 0.5, 0.4, 0.02);
+                double total = Math.max(1.0, strike.impactAt - strike.startedAt);
+                double progress = Math.max(0.0, Math.min(1.0, (now - strike.startedAt) / total));
+                Vec3 position = strike.target.add(0.0, 30.0 * (1.0 - progress), 0.0);
+                placeStrikeVisual(strike, position);
+                strike.level.sendParticles(ParticleTypes.FLAME, position.x, position.y, position.z, 15, 0.75, 0.75, 0.75, 0.055);
+                strike.level.sendParticles(ParticleTypes.LARGE_SMOKE, position.x, position.y + 0.5, position.z, 10, 0.85, 0.85, 0.85, 0.035);
+                if (now % 4L == 0L) PowerSystem.drawExternalRing(strike.level, strike.target.add(0.0, 0.12, 0.0), 3.6, ParticleTypes.FLAME, 32);
                 continue;
             }
-            AABB blast = new AABB(strike.target, strike.target).inflate(4.5);
+            clearStrikeVisual(strike);
+            AABB blast = new AABB(strike.target, strike.target).inflate(6.0);
             for (LivingEntity entity : strike.level.getEntitiesOfClass(LivingEntity.class, blast)) {
                 if (entity instanceof ServerPlayer player && DuelSystem.isInDuel(player.getUUID())) continue;
                 double distance = Math.sqrt(entity.distanceToSqr(strike.target));
-                if (distance > 4.5) continue;
-                entity.hurtServer(strike.level, strike.level.damageSources().generic(), (float) Math.max(3.0, 10.0 - distance * 1.5));
+                if (distance > 6.0) continue;
+                entity.hurtServer(strike.level, strike.level.damageSources().generic(), (float) Math.max(5.0, 16.0 - distance * 1.8));
                 Vec3 push = entity.position().subtract(strike.target);
                 if (push.lengthSqr() > 0.001) {
-                    push = push.normalize().scale(1.1);
-                    entity.push(push.x, 0.55, push.z);
+                    push = push.normalize().scale(2.05);
+                    entity.push(push.x, 0.95, push.z);
+                }
+                entity.setRemainingFireTicks(Math.max(entity.getRemainingFireTicks(), 100));
+            }
+            strike.level.sendParticles(ParticleTypes.EXPLOSION, strike.target.x, strike.target.y + 0.5, strike.target.z, 14, 1.6, 1.0, 1.6, 0.08);
+            strike.level.sendParticles(ParticleTypes.FLAME, strike.target.x, strike.target.y + 0.5, strike.target.z, 120, 3.2, 1.8, 3.2, 0.16);
+            strike.level.sendParticles(ParticleTypes.LARGE_SMOKE, strike.target.x, strike.target.y + 1.0, strike.target.z, 55, 2.8, 2.0, 2.8, 0.08);
+            strike.level.playSound(null, BlockPos.containing(strike.target), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.AMBIENT, 2.1F, 0.68F);
+            ServerNetworking.sendScreenShake(strike.level, strike.target, 34.0, 1.65F, 18);
+            if (PlayerDataStore.config().meteorBlockDamage()) carveEventCrater(strike.level, BlockPos.containing(strike.target), 4);
+            iterator.remove();
+        }
+    }
+
+    private static void placeStrikeVisual(PendingStrike strike, Vec3 position) {
+        BlockPos center = BlockPos.containing(position);
+        if (center.equals(strike.visualCenter)) return;
+        clearStrikeVisual(strike);
+        int[][] offsets = {{0,0,0},{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1},{1,1,0},{-1,1,0}};
+        for (int i = 0; i < offsets.length; i++) {
+            BlockPos pos = center.offset(offsets[i][0], offsets[i][1], offsets[i][2]);
+            if (!strike.level.getBlockState(pos).isAir()) continue;
+            strike.level.setBlockAndUpdate(pos, (i == 0 || i == 7) ? Blocks.CRYING_OBSIDIAN.defaultBlockState() : Blocks.MAGMA_BLOCK.defaultBlockState());
+            strike.visualBlocks.add(new BlockPos(pos.getX(), pos.getY(), pos.getZ()));
+        }
+        strike.visualCenter = new BlockPos(center.getX(), center.getY(), center.getZ());
+    }
+
+    private static void clearStrikeVisual(PendingStrike strike) {
+        for (BlockPos pos : strike.visualBlocks) {
+            BlockState state = strike.level.getBlockState(pos);
+            if (state.is(Blocks.MAGMA_BLOCK) || state.is(Blocks.CRYING_OBSIDIAN)) strike.level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+        }
+        strike.visualBlocks.clear();
+        strike.visualCenter = null;
+    }
+
+    private static void carveEventCrater(ServerLevel level, BlockPos center, int radius) {
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                for (int dy = 1; dy >= -3; dy--) {
+                    double shape = (dx * dx + dz * dz) / (double) (radius * radius) + (dy * dy) / 12.0;
+                    if (shape > 1.2) continue;
+                    BlockPos pos = center.offset(dx, dy, dz);
+                    BlockState state = level.getBlockState(pos);
+                    if (state.isAir() || state.is(Blocks.BEDROCK) || state.getDestroySpeed(level, pos) < 0.0F) continue;
+                    level.destroyBlock(pos, false, null);
                 }
             }
-            strike.level.sendParticles(ParticleTypes.EXPLOSION, strike.target.x, strike.target.y + 0.5, strike.target.z, 5, 0.7, 0.5, 0.7, 0.0);
-            strike.level.sendParticles(ParticleTypes.FLAME, strike.target.x, strike.target.y + 0.5, strike.target.z, 70, 2.0, 1.0, 2.0, 0.10);
-            strike.level.playSound(null, BlockPos.containing(strike.target), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.AMBIENT, 1.3F, 0.85F);
-            iterator.remove();
         }
     }
 
     public static void clearAll() {
         active = null;
+        for (PendingStrike strike : STRIKES) clearStrikeVisual(strike);
         STRIKES.clear();
         nextAutomaticEvent = 0L;
     }
 
     private enum EventType {
         SCULK_SURGE("Sculk Uyanışı", "Titreşimler güçleniyor; yaratıklar saldırganlaşıyor.", ParticleTypes.SCULK_SOUL, 0.65F),
-        METEOR_STORM("Meteor Fırtınası", "Gökyüzünden blok kırmayan meteorlar düşüyor.", ParticleTypes.FLAME, 0.75F),
+        METEOR_STORM("Meteor Fırtınası", "Görünür meteorlar gökyüzünden düşüyor ve çarpınca krater açıyor.", ParticleTypes.FLAME, 0.75F),
         SKY_RIFT("Gökyüzü Yarığı", "Yerçekimi zayıflıyor ve güçlü rüzgârlar yükseliyor.", ParticleTypes.CLOUD, 1.35F),
         ANCIENT_BLOOM("Kadim Çiçeklenme", "Doğa oyuncuları iyileştirirken yaratıkları zayıflatıyor.", ParticleTypes.HAPPY_VILLAGER, 1.15F),
         REALITY_TEAR("Gerçeklik Çatlağı", "Mermiler ve hareketler kararsızlaşıyor.", ParticleTypes.WITCH, 0.50F);
@@ -249,5 +301,19 @@ public final class WorldEventSystem {
     }
 
     private record ActiveEvent(EventType type, ServerLevel level, Vec3 center, long startedAt, long endsAt) {}
-    private record PendingStrike(ServerLevel level, Vec3 target, long impactAt) {}
+    private static final class PendingStrike {
+        private final ServerLevel level;
+        private final Vec3 target;
+        private final long startedAt;
+        private final long impactAt;
+        private final List<BlockPos> visualBlocks = new ArrayList<>();
+        private BlockPos visualCenter;
+
+        private PendingStrike(ServerLevel level, Vec3 target, long startedAt, long impactAt) {
+            this.level = level;
+            this.target = target;
+            this.startedAt = startedAt;
+            this.impactAt = impactAt;
+        }
+    }
 }

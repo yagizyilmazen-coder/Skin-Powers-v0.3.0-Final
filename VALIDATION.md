@@ -1,10 +1,10 @@
-# Skin Powers 1.0.6 doğrulama notu
+# Skin Powers 1.0.7 doğrulama notu
 
 Bu paket için aşağıdaki kontroller otomatik yapılır:
 
 - Temel Gradle, Fabric, kaynak ve GitHub Actions dosyalarının varlığı.
 - Bütün JSON dosyalarının ayrıştırılması.
-- Sürüm, artifact ve JAR adlarının 1.0.6 olması.
+- Sürüm, artifact ve JAR adlarının 1.0.7 olması.
 - Kadim Ejderha'nın altı adı, açıklaması, komutları ve eski FLIGHT kayıt uyumluluğu.
 - Uyanış enerjisi, yüzdeye bağlı süre, G tuşu, HUD senkronizasyonu ve beş form adı.
 - Düello filtresi, komutları ve Uyanış başlangıç sıfırlaması.

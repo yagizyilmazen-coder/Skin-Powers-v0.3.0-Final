@@ -80,7 +80,7 @@ public final class SkinAnalyzer {
                 if (skinUrl == null) return Result.unavailable();
                 HttpRequest request = HttpRequest.newBuilder(URI.create(skinUrl))
                     .timeout(Duration.ofSeconds(10))
-                    .header("User-Agent", "SkinPowers/1.0.6")
+                    .header("User-Agent", "SkinPowers/1.0.7")
                     .GET()
                     .build();
                 HttpResponse<byte[]> response = sendBytesWithRetry(request, 2);
@@ -265,7 +265,7 @@ public final class SkinAnalyzer {
         String profileName = extractProfileName(profile);
         if (profileName == null || profileName.isBlank() || !profileName.matches("[A-Za-z0-9_]{1,16}")) return null;
         HttpRequest nameRequest = HttpRequest.newBuilder(URI.create("https://api.mojang.com/users/profiles/minecraft/" + profileName))
-            .timeout(Duration.ofSeconds(8)).header("User-Agent", "SkinPowers/1.0.6").GET().build();
+            .timeout(Duration.ofSeconds(8)).header("User-Agent", "SkinPowers/1.0.7").GET().build();
         HttpResponse<String> nameResponse = sendStringWithRetry(nameRequest, 2);
         if (nameResponse == null || nameResponse.statusCode() < 200 || nameResponse.statusCode() >= 300 || nameResponse.body().isBlank()) return null;
         JsonObject profileJson = JsonParser.parseString(nameResponse.body()).getAsJsonObject();
@@ -279,7 +279,7 @@ public final class SkinAnalyzer {
     private static String findSkinUrlForUuid(UUID profileId, HttpClient client) throws Exception {
         String compactUuid = profileId.toString().replace("-", "");
         HttpRequest request = HttpRequest.newBuilder(URI.create("https://sessionserver.mojang.com/session/minecraft/profile/" + compactUuid + "?unsigned=false"))
-            .timeout(Duration.ofSeconds(8)).header("User-Agent", "SkinPowers/1.0.6").GET().build();
+            .timeout(Duration.ofSeconds(8)).header("User-Agent", "SkinPowers/1.0.7").GET().build();
         HttpResponse<String> response = sendStringWithRetry(request, 2);
         if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) return null;
         JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();

@@ -79,7 +79,7 @@ public final class HudOverlay {
             case FLIGHT -> ClientState.dragonFormTicks() > 0
                 ? String.format(java.util.Locale.ROOT, "Ejderha Hükümdarı: %.1f sn", ClientState.dragonFormTicks() / 20.0)
                 : (ClientState.dragonScalesTicks() > 0
-                    ? String.format(java.util.Locale.ROOT, "Kadim Pullar: %.1f sn", ClientState.dragonScalesTicks() / 20.0)
+                    ? "Kadim Pullar: " + ClientState.dragonScaleCharges() + " pul"
                     : "Ejderha Kanı: AÇIK");
             case WARDEN -> ClientState.wardenHuntTicks() > 0
                 ? String.format(java.util.Locale.ROOT, "Sculk Avı: %.1f sn", ClientState.wardenHuntTicks() / 20.0)

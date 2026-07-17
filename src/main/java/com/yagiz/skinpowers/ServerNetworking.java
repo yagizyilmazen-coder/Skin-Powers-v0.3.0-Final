@@ -78,6 +78,8 @@ public final class ServerNetworking {
             AnomalySystem.chooseStoredDamage(player, data, false);
         } else if (command.equals("AWAKEN")) {
             AwakeningSystem.activate(player, data);
+        } else if (command.equals("DRAGON_ESCAPE")) {
+            PowerSystem.tryEscapeDragonClaw(player);
         } else {
             return;
         }
@@ -138,6 +140,7 @@ public final class ServerNetworking {
             (int) Math.max(0L, data.anomalyBonusHealthUntil() - gameTime),
             data.anomalyBonusHealth(),
             (int) Math.max(0L, data.dragonScalesUntil() - gameTime),
+            data.dragonScaleCharges(),
             (int) Math.max(0L, data.dragonFormUntil() - gameTime),
             data.awakeningEnergy(),
             (int) Math.max(0L, data.classAwakeningUntil() - gameTime),
@@ -196,6 +199,7 @@ public final class ServerNetworking {
         int anomalyBonusHealthTicks,
         double anomalyBonusHealth,
         int dragonScalesTicks,
+        int dragonScaleCharges,
         int dragonFormTicks,
         float awakeningEnergy,
         int classAwakeningTicks,
