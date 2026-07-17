@@ -2905,6 +2905,19 @@ public final class PowerSystem {
         clearDragonClaw(holderId);
     }
 
+    /**
+     * Derinlik Pususu sırasında oyuncu gerçekten yer altındadır.
+     * İksir direnci yeterli olmadığı için bütün hasar burada sunucu tarafında engellenir.
+     */
+    public static boolean allowWardenAmbushDamage(
+        LivingEntity victim,
+        net.minecraft.world.damagesource.DamageSource source,
+        float amount
+    ) {
+        if (amount <= 0.0F || !(victim instanceof ServerPlayer player)) return true;
+        return !WARDEN_AMBUSHES.containsKey(player.getUUID());
+    }
+
     public static boolean allowDragonScalesDamage(LivingEntity victim, net.minecraft.world.damagesource.DamageSource source, float amount) {
         if (reflectingDragonScaleDamage || amount <= 0.0F || !(victim instanceof ServerPlayer player)) return true;
         PlayerPowerData data = PlayerDataStore.get(player.getUUID());
