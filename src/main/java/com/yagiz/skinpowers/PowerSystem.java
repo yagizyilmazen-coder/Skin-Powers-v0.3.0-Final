@@ -1265,7 +1265,7 @@ public final class PowerSystem {
         Vec3 velocity = direction.scale((ultimate ? 1.55 : 1.18) + stage * 0.08 + (charged ? 0.22 : 0.0));
         FLIGHT_SPEARS.add(new PendingFlightSpear(level, player.getUUID(), start, velocity,
             level.getGameTime(), level.getGameTime() + (ultimate ? 58L : 40L + stage * 3L), stage, charged, ultimate));
-        level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW, SoundSource.PLAYERS, 1.0F, charged ? 0.72F : 1.25F);
+        level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW.value(), SoundSource.PLAYERS, 1.0F, charged ? 0.72F : 1.25F);
     }
 
     private static void tickFlightSpears() {
@@ -1353,7 +1353,7 @@ public final class PowerSystem {
         Vec3 velocity = direction.normalize().scale(charged ? 1.25 : 1.0).add(0.0, 0.18, 0.0);
         SKY_BOMBS.add(new PendingSkyBomb(level, player.getUUID(), start, velocity, level.getGameTime(),
             level.getGameTime() + 70L, stage, charged, combo));
-        level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW, SoundSource.PLAYERS, 1.0F, charged ? 0.72F : 1.12F);
+        level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW.value(), SoundSource.PLAYERS, 1.0F, charged ? 0.72F : 1.12F);
     }
 
     private static void launchSkyCataclysm(ServerPlayer player, int stage, boolean charged) {
