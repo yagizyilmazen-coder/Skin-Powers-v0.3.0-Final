@@ -9,7 +9,7 @@ public final class PowerCatalog {
 
     private static final String[][] NAMES = {
         {"-", "-", "-", "-", "-", "-"},
-        {"Warden Zırhı", "Yer Sarsıntısı", "Sonik Patlama", "Sculk Avı", "Warden Uyanışı", "Şarj Et Beni Antik Şehir"},
+        {"Warden Zırhı", "Yer Sarsıntısı", "Sonik Patlama", "Derinlik Pususu", "Warden Uyanışı", "Şarj Et Beni Antik Şehir"},
         {"Kuyruk Kasırgası", "Ejderha Nefesi", "Kadim Pullar", "Avcı Pençesi", "Kadim Kükreme", "Ejderha Hükümdarı"},
         {"Ateş Bağışıklığı", "Alevli Yakın Dövüş", "Ateş Çemberi", "Cehennem Küresi", "Meteor Yağmuru", "-"},
         {"Doğanın Canı", "Dikenli Tohum", "Sarmaşık Kapanı", "Yaşam Ağacı", "Kadim Orman Hükmü", "-"},
@@ -22,7 +22,7 @@ public final class PowerCatalog {
             "Uzun süre Güç, Direnç ve soğurma kazanırsın.",
             "Geniş alandaki düşmanları ezer, savurur ve zayıflatır.",
             "Önündeki hedeflere yüksek hasarlı sonik enerji yollar.",
-            "Yakındaki düşmanları işaretler, yavaşlatır ve hareket ettikçe avlar.",
+            "Yer altına çekilirsin; tekrar kullandığında veya süre dolduğunda dört gerçek 3B sculk koluyla yüzeye saldırırsın.",
             "Güç, direnç, yenilenme ve hasar aurası kazandırır.",
             "Dört sculk kolu hedefe Antik Şehir enerjisi aktarır; çömelerek kendine uygulayabilirsin."
         },

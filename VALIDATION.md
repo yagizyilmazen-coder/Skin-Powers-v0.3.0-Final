@@ -1,10 +1,10 @@
-# Skin Powers 1.0.8 doğrulama notu
+# Skin Powers 1.0.9 doğrulama notu
 
 Paket oluşturulurken şu kontroller çalıştırılır:
 
 - Gradle, Fabric, kaynaklar ve GitHub Actions dosyalarının varlığı.
 - Bütün JSON dosyalarının ayrıştırılması.
-- Sürüm, artifact ve JAR adlarının 1.0.8 olması.
+- Sürüm, artifact ve JAR adlarının 1.0.9 olması.
 - Beş sınıf, Kadim Ejderha, Uyanış, düello ve mevcut kayıt geçişlerinin korunması.
 - PvP bot komutları, beş bot sınıfı, dört zorluk ve savaş paneli veri akışı.
 - Anomali kopya kullanım sayısı, Kırık Adım yankıları, hasar depolama ve 404 geliştirmeleri.

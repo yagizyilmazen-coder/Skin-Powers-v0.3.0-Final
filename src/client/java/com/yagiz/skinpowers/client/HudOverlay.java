@@ -113,8 +113,8 @@ public final class HudOverlay {
                     ? "Kadim Pullar: " + ClientState.dragonScaleCharges() + " pul"
                     : "Ejderha Kanı: AÇIK");
             case WARDEN -> ClientState.wardenHuntTicks() > 0
-                ? String.format(java.util.Locale.ROOT, "Sculk Avı: %.1f sn", ClientState.wardenHuntTicks() / 20.0)
-                : "Sculk Avı: R ile kullan";
+                ? String.format(java.util.Locale.ROOT, "Derinlik Pususu: %.1f sn", ClientState.wardenHuntTicks() / 20.0)
+                : "Derinlik Pususu: R ile kullan";
             case FIRE -> ClientState.unlockedLevel() >= 4 ? "Seviye 4: Cehennem Küresi" : "Ateş bağışıklığı: AÇIK";
             case NATURE -> ClientState.natureTreeTicks() > 0
                 ? String.format(java.util.Locale.ROOT, "Yaşam Ağacı: %.1f sn", ClientState.natureTreeTicks() / 20.0)

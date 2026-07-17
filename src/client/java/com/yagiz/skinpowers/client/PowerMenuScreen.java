@@ -326,7 +326,7 @@ public final class PowerMenuScreen extends Screen {
             return "20 sn • tek güç • 120 sn bekleme";
         }
         if (powerClass == PowerClass.WARDEN && level == 4 && ClientState.wardenHuntTicks() > 0) {
-            return String.format(java.util.Locale.ROOT, "Sculk Avı %.1f sn", ClientState.wardenHuntTicks() / 20.0);
+            return String.format(java.util.Locale.ROOT, "Derinlik Pususu %.1f sn", ClientState.wardenHuntTicks() / 20.0);
         }
         if (powerClass == PowerClass.NATURE && level == 4 && ClientState.natureTreeTicks() > 0) {
             return String.format(java.util.Locale.ROOT, "Yaşam Ağacı %.1f sn", ClientState.natureTreeTicks() / 20.0);

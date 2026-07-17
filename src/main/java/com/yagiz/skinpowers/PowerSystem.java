@@ -16,6 +16,7 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
@@ -58,6 +59,9 @@ public final class PowerSystem {
     private static final Map<UUID, Integer> DRAGON_CLAW_ESCAPE_PRESSES = new HashMap<>();
     private static final Map<UUID, DragonBreathState> DRAGON_BREATHS = new HashMap<>();
     private static final Map<UUID, Long> DRAGON_SILENCE_UNTIL = new HashMap<>();
+    private static final Map<UUID, WardenAmbushState> WARDEN_AMBUSHES = new HashMap<>();
+    private static final List<WardenArmSegment> WARDEN_ARM_SEGMENTS = new ArrayList<>();
+    private static final List<WardenArmStrike> WARDEN_ARM_STRIKES = new ArrayList<>();
     private static final Map<UUID, long[]> LAST_MASTERY_CREDIT = new HashMap<>();
     private static long lastAutosaveTick;
     private static boolean reflectingDragonScaleDamage;
@@ -125,6 +129,9 @@ public final class PowerSystem {
         tickTimePrisons();
         tickTimeFields();
         tickTimeShapes();
+        tickWardenAmbushes(server);
+        tickWardenArmSegments();
+        tickWardenArmStrikes();
         AnomalySystem.tickServer(server);
         AncientChargeSystem.tick(server);
         PowerCollisionSystem.tick(server);
@@ -175,37 +182,23 @@ public final class PowerSystem {
                     chest.z + Math.sin(angle) * pulse, 1, 0.02, 0.02, 0.02, 0.0);
             }
         }
-        // Küçük sınıf pasifi: Warden oyuncusu yakındaki hareket eden canlıların titreşimlerini hisseder.
-        if (data.unlockedLevel() >= 1 && now % 20L == 0L) {
-            for (LivingEntity living : nearbyLiving(player, 12.0)) {
+        // Warden görüşü: mob ve oyuncuları 30 blok içinde vurgular.
+        if (data.unlockedLevel() >= 1 && now % 10L == 0L) {
+            for (LivingEntity living : nearbyLiving(player, 30.0)) {
                 if (living == player || protectedAlly(player, living)) continue;
-                if (living.getDeltaMovement().lengthSqr() > 0.006) {
-                    living.addEffect(new MobEffectInstance(MobEffects.GLOWING, 28, 0, false, false, true));
+                living.addEffect(new MobEffectInstance(MobEffects.GLOWING, 26, 0, false, false, true));
+                if (living.getDeltaMovement().lengthSqr() > 0.006 && now % 20L == 0L) {
+                    level.sendParticles(ParticleTypes.SCULK_SOUL, living.getX(), living.getY() + 0.35, living.getZ(),
+                        3, 0.18, 0.12, 0.18, 0.01);
                 }
             }
         }
-        if (data.wardenHuntUntil() > now) {
-            int stage = data.masteryStage(4);
-            boolean boosted = data.chargedWardenHunt();
-            double radius = AncientChargeSystem.radius(20.0 + stage * 2.0, boosted);
-            if (now % 5L == 0L) {
-                for (LivingEntity living : nearbyLiving(player, radius)) {
-                    if (living == player || protectedAlly(player, living)) continue;
-                    living.addEffect(new MobEffectInstance(MobEffects.GLOWING, 35, 0, false, false, true));
-                    living.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 35, stage >= 2 ? 2 : 1, false, false, true));
-                    living.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 35, stage >= 3 ? 1 : 0, false, false, true));
-                    if (now % 20L == 0L && living.getDeltaMovement().horizontalDistanceSqr() > 0.001) {
-                        living.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(2.0F + stage, boosted));
-                        level.sendParticles(boosted ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, living.getX(), living.getY() + 0.8, living.getZ(), boosted ? 16 : 8, 0.35, 0.45, 0.35, 0.025);
-                    }
-                }
-                drawRing(level, player.position(), Math.min(boosted ? 14.0 : 9.0, radius * 0.42), boosted ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, boosted ? 58 : 34);
-            }
-        } else if (data.wardenHuntUntil() != 0L || data.visionEnabled()) {
+        // Eski sürümden kalmış Sculk Avı durumunu sessizce temizle.
+        if ((data.wardenHuntUntil() != 0L || data.visionEnabled())
+            && !WARDEN_AMBUSHES.containsKey(player.getUUID())) {
             data.setWardenHuntUntil(0L);
             data.setChargedWardenHunt(false);
             data.setVisionEnabled(false);
-            player.sendSystemMessage(Component.literal("Sculk Avı sona erdi."));
             PlayerDataStore.markDirty();
         }
 
@@ -445,6 +438,11 @@ public final class PowerSystem {
         }
         int power = data.selectedPower();
         if (power > data.unlockedLevel()) return;
+        if (WARDEN_AMBUSHES.containsKey(player.getUUID())
+            && !(data.powerClass() == PowerClass.WARDEN && power == 4)) {
+            player.sendSystemMessage(Component.literal("Derinlik Pususu aktif. Önce 4. gücü tekrar kullanıp yüzeye çık."));
+            return;
+        }
 
         long now = player.level().getGameTime();
         data.comboActive(now); // Süresi dolmuş kombo penceresini temizle.
@@ -645,7 +643,7 @@ public final class PowerSystem {
         if (data.powerClass() == PowerClass.FLIGHT) {
             player.sendSystemMessage(Component.literal("Kadim Ejderha güçlerini R ile kullan; düşme ve ateş direnci pasifi sürekli aktiftir."));
         } else if (data.powerClass() == PowerClass.WARDEN && data.unlockedLevel() >= 4) {
-            player.sendSystemMessage(Component.literal("Sculk Avı aç/kapat değildir; 4. gücü seçip R ile kullan."));
+            player.sendSystemMessage(Component.literal("Derinlik Pususu: 4. gücü R ile başlat; hareket ettikten sonra R ile yüzeye saldır."));
         } else if (data.powerClass() == PowerClass.FIRE) {
             player.sendSystemMessage(Component.literal("Ateş sınıfındaki güçler R ile veya otomatik olarak çalışır."));
         } else if (data.powerClass() == PowerClass.NATURE) {
@@ -741,14 +739,13 @@ public final class PowerSystem {
                 return true;
             }
             case 4 -> {
-                int duration = AncientChargeSystem.duration(400 + stage * 100, charged);
-                data.setWardenHuntUntil(now + duration);
-                data.setChargedWardenHunt(charged);
-                data.setVisionEnabled(true);
-                data.setCooldown(4, now, Math.max(600, 900 - stage * 90));
-                player.sendSystemMessage(Component.literal("Sculk Avı başladı: " + formatSeconds(duration) + " saniye."));
-                level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ROAR, SoundSource.PLAYERS, 0.9F, 1.35F);
-                level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), 46, 1.0, 1.0, 1.0, 0.035);
+                WardenAmbushState active = WARDEN_AMBUSHES.get(player.getUUID());
+                if (active != null) {
+                    finishWardenAmbush(player, data, active, now, false);
+                    return false; // İlk basışta ustalık kaydı yapıldı; çıkışta ikinci kez sayma.
+                }
+                beginWardenAmbush(player, data, level, now, stage, charged);
+                data.setCooldown(4, now, 1); // Bir sonraki tikten itibaren R ile yüzeye çıkılabilir.
                 return true;
             }
             case 5 -> {
@@ -768,6 +765,227 @@ public final class PowerSystem {
                 return true;
             }
             default -> { return false; }
+        }
+    }
+
+
+    private static void beginWardenAmbush(ServerPlayer player, PlayerPowerData data, ServerLevel level,
+                                          long now, int stage, boolean charged) {
+        long duration = charged ? 110L : 80L;
+        WARDEN_AMBUSHES.put(player.getUUID(), new WardenAmbushState(
+            level, player.getUUID(), player.position(), now, now + duration, stage, charged, player.isInvisible()));
+        data.setWardenHuntUntil(now + duration);
+        player.setInvisible(true);
+        player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, (int) duration + 10, 3, false, false, true));
+        player.addEffect(new MobEffectInstance(MobEffects.SPEED, (int) duration + 10, charged ? 3 : 2, false, false, true));
+        player.fallDistance = 0.0F;
+        level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 1.1F, 0.68F);
+        drawRing(level, player.position().add(0.0, 0.08, 0.0), charged ? 3.4 : 2.6,
+            charged ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, charged ? 72 : 48);
+        spawnBurrowCore(level, player, now, duration);
+        player.sendSystemMessage(Component.literal("Derinlik Pususu: hareket et; R ile yüzeye saldır."));
+    }
+
+    private static void tickWardenAmbushes(MinecraftServer server) {
+        for (WardenAmbushState state : new ArrayList<>(WARDEN_AMBUSHES.values())) {
+            ServerPlayer player = server.getPlayerList().getPlayer(state.playerId);
+            if (player == null || !player.isAlive() || player.level() != state.level) {
+                if (player != null) restoreAfterAmbush(player, state);
+                WARDEN_AMBUSHES.remove(state.playerId);
+                continue;
+            }
+            long now = state.level.getGameTime();
+            PlayerPowerData data = PlayerDataStore.get(player.getUUID());
+            if ((data.powerClass() != PowerClass.WARDEN && data.powerClass() != PowerClass.ANOMALY) || now >= state.endTick) {
+                finishWardenAmbush(player, data, state, now, true);
+                continue;
+            }
+            player.setInvisible(true);
+            player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 8, 3, false, false, true));
+            player.addEffect(new MobEffectInstance(MobEffects.SPEED, 8, state.charged ? 3 : 2, false, false, true));
+            player.fallDistance = 0.0F;
+            Vec3 offset = horizontalDirection(player.position().subtract(state.origin));
+            double distance = new Vec3(player.getX() - state.origin.x, 0.0, player.getZ() - state.origin.z).length();
+            double maxDistance = 13.0 + state.stage * 1.5 + (state.charged ? 4.0 : 0.0);
+            if (distance > maxDistance) {
+                Vec3 limited = state.origin.add(offset.scale(maxDistance));
+                player.setPos(limited.x, player.getY(), limited.z);
+            }
+            if (now % 4L == 0L) {
+                Vec3 ground = findGroundPoint(state.level, player.position());
+                drawRing(state.level, ground.add(0.0, 0.06, 0.0), state.charged ? 1.8 : 1.35,
+                    state.charged ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, state.charged ? 24 : 16);
+            }
+        }
+    }
+
+    private static void finishWardenAmbush(ServerPlayer player, PlayerPowerData data, WardenAmbushState state,
+                                            long now, boolean automatic) {
+        if (WARDEN_AMBUSHES.remove(player.getUUID()) == null) return;
+        restoreAfterAmbush(player, state);
+        Vec3 exit = findGroundPoint(state.level, player.position());
+        player.setPos(exit.x, exit.y, exit.z);
+        player.setDeltaMovement(Vec3.ZERO);
+        player.hurtMarked = true;
+
+        double radius = 9.0 + state.stage * 1.1 + (state.charged ? 3.0 : 0.0);
+        List<LivingEntity> targets = new ArrayList<>();
+        for (LivingEntity living : state.level.getEntitiesOfClass(LivingEntity.class,
+            new AABB(exit.x - radius, exit.y - 4.0, exit.z - radius, exit.x + radius, exit.y + 6.0, exit.z + radius))) {
+            if (living == player || protectedAlly(player, living) || !living.isAlive()) continue;
+            targets.add(living);
+        }
+        targets.sort((a, b) -> Double.compare(a.distanceToSqr(player), b.distanceToSqr(player)));
+
+        state.level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ROAR, SoundSource.PLAYERS, 1.5F, 0.72F);
+        ServerNetworking.sendScreenShake(state.level, exit, 34.0, state.charged ? 1.65F : 1.15F, 15);
+        drawRing(state.level, exit.add(0.0, 0.10, 0.0), radius * 0.72,
+            state.charged ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, state.charged ? 100 : 72);
+
+        if (targets.isEmpty()) {
+            for (LivingEntity living : nearbyLiving(player, Math.min(5.5, radius))) {
+                if (living == player || protectedAlly(player, living)) continue;
+                living.hurtServer(state.level, state.level.damageSources().playerAttack(player),
+                    AncientChargeSystem.damage(7.0F + state.stage, state.charged));
+                Vec3 push = horizontalDirection(living.position().subtract(exit)).scale(
+                    AncientChargeSystem.knockback(1.35, state.charged));
+                living.push(push.x, 0.65, push.z);
+            }
+        } else {
+            Vec3 back = horizontalDirection(player.getLookAngle()).scale(-0.55);
+            Vec3 baseStart = player.position().add(back).add(0.0, 1.15, 0.0);
+            for (int arm = 0; arm < 4; arm++) {
+                LivingEntity target = targets.get(arm % Math.min(4, targets.size()));
+                long startTick = now + arm * 5L;
+                long impactTick = startTick + (state.charged ? 12L : 16L);
+                double side = (arm - 1.5) * 0.48;
+                Vec3 right = horizontalDirection(player.getLookAngle()).cross(new Vec3(0.0, 1.0, 0.0));
+                Vec3 armStart = baseStart.add(right.scale(side)).add(0.0, (arm % 2) * 0.32, 0.0);
+                spawnWardenArm(state.level, armStart, target, startTick, impactTick, arm, state.charged);
+                WARDEN_ARM_STRIKES.add(new WardenArmStrike(state.level, player.getUUID(), target.getUUID(),
+                    impactTick, arm, state.stage, state.charged));
+            }
+        }
+        data.setWardenHuntUntil(0L);
+        data.setCooldown(4, now, Math.max(520, 820 - state.stage * 70));
+        if (automatic) creditMastery(player, data, 4, now, 20L);
+        PlayerDataStore.markDirty();
+        ServerNetworking.sendCastAnimation(state.level, exit.add(0.0, 1.0, 0.0), PowerClass.WARDEN, 4);
+        ServerNetworking.sync(player);
+    }
+
+    private static void restoreAfterAmbush(ServerPlayer player, WardenAmbushState state) {
+        player.setInvisible(state.wasInvisible);
+        player.removeEffect(MobEffects.SPEED);
+        player.removeEffect(MobEffects.RESISTANCE);
+        player.fallDistance = 0.0F;
+    }
+
+    private static void spawnBurrowCore(ServerLevel level, ServerPlayer player, long now, long duration) {
+        Vec3 start = player.position().add(0.0, 0.45, 0.0);
+        for (int i = 0; i < 5; i++) {
+            ItemStack stack = new ItemStack(i == 0 ? Items.SCULK_CATALYST : Items.ECHO_SHARD);
+            ItemEntity body = new ItemEntity(level, start.x, start.y, start.z, stack);
+            body.setNoGravity(true);
+            body.setNeverPickUp();
+            body.setUnlimitedLifetime();
+            body.setInvulnerable(true);
+            body.setGlowingTag(true);
+            if (!level.addFreshEntity(body)) continue;
+            WARDEN_ARM_SEGMENTS.add(new WardenArmSegment(level, body.getUUID(), null, start,
+                start.add(0.0, -1.4, 0.0), now + i, now + Math.min(20L, duration), i, 5,
+                (i - 2) * 0.10, 0.15));
+        }
+    }
+
+    private static void spawnWardenArm(ServerLevel level, Vec3 start, LivingEntity target, long startTick,
+                                       long endTick, int armIndex, boolean charged) {
+        int segments = charged ? 9 : 7;
+        for (int segment = 0; segment < segments; segment++) {
+            ItemStack stack = new ItemStack(segment == segments - 1 ? Items.SCULK_CATALYST
+                : (segment % 3 == 0 ? Items.SCULK_SENSOR : Items.ECHO_SHARD));
+            ItemEntity body = new ItemEntity(level, start.x, start.y, start.z, stack);
+            body.setNoGravity(true);
+            body.setNeverPickUp();
+            body.setUnlimitedLifetime();
+            body.setInvulnerable(true);
+            body.setGlowingTag(true);
+            if (!level.addFreshEntity(body)) continue;
+            WARDEN_ARM_SEGMENTS.add(new WardenArmSegment(level, body.getUUID(), target.getUUID(), start,
+                target.getEyePosition(), startTick, endTick, segment, segments,
+                (armIndex - 1.5) * 0.34, 0.75 + armIndex * 0.12));
+        }
+    }
+
+    private static void tickWardenArmSegments() {
+        Iterator<WardenArmSegment> iterator = WARDEN_ARM_SEGMENTS.iterator();
+        while (iterator.hasNext()) {
+            WardenArmSegment segment = iterator.next();
+            Entity raw = segment.level.getEntity(segment.entityId);
+            long now = segment.level.getGameTime();
+            if (!(raw instanceof ItemEntity body) || now >= segment.endTick) {
+                if (raw != null) raw.discard();
+                iterator.remove();
+                continue;
+            }
+            if (now < segment.startTick) {
+                body.setPos(segment.start.x, segment.start.y, segment.start.z);
+                continue;
+            }
+            Entity targetEntity = segment.targetId == null ? null : segment.level.getEntity(segment.targetId);
+            Vec3 end = targetEntity instanceof LivingEntity living && living.isAlive()
+                ? living.getEyePosition() : segment.fixedEnd;
+            double progress = Math.max(0.0, Math.min(1.0,
+                (now - segment.startTick) / (double) Math.max(1L, segment.endTick - segment.startTick)));
+            double reach = 1.0 - Math.pow(1.0 - progress, 3.0);
+            double t = ((segment.segmentIndex + 1.0) / segment.segmentCount) * reach;
+            Vec3 direction = end.subtract(segment.start);
+            Vec3 horizontal = horizontalDirection(direction);
+            Vec3 right = horizontal.cross(new Vec3(0.0, 1.0, 0.0));
+            Vec3 position = segment.start.add(direction.scale(t))
+                .add(right.scale(Math.sin(Math.PI * t) * segment.sideCurve))
+                .add(0.0, Math.sin(Math.PI * t) * segment.lift, 0.0);
+            body.setPos(position.x, position.y, position.z);
+            body.setDeltaMovement(Vec3.ZERO);
+        }
+    }
+
+    private static void tickWardenArmStrikes() {
+        Iterator<WardenArmStrike> iterator = WARDEN_ARM_STRIKES.iterator();
+        while (iterator.hasNext()) {
+            WardenArmStrike strike = iterator.next();
+            if (strike.level.getGameTime() < strike.impactTick) continue;
+            Entity casterEntity = strike.level.getEntity(strike.casterId);
+            Entity targetEntity = strike.level.getEntity(strike.targetId);
+            if (casterEntity instanceof ServerPlayer caster && targetEntity instanceof LivingEntity target && target.isAlive()) {
+                float damage = AncientChargeSystem.damage(switch (strike.strikeType) {
+                    case 0 -> 3.0F + strike.stage;
+                    case 1 -> 4.0F + strike.stage;
+                    case 2 -> 5.0F + strike.stage;
+                    default -> 10.0F + strike.stage * 2.0F;
+                }, strike.charged);
+                target.hurtServer(strike.level, strike.level.damageSources().playerAttack(caster), damage);
+                Vec3 toward = horizontalDirection(caster.position().subtract(target.position()));
+                switch (strike.strikeType) {
+                    case 0 -> target.push(toward.x * 0.55, 0.18, toward.z * 0.55);
+                    case 1 -> target.push(toward.x * 1.15, 0.28, toward.z * 1.15);
+                    case 2 -> target.push(0.0, strike.charged ? 1.35 : 1.05, 0.0);
+                    default -> {
+                        Vec3 away = horizontalDirection(target.position().subtract(caster.position()));
+                        target.push(away.x * (strike.charged ? 1.8 : 1.25), strike.charged ? 0.82 : 0.58,
+                            away.z * (strike.charged ? 1.8 : 1.25));
+                        target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 70, 2, false, true, true));
+                        ServerNetworking.sendScreenShake(strike.level, target.position(), 18.0,
+                            strike.charged ? 1.25F : 0.85F, 9);
+                    }
+                }
+                strike.level.playSound(null, target.blockPosition(), SoundEvents.WARDEN_ROAR,
+                    SoundSource.PLAYERS, 1.05F, 0.72F + strike.strikeType * 0.09F);
+                strike.level.sendParticles(strike.charged ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL,
+                    target.getX(), target.getY() + 0.8, target.getZ(), strike.charged ? 36 : 22,
+                    0.45, 0.55, 0.45, 0.045);
+            }
+            iterator.remove();
         }
     }
 
@@ -2504,6 +2722,17 @@ public final class PowerSystem {
         DRAGON_CLAW_ESCAPE_PRESSES.clear();
         DRAGON_BREATHS.clear();
         DRAGON_SILENCE_UNTIL.clear();
+        for (WardenAmbushState state : WARDEN_AMBUSHES.values()) {
+            ServerPlayer ambushed = state.level.getServer().getPlayerList().getPlayer(state.playerId);
+            if (ambushed != null) restoreAfterAmbush(ambushed, state);
+        }
+        WARDEN_AMBUSHES.clear();
+        for (WardenArmSegment segment : WARDEN_ARM_SEGMENTS) {
+            Entity raw = segment.level.getEntity(segment.entityId);
+            if (raw != null) raw.discard();
+        }
+        WARDEN_ARM_SEGMENTS.clear();
+        WARDEN_ARM_STRIKES.clear();
         AncientChargeSystem.clearPendingBeams();
     }
 
@@ -3005,5 +3234,14 @@ public final class PowerSystem {
             this.tick = tick; this.position = position; this.health = health; this.yRot = yRot; this.xRot = xRot;
         }
     }
+
+
+    private record WardenAmbushState(ServerLevel level, UUID playerId, Vec3 origin, long startTick,
+                                     long endTick, int stage, boolean charged, boolean wasInvisible) {}
+    private record WardenArmSegment(ServerLevel level, UUID entityId, UUID targetId, Vec3 start, Vec3 fixedEnd,
+                                    long startTick, long endTick, int segmentIndex, int segmentCount,
+                                    double sideCurve, double lift) {}
+    private record WardenArmStrike(ServerLevel level, UUID casterId, UUID targetId, long impactTick,
+                                   int strikeType, int stage, boolean charged) {}
 
 }

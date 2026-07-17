@@ -196,20 +196,12 @@ public final class PvpBotSystem {
 
             bot.setTarget(owner);
             bot.getLookControl().setLookAt(owner, 30.0F, 30.0F);
-            double distance = Math.sqrt(bot.distanceToSqr(owner));
-            double preferred = preferredRange(state.powerClass);
-            if (distance > preferred + 1.25) {
-                bot.getNavigation().moveTo(owner, 1.0D);
-            } else if (distance < Math.max(2.0, preferred - 1.75)) {
-                Vec3 away = horizontal(bot.position().subtract(owner.position()));
-                bot.setDeltaMovement(bot.getDeltaMovement().add(away.scale(0.10)));
-                bot.hurtMarked = true;
-            } else if (now % 18L == 0L) {
-                Vec3 side = horizontal(owner.position().subtract(bot.position())).cross(new Vec3(0.0, 1.0, 0.0));
-                if (state.level.getRandom().nextBoolean()) side = side.scale(-1.0);
-                bot.setDeltaMovement(bot.getDeltaMovement().add(side.scale(0.09)));
-                bot.hurtMarked = true;
+            if (tickBotWardenAmbush(bot, owner, state, now)) {
+                aura(bot, state, now, state.awakeningUntil > now);
+                continue;
             }
+            double distance = Math.sqrt(bot.distanceToSqr(owner));
+            updateBotMovement(bot, owner, state, now, distance);
 
             maybeActivateAwakening(bot, owner, state, now);
             boolean awakened = state.awakeningUntil > now;
@@ -219,7 +211,7 @@ public final class PvpBotSystem {
                 bot.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, 1, false, false, true));
             }
 
-            if (distance <= 2.7 && now >= state.nextMeleeTick) {
+            if (distance <= 2.7 && bot.hasLineOfSight(owner) && now >= state.nextMeleeTick) {
                 bot.swing(InteractionHand.MAIN_HAND);
                 float damage = awakened ? 5.0F : 4.0F;
                 owner.hurtServer(state.level, state.level.damageSources().mobAttack(bot), damage);
@@ -234,6 +226,95 @@ public final class PvpBotSystem {
         }
         tickAttackVisuals();
         tickMeteors();
+    }
+
+
+    private static void updateBotMovement(Husk bot, ServerPlayer target, BotState state, long now, double distance) {
+        boolean lineOfSight = bot.hasLineOfSight(target);
+        double preferred = preferredRange(state.powerClass);
+        boolean lowHealth = bot.getHealth() <= bot.getMaxHealth() * 0.38F;
+        boolean defensiveReady = switch (state.powerClass) {
+            case WARDEN -> now >= state.cooldownUntil[0];
+            case NATURE -> now >= state.cooldownUntil[2] || now >= state.cooldownUntil[3];
+            case ANOMALY, FLIGHT -> now >= state.cooldownUntil[2];
+            default -> false;
+        };
+
+        if (hasIncomingProjectile(bot, state) && now >= state.nextDodgeTick) {
+            Vec3 toward = horizontal(target.position().subtract(bot.position()));
+            Vec3 side = toward.cross(new Vec3(0.0, 1.0, 0.0));
+            if (state.dodgeDirection < 0) side = side.scale(-1.0);
+            bot.setDeltaMovement(bot.getDeltaMovement().add(side.scale(0.34)).add(0.0, 0.18, 0.0));
+            bot.hurtMarked = true;
+            state.dodgeDirection *= -1;
+            state.nextDodgeTick = now + Math.max(16L, state.difficulty.reactionTicks / 2L);
+        }
+
+        if (!lineOfSight) {
+            bot.getNavigation().moveTo(target, 1.12D);
+            return;
+        }
+        if (lowHealth && defensiveReady && distance < preferred + 3.5) {
+            Vec3 away = horizontal(bot.position().subtract(target.position()));
+            bot.setDeltaMovement(bot.getDeltaMovement().add(away.scale(0.19)));
+            bot.hurtMarked = true;
+            return;
+        }
+        if (distance > preferred + 1.4) {
+            bot.getNavigation().moveTo(target, 1.02D);
+        } else if (distance < Math.max(2.2, preferred - 1.8)) {
+            Vec3 away = horizontal(bot.position().subtract(target.position()));
+            bot.setDeltaMovement(bot.getDeltaMovement().add(away.scale(0.14)));
+            bot.hurtMarked = true;
+        } else if (now % 12L == 0L) {
+            Vec3 side = horizontal(target.position().subtract(bot.position())).cross(new Vec3(0.0, 1.0, 0.0));
+            if (state.strafeDirection < 0) side = side.scale(-1.0);
+            bot.setDeltaMovement(bot.getDeltaMovement().add(side.scale(0.12)));
+            bot.hurtMarked = true;
+            if (state.level.getRandom().nextFloat() < 0.24F) state.strafeDirection *= -1;
+        }
+    }
+
+    private static boolean tickBotWardenAmbush(Husk bot, ServerPlayer target, BotState state, long now) {
+        if (state.wardenAmbushUntil <= 0L) return false;
+        if (now < state.wardenAmbushUntil) {
+            bot.setInvisible(true);
+            bot.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 8, 3, false, false, true));
+            bot.getNavigation().stop();
+            if (now % 4L == 0L) {
+                PowerSystem.drawExternalRing(state.level, bot.position(), state.wardenAmbushAwakened ? 1.8 : 1.35,
+                    ParticleTypes.SCULK_SOUL, state.wardenAmbushAwakened ? 28 : 18);
+            }
+            return true;
+        }
+        bot.setInvisible(false);
+        state.wardenAmbushUntil = 0L;
+        ServerPlayer chosen = state.level.getServer().getPlayerList().getPlayer(state.wardenAmbushTarget);
+        if (chosen == null || !chosen.isAlive()) chosen = target;
+        Vec3 behind = chosen.position().subtract(horizontal(chosen.getLookAngle()).scale(2.2));
+        Vec3 safe = safeSpawn(state.level, behind);
+        bot.setPos(safe.x, safe.y, safe.z);
+        bot.setDeltaMovement(Vec3.ZERO);
+        spawnBotSculkArms(bot, chosen, state, state.wardenAmbushAwakened);
+        chosen.hurtServer(state.level, state.level.damageSources().mobAttack(bot), state.wardenAmbushAwakened ? 14.0F : 9.0F);
+        Vec3 push = horizontal(chosen.position().subtract(bot.position()));
+        chosen.push(push.x * (state.wardenAmbushAwakened ? 2.0 : 1.35),
+            state.wardenAmbushAwakened ? 1.0 : 0.68,
+            push.z * (state.wardenAmbushAwakened ? 2.0 : 1.35));
+        state.level.playSound(null, bot.blockPosition(), SoundEvents.WARDEN_ROAR, SoundSource.HOSTILE, 1.4F, 0.72F);
+        return false;
+    }
+
+    private static void spawnBotSculkArms(Husk bot, ServerPlayer target, BotState state, boolean awakened) {
+        Vec3 start = bot.position().add(0.0, 1.1, 0.0);
+        Vec3 end = target.getEyePosition();
+        for (int arm = 0; arm < 4; arm++) {
+            Vec3 right = horizontal(target.position().subtract(bot.position())).cross(new Vec3(0.0, 1.0, 0.0));
+            Vec3 armStart = start.add(right.scale((arm - 1.5) * 0.48)).add(0.0, (arm % 2) * 0.28, 0.0);
+            spawnTravelCluster(state, armStart, end, new ItemStack(Items.ECHO_SHARD),
+                new ItemStack(arm == 3 ? Items.SCULK_CATALYST : Items.SCULK_SENSOR),
+                awakened ? 16L : 21L, 0.75 + arm * 0.12);
+        }
     }
 
     private static void maybeActivateAwakening(Husk bot, ServerPlayer target, BotState state, long now) {
@@ -258,6 +339,10 @@ public final class PvpBotSystem {
             if (abilityUsable(bot, target, state, ability)) usable.add(ability);
         }
         if (usable.isEmpty()) return 0;
+        if (usable.size() > 1 && state.lastAbility > 0 && now - state.lastAbilityTick < 140L) {
+            usable.remove(Integer.valueOf(state.lastAbility));
+        }
+        if (usable.isEmpty()) return 0;
 
         int tactical = tacticalAbility(bot, target, state, usable);
         if (tactical > 0 && state.level.getRandom().nextFloat() <= state.difficulty.tacticalChance) return tactical;
@@ -269,8 +354,9 @@ public final class PvpBotSystem {
         int preferred = switch (state.powerClass) {
             case WARDEN -> bot.getHealth() < 12.0F && usable.contains(1) ? 1
                 : distance <= 6.5 && usable.contains(2) ? 2
+                : distance >= 7.0 && distance <= 14.0 && usable.contains(4) ? 4
                 : distance >= 6.0 && usable.contains(3) ? 3
-                : usable.contains(4) ? 4 : usable.get(0);
+                : usable.get(0);
             case FIRE -> distance <= 5.5 && usable.contains(1) ? 1
                 : distance >= 8.0 && usable.contains(4) ? 4
                 : distance >= 6.0 && usable.contains(3) ? 3
@@ -411,17 +497,19 @@ public final class PvpBotSystem {
         }
         int phase = ability - 1;
         switch (state.powerClass) {
-            case WARDEN -> botWarden(bot, target, state, awakened, phase);
+            case WARDEN -> botWarden(bot, target, state, now, awakened, phase);
             case FIRE -> botFire(bot, target, state, now, awakened, phase);
             case NATURE -> botNature(bot, target, state, awakened, phase);
             case ANOMALY -> botAnomaly(bot, target, state, now, awakened, phase);
             case FLIGHT -> botDragon(bot, target, state, awakened, phase);
             default -> { }
         }
+        state.lastAbility = ability;
+        state.lastAbilityTick = now;
     }
 
 
-    private static void botWarden(Husk bot, ServerPlayer target, BotState state, boolean awakened, int phase) {
+    private static void botWarden(Husk bot, ServerPlayer target, BotState state, long now, boolean awakened, int phase) {
         switch (phase) {
             case 0 -> {
                 bot.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, awakened ? 130 : 90, awakened ? 2 : 1, false, true, true));
@@ -431,10 +519,15 @@ public final class PvpBotSystem {
             case 1 -> botQuake(bot, target, state, awakened);
             case 2 -> botSonic(bot, target, state, awakened);
             case 3 -> {
-                spawnTravelVisual(state, bot.getEyePosition(), target.getEyePosition(), new ItemStack(Items.SCULK_SENSOR), 13L, 0.35);
-                target.addEffect(new MobEffectInstance(MobEffects.GLOWING, awakened ? 150 : 100, 0, false, false, true));
-                target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, awakened ? 110 : 75, awakened ? 3 : 2, false, true, true));
-                state.level.sendParticles(ParticleTypes.SCULK_SOUL, target.getX(), target.getY() + 1.0, target.getZ(), 48, 0.7, 1.0, 0.7, 0.05);
+                state.wardenAmbushUntil = now + (awakened ? 24L : 34L);
+                state.wardenAmbushTarget = target.getUUID();
+                state.wardenAmbushAwakened = awakened;
+                bot.setInvisible(true);
+                bot.getNavigation().stop();
+                spawnOrbitVisual(state, bot, new ItemStack(Items.SCULK_CATALYST), awakened ? 28L : 36L,
+                    awakened ? 1.8 : 1.35, 0.25, 0.0);
+                state.level.playSound(null, bot.blockPosition(), SoundEvents.WARDEN_HEARTBEAT,
+                    SoundSource.HOSTILE, 1.0F, 0.70F);
             }
             default -> {
                 // Warden Uyanışı gücü: ek saldırı hilesi yerine oyuncudaki gibi süreli savaş güçlendirmesi.
@@ -460,7 +553,7 @@ public final class PvpBotSystem {
             case 2 -> {
                 // Cehennem Küresi: gerçek eşya gövdesi hedefe doğru akar; parçacıklar yalnızca izidir.
                 Vec3 start = bot.getEyePosition();
-                spawnTravelVisual(state, start, target.getEyePosition(), new ItemStack(Items.MAGMA_CREAM), awakened ? 10L : 14L, 0.55);
+                spawnTravelCluster(state, start, target.getEyePosition(), new ItemStack(Items.MAGMA_CREAM), new ItemStack(Items.FIRE_CHARGE), awakened ? 15L : 20L, 0.55);
                 Vec3 dir = target.getEyePosition().subtract(start).normalize();
                 for (double d = 0.5; d <= Math.min(22.0, Math.sqrt(bot.distanceToSqr(target)) + 1.5); d += 0.45) {
                     Vec3 point = start.add(dir.scale(d));
@@ -483,7 +576,7 @@ public final class PvpBotSystem {
     private static void botSonic(Husk bot, ServerPlayer target, BotState state, boolean awakened) {
         Vec3 start = bot.getEyePosition();
         Vec3 end = target.getEyePosition();
-        spawnTravelVisual(state, start, end, new ItemStack(Items.ECHO_SHARD), awakened ? 7L : 10L, 0.15);
+        spawnTravelCluster(state, start, end, new ItemStack(Items.ECHO_SHARD), new ItemStack(Items.SCULK_SENSOR), awakened ? 13L : 18L, 0.15);
         Vec3 direction = end.subtract(start);
         double length = Math.max(0.1, direction.length());
         direction = direction.normalize();
@@ -510,7 +603,7 @@ public final class PvpBotSystem {
 
     private static void botFireBurst(Husk bot, ServerPlayer target, BotState state, boolean awakened) {
         Vec3 start = bot.getEyePosition();
-        spawnTravelVisual(state, start, target.getEyePosition(), new ItemStack(Items.FIRE_CHARGE), awakened ? 8L : 12L, 0.35);
+        spawnTravelCluster(state, start, target.getEyePosition(), new ItemStack(Items.FIRE_CHARGE), new ItemStack(Items.MAGMA_CREAM), awakened ? 14L : 19L, 0.35);
         Vec3 direction = target.getEyePosition().subtract(start).normalize();
         double range = Math.min(24.0, Math.sqrt(bot.distanceToSqr(target)) + 2.0);
         for (double d = 0.7; d <= range; d += 0.55) {
@@ -533,7 +626,7 @@ public final class PvpBotSystem {
         Vec3 start = impact.add((state.level.getRandom().nextDouble() - 0.5) * 7.0, awakened ? 24.0 : 18.0, (state.level.getRandom().nextDouble() - 0.5) * 7.0);
         long impactTick = now + (awakened ? 26L : 36L);
         METEORS.add(new BotMeteor(state.level, bot.getUUID(), state.ownerId, start, impact, now, impactTick, awakened, state.difficulty));
-        spawnTravelVisual(state, start, impact.add(0.0, 0.7, 0.0), new ItemStack(Items.MAGMA_BLOCK), impactTick - now, 0.0);
+        spawnTravelCluster(state, start, impact.add(0.0, 0.7, 0.0), new ItemStack(Items.MAGMA_BLOCK), new ItemStack(Items.CRYING_OBSIDIAN), impactTick - now, 0.0);
         state.level.playSound(null, bot.blockPosition(), SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 0.65F, 1.45F);
     }
 
@@ -586,7 +679,7 @@ public final class PvpBotSystem {
             case 1 -> new ItemStack(Items.VINE);
             default -> new ItemStack(Items.SPORE_BLOSSOM);
         };
-        spawnTravelVisual(state, bot.getEyePosition(), target.getEyePosition(), natureBody, phase >= 4 ? 15L : 11L, phase >= 4 ? 0.8 : 0.35);
+        spawnTravelCluster(state, bot.getEyePosition(), target.getEyePosition(), natureBody, new ItemStack(Items.MOSS_BLOCK), phase >= 4 ? 20L : 16L, phase >= 4 ? 0.8 : 0.35);
         float damage = switch (phase) {
             case 0 -> awakened ? 9.0F : 5.5F;
             case 1 -> awakened ? 11.0F : 7.0F;
@@ -609,13 +702,13 @@ public final class PvpBotSystem {
         if (phase == 0) {
             Vec3 oldPosition = bot.getEyePosition();
             Vec3 behind = target.position().subtract(horizontal(target.getLookAngle()).scale(2.2));
-            spawnTravelVisual(state, oldPosition, behind.add(0.0, 1.0, 0.0), new ItemStack(Items.ENDER_EYE), awakened ? 6L : 9L, 0.55);
+            spawnTravelCluster(state, oldPosition, behind.add(0.0, 1.0, 0.0), new ItemStack(Items.ENDER_EYE), new ItemStack(Items.AMETHYST_SHARD), awakened ? 12L : 16L, 0.55);
             bot.setPos(behind.x, behind.y, behind.z);
             bot.setDeltaMovement(Vec3.ZERO);
             target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 12.0F : 7.0F));
             state.level.sendParticles(ParticleTypes.REVERSE_PORTAL, bot.getX(), bot.getY() + 1.0, bot.getZ(), 55, 0.7, 1.0, 0.7, 0.12);
         } else if (phase == 1) {
-            spawnTravelVisual(state, bot.getEyePosition(), target.getEyePosition(), new ItemStack(Items.ENDER_PEARL), awakened ? 7L : 11L, 0.45);
+            spawnTravelCluster(state, bot.getEyePosition(), target.getEyePosition(), new ItemStack(Items.ENDER_PEARL), new ItemStack(Items.ECHO_SHARD), awakened ? 13L : 18L, 0.45);
             Vec3 motion = target.getDeltaMovement();
             target.setDeltaMovement(-motion.x * 1.35, Math.min(0.28, -motion.y * 0.55 + 0.12), -motion.z * 1.35);
             target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, awakened ? 120 : 80, awakened ? 6 : 4, false, true, true));
@@ -628,7 +721,7 @@ public final class PvpBotSystem {
             state.level.sendParticles(ParticleTypes.WITCH, bot.getX(), bot.getY() + 1.0, bot.getZ(), 75, 1.0, 1.2, 1.0, 0.10);
         } else if (phase == 3) {
             // Varlıktan Çıkar'ın bot sürümü: görünür chorus çekirdeği hedefe ulaşır.
-            spawnTravelVisual(state, bot.getEyePosition(), target.getEyePosition(), new ItemStack(Items.CHORUS_FRUIT), awakened ? 9L : 13L, 0.7);
+            spawnTravelCluster(state, bot.getEyePosition(), target.getEyePosition(), new ItemStack(Items.CHORUS_FRUIT), new ItemStack(Items.ENDER_EYE), awakened ? 15L : 20L, 0.7);
             target.addEffect(new MobEffectInstance(MobEffects.DARKNESS, awakened ? 70 : 45, 0, false, true, true));
             target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, awakened ? 70 : 45, 10, false, true, true));
             target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, awakened ? 90 : 60, 4, false, true, true));
@@ -663,7 +756,7 @@ public final class PvpBotSystem {
             }
         } else if (phase == 1) {
             Vec3 start = bot.getEyePosition();
-            spawnTravelVisual(state, start, target.getEyePosition(), new ItemStack(Items.DRAGON_BREATH), awakened ? 8L : 12L, 0.30);
+            spawnTravelCluster(state, start, target.getEyePosition(), new ItemStack(Items.DRAGON_BREATH), new ItemStack(Items.AMETHYST_SHARD), awakened ? 14L : 19L, 0.30);
             Vec3 dir = target.getEyePosition().subtract(start).normalize();
             double breathLength = Math.min(12.0, Math.max(1.0, start.distanceTo(target.getEyePosition())));
             for (double d = 0.5; d <= breathLength; d += 0.5) {
@@ -676,7 +769,7 @@ public final class PvpBotSystem {
             state.anomalyShieldUntil = state.level.getGameTime() + (awakened ? 150L : 100L);
             state.level.sendParticles(ParticleTypes.REVERSE_PORTAL, bot.getX(), bot.getY() + 1.0, bot.getZ(), 85, 1.0, 1.2, 1.0, 0.08);
         } else if (phase == 3) {
-            spawnTravelVisual(state, bot.getEyePosition(), target.getEyePosition(), new ItemStack(Items.AMETHYST_SHARD), awakened ? 7L : 10L, 0.25);
+            spawnTravelCluster(state, bot.getEyePosition(), target.getEyePosition(), new ItemStack(Items.AMETHYST_SHARD), new ItemStack(Items.DRAGON_BREATH), awakened ? 13L : 17L, 0.25);
             Vec3 pull = horizontal(bot.position().subtract(target.position())).scale(1.8);
             target.push(pull.x, 0.45, pull.z);
             target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 12.0F : 8.0F));
@@ -743,6 +836,20 @@ public final class PvpBotSystem {
         }
     }
 
+
+    private static void spawnTravelCluster(BotState state, Vec3 start, Vec3 end, ItemStack core,
+                                           ItemStack satellite, long duration, double arcHeight) {
+        spawnTravelVisual(state, start, end, core, duration, arcHeight);
+        Vec3 direction = horizontal(end.subtract(start));
+        Vec3 right = direction.cross(new Vec3(0.0, 1.0, 0.0));
+        for (int i = 0; i < 4; i++) {
+            double angle = Math.PI * 2.0 * i / 4.0;
+            Vec3 offset = right.scale(Math.cos(angle) * 0.42).add(0.0, Math.sin(angle) * 0.42, 0.0);
+            spawnTravelVisual(state, start.add(offset), end.add(offset.scale(0.35)), satellite.copy(),
+                duration + (i % 2), arcHeight + 0.10);
+        }
+    }
+
     private static void spawnTravelVisual(BotState state, Vec3 start, Vec3 end, ItemStack stack, long duration, double arcHeight) {
         ItemEntity body = new ItemEntity(state.level, start.x, start.y, start.z, stack);
         body.setNoGravity(true);
@@ -750,10 +857,11 @@ public final class PvpBotSystem {
         body.setNeverPickUp();
         body.setUnlimitedLifetime();
         body.setInvulnerable(true);
+        body.setGlowingTag(true);
         if (!state.level.addFreshEntity(body)) return;
         long now = state.level.getGameTime();
         ATTACK_VISUALS.add(new BotAttackVisual(state.level, body.getUUID(), null, start, end,
-            now, now + Math.max(2L, duration), arcHeight, 0.0, 0.0, 0.0));
+            now, now + Math.max(2L, duration), arcHeight, 0.0, 0.0, 0.0, state.powerClass));
     }
 
     private static void spawnOrbitVisual(BotState state, Entity anchor, ItemStack stack, long duration,
@@ -765,10 +873,11 @@ public final class PvpBotSystem {
         body.setNeverPickUp();
         body.setUnlimitedLifetime();
         body.setInvulnerable(true);
+        body.setGlowingTag(true);
         if (!state.level.addFreshEntity(body)) return;
         long now = state.level.getGameTime();
         ATTACK_VISUALS.add(new BotAttackVisual(state.level, body.getUUID(), anchor.getUUID(), start, start,
-            now, now + Math.max(2L, duration), 0.0, radius, yOffset, phase));
+            now, now + Math.max(2L, duration), 0.0, radius, yOffset, phase, state.powerClass));
     }
 
     private static void tickAttackVisuals() {
@@ -805,6 +914,10 @@ public final class PvpBotSystem {
             }
             body.setPos(position.x, position.y, position.z);
             body.setDeltaMovement(Vec3.ZERO);
+            if (now % 2L == 0L) {
+                visual.level.sendParticles(classParticle(visual.powerClass), position.x, position.y + 0.12, position.z,
+                    3, 0.16, 0.16, 0.16, 0.018);
+            }
         }
     }
 
@@ -896,6 +1009,14 @@ public final class PvpBotSystem {
         private long nextDecisionTick;
         private long nextMeleeTick;
         private long globalRecoveryUntil;
+        private int lastAbility;
+        private long lastAbilityTick;
+        private long nextDodgeTick;
+        private int dodgeDirection = 1;
+        private int strafeDirection = 1;
+        private long wardenAmbushUntil;
+        private UUID wardenAmbushTarget;
+        private boolean wardenAmbushAwakened;
         private final long[] cooldownUntil = new long[5];
         private float awakeningEnergy;
         private long awakeningUntil;
@@ -918,5 +1039,5 @@ public final class PvpBotSystem {
 
     private record BotAttackVisual(ServerLevel level, UUID entityId, UUID anchorId, Vec3 start, Vec3 end,
                                    long startTick, long endTick, double arcHeight, double orbitRadius,
-                                   double yOffset, double phase) {}
+                                   double yOffset, double phase, PowerClass powerClass) {}
 }

@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.0.8"
+VERSION = "1.0.9"
 errors: list[str] = []
 checks: list[str] = []
 
@@ -39,7 +39,7 @@ def text(relative: str) -> str:
 
 required_files = [
     "build.gradle", "gradle.properties", "settings.gradle", "README.md", "VALIDATION.md", "FEATURE_STATUS.md",
-    "CHANGELOG_1.0.8.md", ".github/workflows/build.yml", "src/main/resources/fabric.mod.json",
+    "CHANGELOG_1.0.9.md", ".github/workflows/build.yml", "src/main/resources/fabric.mod.json",
     "src/main/resources/assets/skinpowers/lang/tr_tr.json",
     "src/main/resources/assets/skinpowers/lang/en_us.json",
     "src/main/java/com/yagiz/skinpowers/AwakeningSystem.java",
@@ -71,7 +71,7 @@ if f"skinpowers-{VERSION}-jar" not in workflow or f"skinpowers-{VERSION}.jar" no
 if "java-version: '25'" not in workflow or "gradle-version: '9.5.1'" not in workflow:
     fail("GitHub Actions Java 25 / Gradle 9.5.1 ayarı eksik")
 if "Kadim Ejderha" not in mod_json or "Uyanış" not in mod_json:
-    fail("fabric.mod.json 1.0.8 açıklamasını içermiyor")
+    fail("fabric.mod.json 1.0.9 açıklamasını içermiyor")
 
 power_class = text("src/main/java/com/yagiz/skinpowers/PowerClass.java")
 catalog = text("src/main/java/com/yagiz/skinpowers/PowerCatalog.java")
@@ -104,7 +104,7 @@ required_tokens = {
     catalog: [
         "Kuyruk Kasırgası", "Ejderha Nefesi", "Kadim Pullar", "Avcı Pençesi", "Kadim Kükreme",
         "Ejderha Hükümdarı", "DRAGON_XP_COSTS", "Mor Ejderha Fırtınası",
-        "Kırık Adım", '"?"', "404: Gerçeklik Bulunamadı", "gecikmeli patlayan bozuk kopyalar"
+        "Kırık Adım", '"?"', "404: Gerçeklik Bulunamadı", "gecikmeli patlayan bozuk kopyalar", "Derinlik Pususu"
     ],
     data: [
         "dragonScalesUntil", "dragonScaleCharges", "dragonFormUntil", "awakeningEnergy", "classAwakeningUntil",
@@ -122,7 +122,8 @@ required_tokens = {
         "tickFlight", "Kadim Ejderha pasifi", "DRAGON_CLAW_TARGET", "DRAGON_CLAW_ESCAPE_PRESSES", "DRAGON_BREATHS", "DRAGON_SILENCE_UNTIL",
         "data.setDragonScalesUntil", "data.setDragonScaleCharges", "data.setDragonFormUntil", "dragon_dash", "dragon_breath",
         "dragon_roar", "dragon_form", "ServerNetworking.sendCastAnimation", "PowerCollisionSystem.registerCast",
-        "DuelSystem.protects", "WorldEventSystem.tick", "data.beginCombo(2, now, 80)"
+        "DuelSystem.protects", "WorldEventSystem.tick", "data.beginCombo(2, now, 80)",
+        "WARDEN_AMBUSHES", "spawnWardenArm", "nearbyLiving(player, 30.0)", "WardenArmSegment"
     ],
     network: [
         'command.equals("AWAKEN")', "dragonScalesTicks", "dragonScaleCharges", "awakeningEnergy", "classAwakeningTicks",
@@ -154,7 +155,7 @@ required_tokens = {
         '"KADİM EJDERHA"', "drawDragonStorm", "drawAncientCity", "drawLavaCave", "drawForest", "drawAnomalyGlitch",
         "cardProgress >= 0.85F"
     ],
-    analyzer: ["FLIGHT_COLORS", "ANOMALY_COLORS", "SkinPowers/1.0.8"],
+    analyzer: ["FLIGHT_COLORS", "ANOMALY_COLORS", "SkinPowers/1.0.9"],
     commands: [
         'Commands.literal("degistir")', 'selfClass("ejderha"', 'Commands.literal("duello")',
         'Commands.literal("trigger")', 'triggerLiteral("dragon_breath")', 'triggerLiteral("dragon_form")',
@@ -164,7 +165,7 @@ required_tokens = {
         "ServerLivingEntityEvents.ALLOW_DAMAGE.register(DuelSystem::allowDamage)",
         "ServerLivingEntityEvents.ALLOW_DAMAGE.register(AwakeningSystem::allowDamage)",
         "ServerLivingEntityEvents.ALLOW_DAMAGE.register(PvpBotSystem::allowDamage)",
-        "Skin Powers 1.0.8 yüklendi"
+        "Skin Powers 1.0.9 yüklendi"
     ],
     store: ["migrateLegacyClassNames", "JsonParser.parseReader"],
     duel: [
@@ -175,7 +176,8 @@ required_tokens = {
     world_event: ["Sculk Uyanışı", "Meteor Fırtınası", "Gökyüzü Yarığı", "Kadim Çiçeklenme", "Gerçeklik Çatlağı"],
     pvp_bot: [
         "BotDifficulty", 'EASY("Kolay"', 'NIGHTMARE("Kâbus"', "botWarden", "botFire", "botNature",
-        "botAnomaly", "botDragon", "awakeningEnergy", "panelFor", "guardCharges"
+        "botAnomaly", "botDragon", "awakeningEnergy", "panelFor", "guardCharges",
+        "spawnTravelCluster", "tickBotWardenAmbush", "updateBotMovement", "lastAbilityTick", "nextDodgeTick"
     ],
     battle_panel: ["record BattlePanel", "opponentName", "awakening", "hidden()"],
 }
@@ -306,6 +308,8 @@ public final class CoreTest {
       check(!PowerCatalog.powerDescription(PowerClass.FLIGHT, i).isBlank(), "dragon description " + i);
       check(!PowerCatalog.powerDescription(PowerClass.ANOMALY, i).isBlank(), "anomaly description " + i);
     }
+    check("Derinlik Pususu".equals(PowerCatalog.powerName(PowerClass.WARDEN, 4)), "warden ambush name");
+    check(PowerCatalog.powerDescription(PowerClass.WARDEN, 4).contains("3B sculk"), "warden ambush description");
     check(PowerCatalog.comboStarterPower(PowerClass.FLIGHT) == 2, "dragon combo starter");
     check(PowerCatalog.comboFinisherPower(PowerClass.FLIGHT) == 5, "dragon combo finisher");
 
@@ -372,4 +376,4 @@ if errors:
 
 print("SKIN POWERS PROJE DENETİMİ BAŞARILI")
 print(f"{len(checks)} kontrol geçti.")
-print("PvP botları, savaş panelleri, Anomali yenilemesi, Ateş/Warden görselleri ve mevcut sınıf sistemleri doğrulandı.")
+print("Derinlik Pususu, 30 blok Warden görüşü, görünür bot saldırıları ve geliştirilmiş bot zekâsı doğrulandı.")

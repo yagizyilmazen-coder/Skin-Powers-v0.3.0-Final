@@ -1,4 +1,4 @@
-# Skin Powers 1.0.8 özellik durumu
+# Skin Powers 1.0.9 özellik durumu
 
 ## Hazır sistemler
 - Warden, Kadim Ejderha, Ateş, Doğa ve Anomali sınıfları.

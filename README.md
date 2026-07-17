@@ -1,8 +1,8 @@
-# Skin Powers 1.0.8
+# Skin Powers 1.0.9
 
 Skin Powers, Minecraft skinindeki renkleri analiz ederek Warden, Kadim Ejderha, Ateş, Doğa ve Anomali sınıflarını öneren Fabric modudur. İlk seçim ekranında bütün sınıflar görünür; skin analizi başarılıysa en yüksek ve ikinci en yüksek öneri seçilebilir.
 
-## 1.0.8 ana değişiklikleri
+## 1.0.9 ana değişiklikleri
 
 - **Sınıf Ustası PvP botları:** Beş sınıf için Kolay, Normal, Zor ve Kâbus rakipler.
 - **Anomali yenilemesi:** Gecikmeli Kırık Adım yankıları, iki kullanımlık Uyanış kopyası, güçlendirilmiş Varlıktan Çıkar ve 404.
@@ -14,7 +14,7 @@ Skin Powers, Minecraft skinindeki renkleri analiz ederek Warden, Kadim Ejderha, 
 ## Sınıflar
 
 ### Warden
-Warden Zırhı, Yer Sarsıntısı, Sonik Patlama, Sculk Avı, Warden Uyanışı ve Antik Şehir Şarjı.
+Warden Zırhı, Yer Sarsıntısı, Sonik Patlama, Derinlik Pususu, Warden Uyanışı ve Antik Şehir Şarjı.
 
 **Uyanış:** Antik Şehir Uyanışı
 
@@ -118,7 +118,7 @@ Trigger komutları moderatör/operatör yetkisi gerektirir.
 1. Proje içeriğini GitHub deposunun ana dizinine kopyalayın.
 2. Commit ve `Push origin` yapın.
 3. **Actions → Fabric JAR Derle** çalışmasını açın.
-4. Başarılı olunca `skinpowers-1.0.8-jar` artifact'ini indirin.
-5. İçindeki `skinpowers-1.0.8.jar` dosyasını `mods` klasörüne koyun.
+4. Başarılı olunca `skinpowers-1.0.9-jar` artifact'ini indirin.
+5. İçindeki `skinpowers-1.0.9.jar` dosyasını `mods` klasörüne koyun.
 
 Eski Skin Powers JAR'larını aynı anda `mods` klasöründe bırakmayın.
