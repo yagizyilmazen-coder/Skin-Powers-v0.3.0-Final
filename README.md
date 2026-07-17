@@ -1,6 +1,6 @@
-# Skin Powers 1.0.0
+# Skin Powers 1.0.1
 
-Minecraft Java Edition 26.1.2 için Fabric güç modudur. Oyuncunun gerçek skin piksellerini analiz eder, en güçlü ve ikinci en yakın sınıf önerisini gösterir; oyuncu önerilerden birini veya diğer sınıfları seçebilir.
+Minecraft Java Edition 26.1.2 için Fabric güç modudur. Oyuncunun gerçek skin piksellerini analiz eder, en güçlü ve ikinci en yakın sınıf önerisini gösterir; oyuncu yalnızca en yüksek puanlı ve ona en yakın ikinci sınıftan birini seçebilir.
 
 ## Sınıflar
 
@@ -33,7 +33,7 @@ Minecraft Java Edition 26.1.2 için Fabric güç modudur. Oyuncunun gerçek skin
 - Profil dokusu bulunamazsa UUID, ardından oyuncu adı üzerinden Mojang skin adresi yeniden çözülür ve HTTPS ile alınır.
 - Ana katman ve ikinci katmanlar analiz edilir; şeffaf pikseller sayılmaz.
 - Baş/ten bölgesi düşük, gövde ve kıyafet katmanları daha yüksek ağırlık alır.
-- En yüksek ve ikinci en yüksek sonuç ayrı öneri olarak gösterilir.
+- En yüksek ve ikinci en yüksek sonuç ayrı öneri olarak gösterilir ve normal seçimde yalnızca bu iki kart açılır.
 - Skin alınamazsa uydurma yüzdeler gösterilmez; manuel sınıf seçimi açık kalır.
 
 ## Antik Şehir Şarjı
@@ -47,11 +47,24 @@ Warden'ın 6. gücü 70 XP gerektirir. Hedef oyuncuya veya moba ışın atar; ç
 - Yoğun parçacık duvarı kaldırılmıştır; ana görünürlük parlama dış çizgisi ve geçici sculk kol modellerinden gelir.
 - Çöküş etkileri 20 saniye tamamlandıktan sonra başlar.
 
-Tek oyunculu test:
+## Komutlar
+
+Tek komut kökü `/skinpower` olarak düzenlenmiştir.
 
 ```text
-/skinpowers charge give @s 20
-/skinpowers charge clear @s
+/skinpower warden
+/skinpower ucus
+/skinpower ates
+/skinpower doga
+/skinpower zaman
+```
+
+Bu komutlar oyuncunun sınıfını değiştirir; eski sınıfa ait güç seviyeleri ve ustalık ilerlemesi temizlenir. Yetkili test komutları:
+
+```text
+/skinpower sarj ver @s 20
+/skinpower sarj temizle @s
+/skinpower reset @s
 ```
 
 ## Gereksinimler
@@ -68,6 +81,6 @@ Tek oyunculu test:
 2. Eski proje dosyalarını temizleyip bu paketin içeriğini ana klasöre kopyalayın.
 3. `Commit to main` ve `Push origin` yapın.
 4. GitHub `Actions` sekmesinde **Fabric JAR Derle** işinin yeşil tamamlanmasını bekleyin.
-5. `skinpowers-1.0.0-jar` artifact'ini indirip içindeki `skinpowers-1.0.0.jar` dosyasını `mods` klasörüne koyun.
+5. `skinpowers-1.0.1-jar` artifact'ini indirip içindeki `skinpowers-1.0.1.jar` dosyasını `mods` klasörüne koyun.
 
 **Made by Yankalan**

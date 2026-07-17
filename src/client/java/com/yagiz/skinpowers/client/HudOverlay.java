@@ -121,8 +121,8 @@ public final class HudOverlay {
         boolean active = ClientState.ancientChargeTicks() > 0 || ClientState.ancientExhaustionTicks() > 0;
         if (!active) return;
 
-        int width = Math.min(330, Math.max(220, screenWidth - 24));
-        int height = 36;
+        int width = Math.min(245, Math.max(180, screenWidth - 24));
+        int height = 24;
         int left = (screenWidth - width) / 2;
         int top = 7;
         boolean horizontalOverlap = left < hudX + hudWidth + 6 && left + width > hudX - 6;
@@ -134,10 +134,9 @@ public final class HudOverlay {
         graphics.fill(left, top, left + width, top + height, charged ? 0xDD12071D : 0xDD190B16);
         graphics.fill(left, top, left + 5, top + height, charged ? 0xFFB24DFF : 0xFF7C3D65);
         graphics.outline(left, top, width, height, accent);
-        String line1 = "ANTİK ŞEHİR SENİ ŞARJ ETTİ";
-        String line2 = "BEDELLERİ OLACAK...";
-        graphics.text(client.font, line1, left + (width - client.font.width(line1)) / 2, top + 7, 0xFFFFFFFF, true);
-        graphics.text(client.font, line2, left + (width - client.font.width(line2)) / 2, top + 21, charged ? 0xFFCFA8FF : 0xFFE0AFCF, true);
+        String message = charged ? "Antik Şehir şarjı • 1 güç hakkı" : "Antik Şehir çöküşü";
+        message = fit(client, message, width - 16);
+        graphics.text(client.font, message, left + (width - client.font.width(message)) / 2, top + 8, charged ? 0xFFE9D8FF : 0xFFE0AFCF, false);
     }
 
     private static void drawShakeOverlay(GuiGraphicsExtractor graphics, int width, int height, ClientConfig config) {

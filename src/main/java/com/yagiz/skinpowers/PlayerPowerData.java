@@ -86,6 +86,16 @@ public final class PlayerPowerData {
         selectedPower = 1;
     }
 
+    /** Komutla sınıf değiştirirken eski sınıfa ait seviye, ustalık ve süreli etkileri temizler. */
+    public boolean changeClass(PowerClass value) {
+        if (value == null || value == PowerClass.NONE) return false;
+        if (powerClass() == value) return false;
+        reset();
+        powerClass = value;
+        selectedPower = 1;
+        return true;
+    }
+
     public void reset() {
         powerClass = PowerClass.NONE;
         unlockedLevel = 0;

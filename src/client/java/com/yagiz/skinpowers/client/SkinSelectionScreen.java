@@ -36,7 +36,7 @@ public final class SkinSelectionScreen extends Screen {
         CardLayout layout = layout();
         for (int i = 0; i < CLASSES.length; i++) {
             final int index = i;
-            int buttonWidth = Math.max(40, layout.cardWidth() - (layout.compact() ? 8 : 24));
+            int buttonWidth = Math.max(28, layout.cardWidth() - (layout.compact() ? 6 : 24));
             int x = layout.startX() + i * (layout.cardWidth() + layout.gap()) + (layout.cardWidth() - buttonWidth) / 2;
             int buttonHeight = layout.compact() ? 18 : 20;
             int y = layout.cardY() + layout.cardHeight() - buttonHeight - 7;
@@ -46,12 +46,6 @@ public final class SkinSelectionScreen extends Screen {
             selectButtons[i].active = false;
             addRenderableWidget(selectButtons[i]);
         }
-
-        int skipWidth = width < 520 ? 70 : 108;
-        int skipHeight = width < 520 ? 18 : 20;
-        addRenderableWidget(Button.builder(Component.translatable("screen.skinpowers.skip"), button -> analysisFinished = true)
-            .bounds(Math.max(6, width - skipWidth - 7), 7, skipWidth, skipHeight)
-            .build());
 
         if (minecraft != null && minecraft.player != null) {
             SkinAnalyzer.analyzeAsync(minecraft.player.getGameProfile()).thenAccept(analyzed ->
@@ -66,18 +60,32 @@ public final class SkinSelectionScreen extends Screen {
     }
 
     private void select(int index) {
-        if (selectedIndex >= 0) return;
+        if (selectedIndex >= 0 || !isSelectable(index)) return;
         selectedIndex = index;
         selectedAt = Util.getMillis();
         ClientPlayNetworking.send(new ClientCommandPayload("CHOOSE:" + CLASSES[index].name()));
     }
 
+    private boolean isSelectable(int index) {
+        if (!analysisFinished || index < 0 || index >= CLASSES.length) return false;
+        // Gerçek skin analizi başarılıysa yalnızca en yüksek ve ikinci en yüksek puanlı sınıf seçilebilir.
+        // Skin alınamadığında oyuncuyu kilitlememek için bütün sınıflar geçici olarak seçilebilir.
+        return !result.hasRecommendation() || result.bestIndex() == index || result.secondIndex() == index;
+    }
+
     @Override
     public void tick() {
         super.tick();
-        if (selectedIndex >= 0 && Util.getMillis() - selectedAt > 850L && minecraft != null) {
-            minecraft.setScreen(null);
+        if (selectedIndex < 0 || minecraft == null) return;
+
+        // Ekran yalnızca sunucu seçimi gerçekten onayladıktan sonra kapanır.
+        if (ClientState.powerClass() == CLASSES[selectedIndex]) {
+            if (Util.getMillis() - selectedAt > 250L) minecraft.setScreen(null);
+            return;
         }
+
+        // Paket reddedilir veya bağlantı gecikirse seçim düğmelerini tekrar kullanılabilir yap.
+        if (Util.getMillis() - selectedAt > 3000L) selectedIndex = -1;
     }
 
     @Override
@@ -99,7 +107,7 @@ public final class SkinSelectionScreen extends Screen {
         } else if (!result.fromSkin()) {
             scanText = "Skin alınamadı — puan uydurulmadı, sınıfı kendin seç";
         } else if (result.hasRecommendation()) {
-            scanText = "Skin tarandı — renk puanları gerçek piksellerden hesaplandı";
+            scanText = "Skin tarandı — yalnızca 1. ve 2. öneri seçilebilir";
         } else {
             scanText = "Skin tarandı — belirgin bir sınıf rengi bulunamadı";
         }
@@ -124,7 +132,10 @@ public final class SkinSelectionScreen extends Screen {
             if (selectButton != null) {
                 int buttonHeight = layout.compact() ? 18 : 20;
                 selectButton.setY(y + layout.cardHeight() - buttonHeight - 7);
-                selectButton.active = cardProgress >= 0.98F && selectedIndex < 0;
+                boolean selectable = isSelectable(i);
+                String buttonText = selectable ? "SEÇ" : (analysisFinished ? (layout.cardWidth() < 68 ? "KİLİT" : "KİLİTLİ") : "...");
+                selectButton.setMessage(Component.literal(buttonText));
+                selectButton.active = cardProgress >= 0.98F && selectedIndex < 0 && selectable;
             }
         }
 
@@ -407,8 +418,8 @@ public final class SkinSelectionScreen extends Screen {
         boolean compact = width < 520 || height < 330;
         int gap = compact ? 3 : Math.max(4, Math.min(8, width / 125));
         int sideMargin = compact ? 5 : 14;
-        int availableWidth = Math.max(count * 44, width - sideMargin * 2 - gap * (count - 1));
-        int cardWidth = Math.max(42, Math.min(132, availableWidth / count));
+        int availableWidth = Math.max(count * 30, width - sideMargin * 2 - gap * (count - 1));
+        int cardWidth = Math.max(30, Math.min(132, availableWidth / count));
         int cardY = compact ? 44 : 112;
         int maxHeight = Math.max(112, height - cardY - 20);
         int preferredHeight = compact ? Math.max(142, (int) (cardWidth * 2.15)) : Math.max(178, (int) (cardWidth * 1.62));

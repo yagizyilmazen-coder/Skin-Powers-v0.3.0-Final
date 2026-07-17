@@ -8,7 +8,7 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 REQUIRED = [
     "build.gradle",
     "settings.gradle",
@@ -85,6 +85,10 @@ REQUIRED_SOURCE_SNIPPETS = {
     "api.mojang.com/users/profiles/minecraft/": "oyuncu adından skin UUID yedek çözümü",
     "secondIndex()": "ikinci skin önerisi",
     "selectButton.setY": "ilk seçim ekranında düğmelerin kartlarla birlikte hareketi",
+    "result.bestIndex() == index || result.secondIndex() == index": "yalnızca ilk iki skin önerisinin seçilebilmesi",
+    "Commands.literal(\"skinpower\")": "tek /skinpower komut kökü",
+    "data.changeClass(powerClass)": "komutla sınıf değiştirme",
+    "height < 300 ? 62": "Warden altıncı satırı için kısa ekran yerleşimi",
     "target.setPos(prison.anchor.x": "Zaman Hapishanesinin ekran efektsiz sabitlemesi",
     "boolean ancientBoost = data.ancientChargeActive(now)": "pasif güçlerin Antik Şehir süresince güçlenmesi",
 }
@@ -234,7 +238,10 @@ public final class CoreLogicSmokeTest {
         check("Şarj Et Beni Antik Şehir".equals(PowerCatalog.powerName(PowerClass.WARDEN, 6)), "sixth name");
 
         PlayerPowerData data = new PlayerPowerData();
-        data.chooseClass(PowerClass.WARDEN);
+        data.chooseClass(PowerClass.TIME);
+        data.unlockNextLevel();
+        check(data.changeClass(PowerClass.WARDEN), "command class change");
+        check(data.powerClass() == PowerClass.WARDEN && data.unlockedLevel() == 0, "class change resets progression");
         for (int i = 0; i < 8; i++) data.unlockNextLevel();
         check(data.toggleComboMode(), "combo mode enabled");
         data.beginCombo(2, 100L, 80, 1.0, 2.0, 3.0, true);

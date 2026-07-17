@@ -31,14 +31,16 @@ public final class PowerMenuScreen extends Screen {
 
         for (int level = 1; level <= maximum; level++) {
             int y = layout.rowTop() + (level - 1) * (layout.rowHeight() + layout.gap());
-            int buttonX = layout.listLeft() + layout.listWidth() - 104;
+            int buttonWidth = layout.listWidth() < 330 ? 72 : 90;
+            int buttonHeight = Math.max(16, Math.min(22, layout.rowHeight() - 4));
+            int buttonX = layout.listLeft() + layout.listWidth() - buttonWidth - 14;
             if (level <= unlocked) {
                 final int selectedLevel = level;
                 String label = level == selected ? "SEÇİLİ" : "SEÇ";
                 powerButtons[level - 1] = Button.builder(Component.literal(label), button -> {
                     ClientPlayNetworking.send(new ClientCommandPayload("SELECT:" + selectedLevel));
                     onClose();
-                }).bounds(buttonX, y + (layout.rowHeight() - 22) / 2 + 36, 90, 22).build();
+                }).bounds(buttonX, y + (layout.rowHeight() - buttonHeight) / 2 + 36, buttonWidth, buttonHeight).build();
                 powerButtons[level - 1].active = false;
                 addRenderableWidget(powerButtons[level - 1]);
             } else if (level == next) {
@@ -46,7 +48,7 @@ public final class PowerMenuScreen extends Screen {
                 powerButtons[level - 1] = Button.builder(Component.literal("AÇ  " + cost + " XP"), button -> {
                     ClientPlayNetworking.send(new ClientCommandPayload("UNLOCK"));
                     onClose();
-                }).bounds(buttonX, y + (layout.rowHeight() - 22) / 2 + 36, 90, 22).build();
+                }).bounds(buttonX, y + (layout.rowHeight() - buttonHeight) / 2 + 36, buttonWidth, buttonHeight).build();
                 powerButtons[level - 1].active = false;
                 addRenderableWidget(powerButtons[level - 1]);
             }
@@ -78,7 +80,8 @@ public final class PowerMenuScreen extends Screen {
             drawPowerRow(graphics, layout, powerClass, colors, level, y, now);
             Button button = powerButtons[level - 1];
             if (button != null) {
-                button.setY(y + (layout.rowHeight() - 22) / 2);
+                int buttonHeight = Math.max(16, Math.min(22, layout.rowHeight() - 4));
+                button.setY(y + (layout.rowHeight() - buttonHeight) / 2);
                 button.active = rowProgress >= 0.98F;
             }
         }
@@ -131,52 +134,61 @@ public final class PowerMenuScreen extends Screen {
         boolean selected = level == ClientState.selectedPower();
         int uses = ClientState.masteryUses(level);
         int stage = ClientState.masteryStage(level);
+        boolean veryCompact = layout.rowHeight() < 32;
+        boolean compactRow = layout.rowHeight() < 52;
 
         int rowColor = selected ? 0xE5283946 : (unlocked ? 0xD3131D25 : 0xC40C1117);
         graphics.fill(layout.listLeft(), y, layout.listLeft() + layout.listWidth(), y + layout.rowHeight(), rowColor);
-        graphics.fill(layout.listLeft(), y, layout.listLeft() + 6, y + layout.rowHeight(), selected ? colors[2] : (unlocked ? withAlpha(colors[2], 125) : 0xFF35404A));
+        graphics.fill(layout.listLeft(), y, layout.listLeft() + 5, y + layout.rowHeight(), selected ? colors[2] : (unlocked ? withAlpha(colors[2], 125) : 0xFF35404A));
         graphics.outline(layout.listLeft(), y, layout.listWidth(), layout.rowHeight(), selected ? colors[2] : 0x66798791);
 
-        int badgeX = layout.listLeft() + 14;
-        int badgeY = y + (layout.rowHeight() - 34) / 2;
-        graphics.fill(badgeX, badgeY, badgeX + 34, badgeY + 34, unlocked ? withAlpha(colors[2], selected ? 200 : 95) : 0xFF222A31);
-        graphics.outline(badgeX, badgeY, 34, 34, unlocked ? colors[2] : 0xFF59636C);
+        int badgeSize = Math.max(18, Math.min(34, layout.rowHeight() - 6));
+        int badgeX = layout.listLeft() + 10;
+        int badgeY = y + (layout.rowHeight() - badgeSize) / 2;
+        graphics.fill(badgeX, badgeY, badgeX + badgeSize, badgeY + badgeSize, unlocked ? withAlpha(colors[2], selected ? 200 : 95) : 0xFF222A31);
+        graphics.outline(badgeX, badgeY, badgeSize, badgeSize, unlocked ? colors[2] : 0xFF59636C);
         String roman = roman(level);
-        graphics.text(font, roman, badgeX + (34 - font.width(roman)) / 2, badgeY + 12, powerClass == PowerClass.FLIGHT && unlocked ? 0xFF173448 : 0xFFFFFFFF, true);
+        graphics.text(font, roman, badgeX + (badgeSize - font.width(roman)) / 2, badgeY + Math.max(4, (badgeSize - 8) / 2), powerClass == PowerClass.FLIGHT && unlocked ? 0xFF173448 : 0xFFFFFFFF, true);
 
-        int textX = layout.listLeft() + 60;
-        int textRight = layout.listLeft() + layout.listWidth() - 118;
-        String stageName = PowerCatalog.masteryStageName(stage);
-        int chipWidth = font.width(stageName) + 12;
-        int chipX = Math.max(textX + 92, textRight - chipWidth);
-        String name = fit(PowerCatalog.powerName(powerClass, level), Math.max(50, chipX - textX - 8));
-        graphics.text(font, name, textX, y + 8, unlocked ? 0xFFFFFFFF : 0xFF8B969E, true);
+        int buttonReserve = layout.listWidth() < 330 ? 96 : 118;
+        int textX = badgeX + badgeSize + 10;
+        int textRight = layout.listLeft() + layout.listWidth() - buttonReserve;
+        int textWidth = Math.max(42, textRight - textX);
+        String name = fit(PowerCatalog.powerName(powerClass, level), textWidth);
+        int nameY = y + (veryCompact ? Math.max(4, (layout.rowHeight() - 8) / 2) : 6);
+        graphics.text(font, name, textX, nameY, unlocked ? 0xFFFFFFFF : 0xFF8B969E, true);
 
-        graphics.fill(chipX, y + 6, chipX + chipWidth, y + 19, unlocked ? withAlpha(colors[2], 50 + stage * 28) : 0x332B3238);
-        graphics.outline(chipX, y + 6, chipWidth, 13, unlocked ? withAlpha(colors[2], 180) : 0x5559636B);
-        graphics.text(font, stageName, chipX + 6, y + 9, unlocked ? 0xFFFFFFFF : 0xFF77828A, false);
-
-        boolean compactRow = layout.rowHeight() < 52;
-        int barY = y + layout.rowHeight() - 8;
-        int barWidth = Math.max(90, textRight - textX);
-        String usage = stage >= 3 ? uses + " kullanım • TAM" : uses + "/" + PowerCatalog.nextMasteryTarget(uses) + " kullanım";
         String locked = level == ClientState.unlockedLevel() + 1
             ? PowerCatalog.xpCostForLevel(powerClass, level) + " XP ile açılır"
             : "Önceki seviye gerekli";
+        String usage = stage >= 3 ? uses + " kullanım • TAM" : uses + "/" + PowerCatalog.nextMasteryTarget(uses) + " kullanım";
 
-        if (compactRow) {
-            String compactText = unlocked ? usage : locked;
-            graphics.text(font, fit(compactText, barWidth), textX, y + 25, unlocked ? 0xFF91A8B5 : 0xFFB7786D, false);
-        } else {
-            String description = fit(PowerCatalog.powerDescription(powerClass, level), Math.max(100, textRight - textX));
-            graphics.text(font, description, textX, y + 24, unlocked ? 0xFFC7D4DC : 0xFF707A82, false);
-            graphics.text(font, unlocked ? usage : locked, textX, barY - 10, unlocked ? 0xFF91A8B5 : 0xFFB7786D, false);
+        if (!veryCompact) {
+            String secondLine;
+            if (compactRow) {
+                secondLine = unlocked ? usage : locked;
+            } else {
+                secondLine = PowerCatalog.powerDescription(powerClass, level);
+            }
+            graphics.text(font, fit(secondLine, textWidth), textX, y + 20, unlocked ? 0xFF91A8B5 : 0xFFB7786D, false);
         }
 
-        graphics.fill(textX, barY, textX + barWidth, barY + 4, 0xFF202933);
-        if (unlocked) {
-            int filled = Math.max(2, (int) (barWidth * PowerCatalog.masteryProgress(uses)));
-            graphics.fill(textX, barY, textX + Math.min(barWidth, filled), barY + 4, colors[2]);
+        if (layout.rowHeight() >= 42) {
+            String stageName = PowerCatalog.masteryStageName(stage);
+            int chipWidth = font.width(stageName) + 10;
+            int chipX = Math.max(textX, textRight - chipWidth);
+            graphics.fill(chipX, y + 5, chipX + chipWidth, y + 18, unlocked ? withAlpha(colors[2], 50 + stage * 28) : 0x332B3238);
+            graphics.outline(chipX, y + 5, chipWidth, 13, unlocked ? withAlpha(colors[2], 180) : 0x5559636B);
+            graphics.text(font, stageName, chipX + 5, y + 8, unlocked ? 0xFFFFFFFF : 0xFF77828A, false);
+        }
+
+        if (layout.rowHeight() >= 36) {
+            int barY = y + layout.rowHeight() - 6;
+            graphics.fill(textX, barY, textX + textWidth, barY + 3, 0xFF202933);
+            if (unlocked) {
+                int filled = Math.max(2, (int) (textWidth * PowerCatalog.masteryProgress(uses)));
+                graphics.fill(textX, barY, textX + Math.min(textWidth, filled), barY + 3, colors[2]);
+            }
         }
 
         if (selected) {
@@ -364,20 +376,22 @@ public final class PowerMenuScreen extends Screen {
     }
 
     private Layout layout() {
-        int totalWidth = Math.min(930, Math.max(430, width - 28));
+        // GUI ölçeği büyütüldüğünde ekranın mantıksal genişliği 430 px altına düşebilir.
+        // Eski sabit minimum genişlik ve 38 px satır zorlaması Warden'ın 6. satırını ekran dışına itiyordu.
+        int totalWidth = Math.max(180, Math.min(930, width - 20));
         boolean wide = totalWidth >= 760 && height >= 520;
         int detailWidth = wide ? 252 : 0;
         int gapToDetail = wide ? 14 : 0;
         int listWidth = totalWidth - detailWidth - gapToDetail;
-        int totalLeft = (width - totalWidth) / 2;
+        int totalLeft = Math.max(5, (width - totalWidth) / 2);
         int listLeft = totalLeft;
         int detailLeft = listLeft + listWidth + gapToDetail;
-        int rowTop = height < 430 ? 68 : 78;
+        int rowTop = height < 300 ? 62 : (height < 430 ? 68 : 78);
         int powerCount = PowerCatalog.maxLevel(ClientState.powerClass());
-        int gap = powerCount >= 6 ? (height < 430 ? 3 : 5) : 7;
-        int footerSpace = wide ? 26 : (height < 430 ? 16 : 52);
-        int available = Math.max(powerCount * 38, height - rowTop - footerSpace - gap * (powerCount - 1));
-        int rowHeight = Math.max(38, Math.min(66, available / powerCount));
+        int gap = powerCount >= 6 ? (height < 300 ? 1 : (height < 430 ? 3 : 5)) : (height < 300 ? 2 : 7);
+        int footerSpace = wide ? 26 : (height < 300 ? 7 : (height < 430 ? 16 : 52));
+        int available = Math.max(powerCount * 18, height - rowTop - footerSpace - gap * (powerCount - 1));
+        int rowHeight = Math.max(18, Math.min(66, available / powerCount));
         return new Layout(totalLeft, totalWidth, listLeft, listWidth, detailLeft, detailWidth, rowTop, rowHeight, gap, wide);
     }
 

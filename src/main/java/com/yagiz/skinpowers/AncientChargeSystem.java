@@ -162,6 +162,14 @@ public final class AncientChargeSystem {
     }
 
     public static void clear(ServerPlayer player) {
+        clear(player, true);
+    }
+
+    public static void clearSilently(ServerPlayer player) {
+        clear(player, false);
+    }
+
+    private static void clear(ServerPlayer player, boolean notify) {
         PlayerPowerData data = PlayerDataStore.get(player.getUUID());
         long now = player.level().getGameTime();
         int recovery = data.sacrificedHealthPointsToRecover() + (data.selfSacrificeActive() ? 6 : 0);
@@ -173,7 +181,7 @@ public final class AncientChargeSystem {
         BEAMS.removeIf(beam -> beam.caster.equals(player.getUUID()));
         PlayerDataStore.markDirty();
         ServerNetworking.sync(player);
-        player.sendSystemMessage(Component.literal("Antik Şehir Şarjı, çöküş ve kalp bedeli temizlendi."));
+        if (notify) player.sendSystemMessage(Component.literal("Antik Şehir Şarjı, çöküş ve kalp bedeli temizlendi."));
     }
 
     public static void consume(ServerPlayer player, PlayerPowerData data, int usedPower, long now) {

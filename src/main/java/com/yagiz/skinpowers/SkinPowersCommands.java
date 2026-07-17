@@ -15,51 +15,88 @@ public final class SkinPowersCommands {
     private SkinPowersCommands() {}
 
     public static void register() {
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            dispatcher.register(buildTurkishRoot());
-            dispatcher.register(buildEnglishRoot());
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
+            dispatcher.register(buildRoot())
+        );
+    }
+
+    /** Tek komut kökü: /skinpower */
+    private static LiteralArgumentBuilder<CommandSourceStack> buildRoot() {
+        LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("skinpower")
+            .then(selfClass("warden", PowerClass.WARDEN))
+            .then(selfClass("ucus", PowerClass.FLIGHT))
+            .then(selfClass("ates", PowerClass.FIRE))
+            .then(selfClass("doga", PowerClass.NATURE))
+            .then(selfClass("zaman", PowerClass.TIME));
+
+        root.then(Commands.literal("degistir")
+            .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_MODERATOR))
+            .then(Commands.argument("oyuncu", EntityArgument.player())
+                .then(targetClass("warden", PowerClass.WARDEN))
+                .then(targetClass("ucus", PowerClass.FLIGHT))
+                .then(targetClass("ates", PowerClass.FIRE))
+                .then(targetClass("doga", PowerClass.NATURE))
+                .then(targetClass("zaman", PowerClass.TIME))));
+
+        root.then(Commands.literal("reset")
+            .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_MODERATOR))
+            .then(Commands.argument("oyuncu", EntityArgument.player())
+                .executes(context -> resetPlayer(context.getSource(), EntityArgument.getPlayer(context, "oyuncu")))));
+
+        root.then(Commands.literal("meteor")
+            .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_MODERATOR))
+            .then(Commands.literal("blokhasari")
+                .then(Commands.argument("durum", BoolArgumentType.bool())
+                    .executes(context -> setMeteorDamage(context.getSource(), BoolArgumentType.getBool(context, "durum"))))));
+
+        root.then(Commands.literal("sarj")
+            .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_MODERATOR))
+            .then(Commands.literal("ver")
+                .then(Commands.argument("oyuncu", EntityArgument.player())
+                    .then(Commands.argument("saniye", IntegerArgumentType.integer(1))
+                        .executes(context -> giveCharge(
+                            context.getSource(),
+                            EntityArgument.getPlayer(context, "oyuncu"),
+                            IntegerArgumentType.getInteger(context, "saniye")
+                        )))))
+            .then(Commands.literal("temizle")
+                .then(Commands.argument("oyuncu", EntityArgument.player())
+                    .executes(context -> clearCharge(context.getSource(), EntityArgument.getPlayer(context, "oyuncu"))))));
+
+        return root;
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> selfClass(String literal, PowerClass powerClass) {
+        return Commands.literal(literal).executes(context -> {
+            ServerPlayer player = context.getSource().getPlayerOrException();
+            return changeClass(context.getSource(), player, powerClass, false);
         });
     }
 
-    private static LiteralArgumentBuilder<CommandSourceStack> buildTurkishRoot() {
-        return Commands.literal("skingucu")
-            .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_MODERATOR))
-            .then(Commands.literal("reset")
-                .then(Commands.argument("oyuncu", EntityArgument.player())
-                    .executes(context -> resetPlayer(context.getSource(), EntityArgument.getPlayer(context, "oyuncu")))))
-            .then(Commands.literal("meteor")
-                .then(Commands.literal("blokhasari")
-                    .then(Commands.argument("durum", BoolArgumentType.bool())
-                        .executes(context -> setMeteorDamage(context.getSource(), BoolArgumentType.getBool(context, "durum"))))))
-            .then(Commands.literal("sarj")
-                .then(Commands.literal("ver")
-                    .then(Commands.argument("oyuncu", EntityArgument.player())
-                        .then(Commands.argument("saniye", IntegerArgumentType.integer(1))
-                            .executes(context -> giveCharge(
-                                context.getSource(),
-                                EntityArgument.getPlayer(context, "oyuncu"),
-                                IntegerArgumentType.getInteger(context, "saniye")
-                            )))))
-                .then(Commands.literal("temizle")
-                    .then(Commands.argument("oyuncu", EntityArgument.player())
-                        .executes(context -> clearCharge(context.getSource(), EntityArgument.getPlayer(context, "oyuncu"))))));
+    private static LiteralArgumentBuilder<CommandSourceStack> targetClass(String literal, PowerClass powerClass) {
+        return Commands.literal(literal).executes(context ->
+            changeClass(context.getSource(), EntityArgument.getPlayer(context, "oyuncu"), powerClass, true)
+        );
     }
 
-    private static LiteralArgumentBuilder<CommandSourceStack> buildEnglishRoot() {
-        return Commands.literal("skinpowers")
-            .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_MODERATOR))
-            .then(Commands.literal("charge")
-                .then(Commands.literal("give")
-                    .then(Commands.argument("player", EntityArgument.player())
-                        .then(Commands.argument("seconds", IntegerArgumentType.integer(1))
-                            .executes(context -> giveCharge(
-                                context.getSource(),
-                                EntityArgument.getPlayer(context, "player"),
-                                IntegerArgumentType.getInteger(context, "seconds")
-                            )))))
-                .then(Commands.literal("clear")
-                    .then(Commands.argument("player", EntityArgument.player())
-                        .executes(context -> clearCharge(context.getSource(), EntityArgument.getPlayer(context, "player"))))));
+    private static int changeClass(CommandSourceStack source, ServerPlayer target, PowerClass powerClass, boolean adminChange) {
+        PlayerPowerData data = PlayerDataStore.get(target.getUUID());
+        if (data.powerClass() == powerClass) {
+            source.sendFailure(Component.literal(target.getScoreboardName() + " zaten " + powerClass.displayName() + " sınıfında."));
+            return 0;
+        }
+
+        AncientChargeSystem.clearSilently(target);
+        data.changeClass(powerClass);
+        PlayerDataStore.markDirty();
+        PlayerDataStore.save();
+        ServerNetworking.sync(target);
+
+        target.sendSystemMessage(Component.literal("Sınıfın değiştirildi: " + powerClass.displayName() + ". Güç seviyeleri yeniden açılmalıdır."));
+        if (adminChange) {
+            source.sendSuccess(() -> Component.literal(target.getScoreboardName() + " artık " + powerClass.displayName() + " sınıfında."), true);
+        }
+        return 1;
     }
 
     private static int resetPlayer(CommandSourceStack source, ServerPlayer target) {
