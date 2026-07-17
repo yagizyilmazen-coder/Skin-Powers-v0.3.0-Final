@@ -474,6 +474,9 @@ public final class PvpBotSystem {
         );
         Vec3 direction = miss.subtract(start);
         double length = Math.min(14.0, Math.max(1.0, direction.length()));
+        long travelTicks = Math.max(26L, Math.min(48L, Math.round(length * 2.2D + 12.0D)));
+        spawnTravelCluster(state, start, miss,
+            visibleCoreStack(state.powerClass), visibleSatelliteStack(state.powerClass), travelTicks, 0.45);
         direction = direction.normalize();
         for (double d = 0.7; d <= length; d += 0.8) {
             Vec3 point = start.add(direction.scale(d));
@@ -821,36 +824,64 @@ public final class PvpBotSystem {
     }
 
     private static void spawnCastVisuals(Husk bot, BotState state, int ability, boolean awakened) {
-        ItemStack focus = switch (state.powerClass) {
-            case WARDEN -> new ItemStack(ability >= 3 ? Items.ECHO_SHARD : Items.SCULK_CATALYST);
-            case FIRE -> new ItemStack(ability >= 4 ? Items.MAGMA_CREAM : Items.FIRE_CHARGE);
-            case NATURE -> new ItemStack(ability >= 4 ? Items.SPORE_BLOSSOM : Items.VINE);
-            case ANOMALY -> new ItemStack(ability >= 4 ? Items.ENDER_EYE : Items.ENDER_PEARL);
-            case FLIGHT -> new ItemStack(ability >= 4 ? Items.DRAGON_BREATH : Items.AMETHYST_SHARD);
-            default -> new ItemStack(Items.NETHER_STAR);
-        };
-        int count = awakened ? 4 : 3;
+        // Küçük eşya ikonları uzaktan seçilmiyordu. Tam blok modelleri botun güç hazırlığını
+        // gerçekten görünür yapar; parçacıklar yalnızca destek izidir.
+        ItemStack focus = visibleCoreStack(state.powerClass);
+        int count = awakened ? 6 : 4;
         for (int i = 0; i < count; i++) {
-            spawnOrbitVisual(state, bot, focus.copy(), awakened ? 30L : 22L,
-                awakened ? 1.65 : 1.25, 0.85 + i * 0.18, Math.PI * 2.0 * i / count);
+            spawnOrbitVisual(state, bot, focus.copy(), awakened ? 42L : 30L,
+                awakened ? 1.85 : 1.45, 0.70 + (i % 3) * 0.32, Math.PI * 2.0 * i / count);
         }
     }
 
 
     private static void spawnTravelCluster(BotState state, Vec3 start, Vec3 end, ItemStack core,
                                            ItemStack satellite, long duration, double arcHeight) {
-        spawnTravelVisual(state, start, end, core, duration, arcHeight);
-        Vec3 direction = horizontal(end.subtract(start));
-        Vec3 right = direction.cross(new Vec3(0.0, 1.0, 0.0));
-        for (int i = 0; i < 4; i++) {
-            double angle = Math.PI * 2.0 * i / 4.0;
-            Vec3 offset = right.scale(Math.cos(angle) * 0.42).add(0.0, Math.sin(angle) * 0.42, 0.0);
-            spawnTravelVisual(state, start.add(offset), end.add(offset.scale(0.35)), satellite.copy(),
-                duration + (i % 2), arcHeight + 0.10);
+        double distance = Math.max(1.0, start.distanceTo(end));
+        // Çok kısa süreli gövdeler oyuncunun ekranında yalnızca bir kare görünüyordu.
+        long travelTicks = Math.max(duration, Math.min(56L, Math.round(distance * 2.15D + 14.0D)));
+
+        // Merkezde sınıfa ait tam blok modeli bulunur. Böylece düşük parçacık ayarında bile saldırı görünür.
+        spawnTravelVisual(state, start, end, visibleCoreStack(state.powerClass), travelTicks,
+            arcHeight, 0.0, 0.0);
+        // Orijinal güç eşyası merkez çekirdeğin içinde ikinci bir parlak katman oluşturur.
+        spawnTravelVisual(state, start, end, core.copy(), travelTicks + 2L,
+            arcHeight + 0.08, 0.22, 0.0);
+
+        int satellites = 8;
+        for (int i = 0; i < satellites; i++) {
+            double phase = Math.PI * 2.0 * i / satellites;
+            double radius = i % 2 == 0 ? 0.55 : 0.82;
+            ItemStack body = i % 3 == 0 ? visibleSatelliteStack(state.powerClass) : satellite.copy();
+            spawnTravelVisual(state, start, end, body, travelTicks + (i % 3),
+                arcHeight + (i % 2) * 0.10, radius, phase);
         }
     }
 
-    private static void spawnTravelVisual(BotState state, Vec3 start, Vec3 end, ItemStack stack, long duration, double arcHeight) {
+    private static ItemStack visibleCoreStack(PowerClass powerClass) {
+        return switch (powerClass) {
+            case WARDEN -> new ItemStack(Items.SCULK_CATALYST);
+            case FIRE -> new ItemStack(Items.MAGMA_BLOCK);
+            case NATURE -> new ItemStack(Items.MOSS_BLOCK);
+            case ANOMALY -> new ItemStack(Items.CRYING_OBSIDIAN);
+            case FLIGHT -> new ItemStack(Items.AMETHYST_BLOCK);
+            default -> new ItemStack(Items.NETHER_STAR);
+        };
+    }
+
+    private static ItemStack visibleSatelliteStack(PowerClass powerClass) {
+        return switch (powerClass) {
+            case WARDEN -> new ItemStack(Items.SCULK_SENSOR);
+            case FIRE -> new ItemStack(Items.CRYING_OBSIDIAN);
+            case NATURE -> new ItemStack(Items.OAK_LEAVES);
+            case ANOMALY -> new ItemStack(Items.AMETHYST_BLOCK);
+            case FLIGHT -> new ItemStack(Items.OBSIDIAN);
+            default -> new ItemStack(Items.GLOWSTONE);
+        };
+    }
+
+    private static void spawnTravelVisual(BotState state, Vec3 start, Vec3 end, ItemStack stack,
+                                          long duration, double arcHeight, double orbitRadius, double phase) {
         ItemEntity body = new ItemEntity(state.level, start.x, start.y, start.z, stack);
         body.setNoGravity(true);
         body.setDeltaMovement(Vec3.ZERO);
@@ -861,7 +892,7 @@ public final class PvpBotSystem {
         if (!state.level.addFreshEntity(body)) return;
         long now = state.level.getGameTime();
         ATTACK_VISUALS.add(new BotAttackVisual(state.level, body.getUUID(), null, start, end,
-            now, now + Math.max(2L, duration), arcHeight, 0.0, 0.0, 0.0, state.powerClass));
+            now, now + Math.max(2L, duration), arcHeight, orbitRadius, 0.0, phase, state.powerClass));
     }
 
     private static void spawnOrbitVisual(BotState state, Entity anchor, ItemStack stack, long duration,
@@ -909,14 +940,23 @@ public final class PvpBotSystem {
                 );
             } else {
                 double eased = 1.0 - Math.pow(1.0 - progress, 2.0);
-                position = visual.start.lerp(visual.end, eased)
+                Vec3 base = visual.start.lerp(visual.end, eased)
                     .add(0.0, Math.sin(Math.PI * progress) * visual.arcHeight, 0.0);
+                if (visual.orbitRadius > 0.0) {
+                    Vec3 forward = horizontal(visual.end.subtract(visual.start));
+                    Vec3 right = forward.cross(new Vec3(0.0, 1.0, 0.0));
+                    double angle = visual.phase + progress * Math.PI * 8.0;
+                    position = base.add(right.scale(Math.cos(angle) * visual.orbitRadius))
+                        .add(0.0, Math.sin(angle) * visual.orbitRadius, 0.0);
+                } else {
+                    position = base;
+                }
             }
             body.setPos(position.x, position.y, position.z);
             body.setDeltaMovement(Vec3.ZERO);
             if (now % 2L == 0L) {
                 visual.level.sendParticles(classParticle(visual.powerClass), position.x, position.y + 0.12, position.z,
-                    3, 0.16, 0.16, 0.16, 0.018);
+                    visual.orbitRadius > 0.0 ? 2 : 4, 0.16, 0.16, 0.16, 0.018);
             }
         }
     }
