@@ -24,9 +24,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/** Gerçek skin piksellerini analiz eder; uydurma eşit puan üretmez. */
 public final class SkinAnalyzer {
+    private static final int CLASS_COUNT = 5;
     private static final int[][] WARDEN_COLORS = {
-        {8, 12, 18}, {17, 29, 48}, {31, 26, 67}, {63, 27, 88}, {15, 61, 78}, {25, 126, 132}
+        {6, 12, 18}, {17, 29, 48}, {31, 26, 67}, {63, 27, 88}, {15, 61, 78}, {25, 126, 132}
     };
     private static final int[][] FLIGHT_COLORS = {
         {248, 250, 255}, {205, 216, 228}, {157, 207, 235}, {188, 190, 200}, {105, 176, 226}
@@ -37,6 +39,10 @@ public final class SkinAnalyzer {
     private static final int[][] NATURE_COLORS = {
         {46, 125, 50}, {76, 148, 63}, {31, 92, 43}, {104, 159, 56}, {91, 67, 39}, {126, 92, 49}, {59, 104, 53}
     };
+    private static final int[][] TIME_COLORS = {
+        {236, 190, 54}, {255, 219, 96}, {24, 42, 92}, {31, 65, 126}, {78, 205, 218}, {224, 235, 246}
+    };
+
     private static final java.util.concurrent.ConcurrentHashMap<UUID, Result> CACHE = new java.util.concurrent.ConcurrentHashMap<>();
     private static final ExecutorService ANALYSIS_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
         Thread thread = new Thread(runnable, "SkinPowers-SkinAnalyzer");
@@ -44,10 +50,19 @@ public final class SkinAnalyzer {
         thread.setPriority(Thread.MIN_PRIORITY);
         return thread;
     });
+    // Skin analizi ile ağ istekleri aynı tek iş parçacığını paylaşırsa blocking send()
+    // birbirini bekleyerek analizin sonsuza kadar "bulunamadı" kalmasına yol açabilir.
+    // Ağ işlemleri bu nedenle ayrı, daemon bir havuzda çalışır.
+    private static final ExecutorService HTTP_EXECUTOR = Executors.newFixedThreadPool(2, runnable -> {
+        Thread thread = new Thread(runnable, "SkinPowers-SkinHttp");
+        thread.setDaemon(true);
+        thread.setPriority(Thread.MIN_PRIORITY);
+        return thread;
+    });
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofSeconds(5))
+        .connectTimeout(Duration.ofSeconds(6))
         .followRedirects(HttpClient.Redirect.NORMAL)
-        .executor(ANALYSIS_EXECUTOR)
+        .executor(HTTP_EXECUTOR)
         .build();
 
     private SkinAnalyzer() {}
@@ -60,18 +75,17 @@ public final class SkinAnalyzer {
         }
         return CompletableFuture.supplyAsync(() -> {
             try {
-                String skinUrl = findSkinUrl(profile, HTTP_CLIENT);
-                if (skinUrl == null || !skinUrl.startsWith("https://")) return Result.unavailable();
-
+                String skinUrl = normalizeSkinUrl(findSkinUrl(profile, HTTP_CLIENT));
+                if (skinUrl == null) return Result.unavailable();
                 HttpRequest request = HttpRequest.newBuilder(URI.create(skinUrl))
-                    .timeout(Duration.ofSeconds(8))
-                    .header("User-Agent", "SkinPowers/4.0.0")
+                    .timeout(Duration.ofSeconds(10))
+                    .header("User-Agent", "SkinPowers/1.0.0")
                     .GET()
                     .build();
-                HttpResponse<byte[]> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofByteArray());
-                if (response.statusCode() < 200 || response.statusCode() >= 300) return Result.unavailable();
+                HttpResponse<byte[]> response = sendBytesWithRetry(request, 2);
+                if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) return Result.unavailable();
                 BufferedImage image = ImageIO.read(new ByteArrayInputStream(response.body()));
-                if (image == null) return Result.unavailable();
+                if (image == null || image.getWidth() < 64 || image.getHeight() < 32) return Result.unavailable();
                 Result analyzed = analyze(image);
                 if (profileId != null && analyzed.fromSkin()) CACHE.put(profileId, analyzed);
                 return analyzed;
@@ -82,12 +96,13 @@ public final class SkinAnalyzer {
     }
 
     static Result analyze(BufferedImage image) {
-        double warden = 0.0;
-        double flight = 0.0;
-        double fire = 0.0;
-        double nature = 0.0;
+        double[] totals = new double[CLASS_COUNT];
+        double weightedCount = 0.0;
         int counted = 0;
         int matched = 0;
+        int goldPixels = 0;
+        int navyPixels = 0;
+        int cyanPixels = 0;
         Map<Integer, Integer> quantized = new HashMap<>();
 
         int width = image.getWidth();
@@ -98,95 +113,108 @@ public final class SkinAnalyzer {
             for (int x = 0; x < width; x++) {
                 int argb = skinPixels[y * width + x];
                 int alpha = (argb >>> 24) & 0xFF;
-                if (alpha < 32) continue;
+                if (alpha < 24) continue;
 
                 int red = (argb >>> 16) & 0xFF;
                 int green = (argb >>> 8) & 0xFF;
                 int blue = argb & 0xFF;
+                double weight = pixelWeight(x, y, width, height);
                 counted++;
+                weightedCount += weight;
 
                 double[] scores = pixelScores(red, green, blue);
-                double best = Math.max(Math.max(scores[0], scores[1]), Math.max(scores[2], scores[3]));
-                if (best >= 0.18) {
-                    warden += Math.pow(scores[0], 2.6);
-                    flight += Math.pow(scores[1], 2.6);
-                    fire += Math.pow(scores[2], 2.6);
-                    nature += Math.pow(scores[3], 2.6);
-                    matched++;
+                double best = 0.0;
+                for (double score : scores) best = Math.max(best, score);
+                if (best >= 0.08) matched++;
+                for (int i = 0; i < scores.length; i++) {
+                    // Yakın renkler birden fazla sınıfa puan verebilir; güçlü eşleşmeler daha fazla ağırlık alır.
+                    totals[i] += Math.pow(scores[i], 2.05) * weight;
                 }
+
+                double hue = hueDegrees(red, green, blue);
+                double max = Math.max(red, Math.max(green, blue)) / 255.0;
+                double min = Math.min(red, Math.min(green, blue)) / 255.0;
+                double saturation = max <= 0.0001 ? 0.0 : (max - min) / max;
+                if (hue >= 38 && hue <= 62 && saturation > 0.35 && max > 0.45) goldPixels++;
+                if (hue >= 208 && hue <= 245 && max < 0.62 && saturation > 0.25) navyPixels++;
+                if (hue >= 175 && hue <= 205 && saturation > 0.25 && max > 0.45) cyanPixels++;
 
                 int qr = (red / 24) * 24;
                 int qg = (green / 24) * 24;
                 int qb = (blue / 24) * 24;
-                int key = (qr << 16) | (qg << 8) | qb;
-                quantized.merge(key, 1, Integer::sum);
+                quantized.merge((qr << 16) | (qg << 8) | qb, 1, Integer::sum);
             }
         }
 
-        if (counted == 0) return Result.unavailable();
+        if (counted == 0 || weightedCount <= 0.0) return Result.unavailable();
+
+        // Zaman sınıfı tek renkten çok altın + lacivert/camgöbeği birlikteliğiyle öne çıkar.
+        double pairFraction = Math.min(goldPixels, navyPixels + cyanPixels) / (double) counted;
+        totals[4] += pairFraction * weightedCount * 2.6;
+
+        double sum = 0.0;
+        for (int i = 0; i < totals.length; i++) {
+            totals[i] = Math.max(0.000001, totals[i] / weightedCount);
+            sum += totals[i];
+        }
+        if (sum <= 0.0) return Result.unavailable();
+        for (int i = 0; i < totals.length; i++) totals[i] /= sum;
+
         int[] dominant = quantized.entrySet().stream()
             .sorted(Map.Entry.<Integer, Integer>comparingByValue(Comparator.reverseOrder()))
-            .limit(4)
+            .limit(5)
             .mapToInt(Map.Entry::getKey)
             .toArray();
-        if (dominant.length < 4) {
-            int[] filled = {0x233044, 0x8FCBE8, 0xE95818, 0x4F8B3B};
+        if (dominant.length < 5) {
+            int[] filled = {0x233044, 0x8FCBE8, 0xE95818, 0x4F8B3B, 0xD5AF42};
             System.arraycopy(dominant, 0, filled, 0, dominant.length);
             dominant = filled;
         }
 
-        return new Result(
-            warden / counted,
-            flight / counted,
-            fire / counted,
-            nature / counted,
-            dominant,
-            true,
-            skinPixels,
-            width,
-            height,
-            matched / (double) counted
-        );
+        return new Result(totals, dominant, true, skinPixels, width, height, matched / (double) counted);
+    }
+
+    private static double pixelWeight(int x, int y, int width, int height) {
+        if (width < 64 || height < 32) return 1.0;
+        // Baş/ten bölgesi sonucu tek başına ele geçirmesin. Gövde ve ikinci katmanlar daha önemli.
+        if (y < 16) return 0.42;
+        if (y < 32) return 1.10;
+        return 1.38;
     }
 
     private static double[] pixelScores(int r, int g, int b) {
-        double warden = nearestSimilarity(r, g, b, WARDEN_COLORS, 58.0);
-        double flight = nearestSimilarity(r, g, b, FLIGHT_COLORS, 52.0);
-        double fire = nearestSimilarity(r, g, b, FIRE_COLORS, 52.0);
-        double nature = nearestSimilarity(r, g, b, NATURE_COLORS, 52.0);
+        double warden = nearestSimilarity(r, g, b, WARDEN_COLORS, 70.0);
+        double flight = nearestSimilarity(r, g, b, FLIGHT_COLORS, 68.0);
+        double fire = nearestSimilarity(r, g, b, FIRE_COLORS, 66.0);
+        double nature = nearestSimilarity(r, g, b, NATURE_COLORS, 68.0);
+        double time = nearestSimilarity(r, g, b, TIME_COLORS, 64.0);
 
         double max = Math.max(r, Math.max(g, b)) / 255.0;
         double min = Math.min(r, Math.min(g, b)) / 255.0;
         double saturation = max <= 0.0001 ? 0.0 : (max - min) / max;
         double hue = hueDegrees(r, g, b);
 
-        if (max < 0.34 && (b >= r * 0.82 || hue >= 220.0 && hue <= 310.0)) {
-            warden = Math.max(warden, 0.72 + (0.34 - max) * 0.65);
-        }
-        if (max > 0.68 && saturation < 0.30) {
-            flight = Math.max(flight, 0.72 + (max - 0.68) * 0.70);
-        }
-        if (max > 0.68 && hue >= 198.0 && hue <= 230.0 && saturation < 0.55) {
-            flight = Math.max(flight, 0.66 + Math.min(0.24, (1.0 - saturation) * 0.28));
-        }
-        if (saturation > 0.42 && max > 0.30 && (hue <= 67.0 || hue >= 345.0)) {
-            fire = Math.max(fire, 0.74 + Math.min(0.22, saturation * 0.22));
-        }
-        if (saturation > 0.28 && max > 0.20 && hue >= 72.0 && hue <= 155.0) {
-            nature = Math.max(nature, 0.70 + Math.min(0.27, saturation * 0.25));
-        }
-        // Kahverengi/toprak tonları da Doğa sınıfına katkı verir.
-        if (r > g && g > b && hue >= 22.0 && hue <= 52.0 && max < 0.72 && saturation > 0.22) {
-            nature = Math.max(nature, 0.55 + Math.min(0.28, saturation * 0.24));
-        }
+        if (max < 0.34 && (b >= r * 0.82 || hue >= 220.0 && hue <= 310.0)) warden = Math.max(warden, 0.72);
+        if (max > 0.68 && saturation < 0.30) flight = Math.max(flight, 0.72);
+        if (max > 0.68 && hue >= 198.0 && hue <= 230.0 && saturation < 0.55) flight = Math.max(flight, 0.68);
+        if (saturation > 0.42 && max > 0.30 && (hue <= 35.0 || hue >= 345.0)) fire = Math.max(fire, 0.78);
+        if (saturation > 0.28 && max > 0.20 && hue >= 72.0 && hue <= 155.0) nature = Math.max(nature, 0.75);
+        if (r > g && g > b && hue >= 22.0 && hue <= 52.0 && max < 0.72 && saturation > 0.22) nature = Math.max(nature, 0.58);
+        if (hue >= 40.0 && hue <= 60.0 && max > 0.55 && saturation > 0.32) time = Math.max(time, 0.76);
+        if (hue >= 212.0 && hue <= 245.0 && max < 0.62) time = Math.max(time, 0.68);
 
-        return new double[]{clamp01(warden), clamp01(flight), clamp01(fire), clamp01(nature)};
+        return new double[]{clamp01(warden), clamp01(flight), clamp01(fire), clamp01(nature), clamp01(time)};
+    }
+
+    private static String normalizeSkinUrl(String url) {
+        if (url == null || url.isBlank()) return null;
+        if (url.startsWith("http://textures.minecraft.net/")) return "https://" + url.substring("http://".length());
+        if (url.startsWith("https://")) return url;
+        return null;
     }
 
     private static double hueDegrees(int r, int g, int b) {
-        double rd = r / 255.0;
-        double gd = g / 255.0;
-        double bd = b / 255.0;
+        double rd = r / 255.0, gd = g / 255.0, bd = b / 255.0;
         double max = Math.max(rd, Math.max(gd, bd));
         double min = Math.min(rd, Math.min(gd, bd));
         double delta = max - min;
@@ -201,45 +229,83 @@ public final class SkinAnalyzer {
     private static double nearestSimilarity(int r, int g, int b, int[][] prototypes, double sigma) {
         double bestDistanceSquared = Double.MAX_VALUE;
         for (int[] prototype : prototypes) {
-            double dr = r - prototype[0];
-            double dg = g - prototype[1];
-            double db = b - prototype[2];
-            double distanceSquared = dr * dr + dg * dg + db * db;
-            if (distanceSquared < bestDistanceSquared) bestDistanceSquared = distanceSquared;
+            double dr = r - prototype[0], dg = g - prototype[1], db = b - prototype[2];
+            bestDistanceSquared = Math.min(bestDistanceSquared, dr * dr + dg * dg + db * db);
         }
         return Math.exp(-bestDistanceSquared / (2.0 * sigma * sigma));
     }
 
     private static String findSkinUrl(GameProfile profile, HttpClient client) throws Exception {
         if (profile == null) return null;
-
         String embedded = findEmbeddedSkinUrl(profile);
         if (embedded != null) return embedded;
 
         UUID profileId = extractProfileId(profile);
-        if (profileId == null) return null;
+        String byProfileId = profileId == null ? null : findSkinUrlForUuid(profileId, client);
+        if (byProfileId != null) return byProfileId;
+
+        // Çevrimdışı UUID veya eski profil yapısında UUID oturum sunucusunda bulunamayabilir.
+        // Son çare olarak oyuncu adından resmî UUID çözülüp skin tekrar istenir.
+        String profileName = extractProfileName(profile);
+        if (profileName == null || profileName.isBlank() || !profileName.matches("[A-Za-z0-9_]{1,16}")) return null;
+        HttpRequest nameRequest = HttpRequest.newBuilder(URI.create("https://api.mojang.com/users/profiles/minecraft/" + profileName))
+            .timeout(Duration.ofSeconds(8)).header("User-Agent", "SkinPowers/1.0.0").GET().build();
+        HttpResponse<String> nameResponse = sendStringWithRetry(nameRequest, 2);
+        if (nameResponse == null || nameResponse.statusCode() < 200 || nameResponse.statusCode() >= 300 || nameResponse.body().isBlank()) return null;
+        JsonObject profileJson = JsonParser.parseString(nameResponse.body()).getAsJsonObject();
+        if (!profileJson.has("id")) return null;
+        String compact = profileJson.get("id").getAsString();
+        if (compact.length() != 32) return null;
+        UUID officialId = UUID.fromString(compact.substring(0, 8) + "-" + compact.substring(8, 12) + "-" + compact.substring(12, 16) + "-" + compact.substring(16, 20) + "-" + compact.substring(20));
+        return findSkinUrlForUuid(officialId, client);
+    }
+
+    private static String findSkinUrlForUuid(UUID profileId, HttpClient client) throws Exception {
         String compactUuid = profileId.toString().replace("-", "");
-        HttpRequest request = HttpRequest.newBuilder(
-                URI.create("https://sessionserver.mojang.com/session/minecraft/profile/" + compactUuid + "?unsigned=false"))
-            .timeout(Duration.ofSeconds(7))
-            .header("User-Agent", "SkinPowers/4.0.0")
-            .GET()
-            .build();
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        if (response.statusCode() < 200 || response.statusCode() >= 300) return null;
+        HttpRequest request = HttpRequest.newBuilder(URI.create("https://sessionserver.mojang.com/session/minecraft/profile/" + compactUuid + "?unsigned=false"))
+            .timeout(Duration.ofSeconds(8)).header("User-Agent", "SkinPowers/1.0.0").GET().build();
+        HttpResponse<String> response = sendStringWithRetry(request, 2);
+        if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) return null;
         JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
         if (!root.has("properties")) return null;
         for (var element : root.getAsJsonArray("properties")) {
             JsonObject property = element.getAsJsonObject();
-            if (!property.has("name") || !"textures".equals(property.get("name").getAsString())) continue;
-            if (!property.has("value")) continue;
+            if (!property.has("name") || !"textures".equals(property.get("name").getAsString()) || !property.has("value")) continue;
             String skinUrl = skinUrlFromTextureValue(property.get("value").getAsString());
             if (skinUrl != null) return skinUrl;
         }
         return null;
     }
 
-    private static String findEmbeddedSkinUrl(GameProfile profile) throws Exception {
+    private static HttpResponse<String> sendStringWithRetry(HttpRequest request, int attempts) throws Exception {
+        Exception last = null;
+        for (int attempt = 0; attempt < Math.max(1, attempts); attempt++) {
+            try {
+                return HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            } catch (Exception exception) {
+                last = exception;
+                if (attempt + 1 < attempts) Thread.sleep(150L * (attempt + 1));
+            }
+        }
+        if (last != null) throw last;
+        return null;
+    }
+
+    private static HttpResponse<byte[]> sendBytesWithRetry(HttpRequest request, int attempts) throws Exception {
+        Exception last = null;
+        for (int attempt = 0; attempt < Math.max(1, attempts); attempt++) {
+            try {
+                return HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            } catch (Exception exception) {
+                last = exception;
+                if (attempt + 1 < attempts) Thread.sleep(150L * (attempt + 1));
+            }
+        }
+        if (last != null) throw last;
+        return null;
+    }
+
+    private static String findEmbeddedSkinUrl(GameProfile profile) {
         Object propertyContainer = invokeNoArg(profile, "properties", "getProperties");
         if (propertyContainer == null) return null;
         for (Object property : textureProperties(propertyContainer)) {
@@ -267,13 +333,14 @@ public final class SkinAnalyzer {
         Object value = invokeNoArg(profile, "id", "getId");
         if (value instanceof UUID uuid) return uuid;
         if (value instanceof String string) {
-            try {
-                return UUID.fromString(string);
-            } catch (IllegalArgumentException ignored) {
-                return null;
-            }
+            try { return UUID.fromString(string); } catch (IllegalArgumentException ignored) { return null; }
         }
         return null;
+    }
+
+    private static String extractProfileName(GameProfile profile) {
+        Object value = invokeNoArg(profile, "name", "getName");
+        return value instanceof String string ? string : null;
     }
 
     private static List<Object> textureProperties(Object propertyContainer) {
@@ -288,12 +355,8 @@ public final class SkinAnalyzer {
     private static void addAll(List<Object> target, Object source, boolean filterByName) {
         if (source == null) return;
         if (source instanceof Iterable<?> iterable) {
-            for (Object value : iterable) {
-                if (!filterByName || "textures".equals(extractPropertyName(value))) target.add(value);
-            }
-            return;
-        }
-        if (source.getClass().isArray()) {
+            for (Object value : iterable) if (!filterByName || "textures".equals(extractPropertyName(value))) target.add(value);
+        } else if (source.getClass().isArray()) {
             int length = java.lang.reflect.Array.getLength(source);
             for (int i = 0; i < length; i++) {
                 Object value = java.lang.reflect.Array.get(source, i);
@@ -304,11 +367,8 @@ public final class SkinAnalyzer {
 
     private static Object invokeNoArg(Object target, String... names) {
         for (String name : names) {
-            try {
-                return target.getClass().getMethod(name).invoke(target);
-            } catch (ReflectiveOperationException ignored) {
-                // Sıradaki uyumlu method adı denenir.
-            }
+            try { return target.getClass().getMethod(name).invoke(target); }
+            catch (ReflectiveOperationException ignored) { }
         }
         return null;
     }
@@ -316,11 +376,8 @@ public final class SkinAnalyzer {
     private static Object invokeOneArg(Object target, String name, Object argument) {
         for (java.lang.reflect.Method method : target.getClass().getMethods()) {
             if (!method.getName().equals(name) || method.getParameterCount() != 1) continue;
-            try {
-                return method.invoke(target, argument);
-            } catch (ReflectiveOperationException | IllegalArgumentException ignored) {
-                // Aynı adlı başka overload denenir.
-            }
+            try { return method.invoke(target, argument); }
+            catch (ReflectiveOperationException | IllegalArgumentException ignored) { }
         }
         return null;
     }
@@ -331,9 +388,7 @@ public final class SkinAnalyzer {
             try {
                 Object result = property.getClass().getMethod(methodName).invoke(property);
                 if (result instanceof String string) return string;
-            } catch (ReflectiveOperationException ignored) {
-                // Authlib sürümleri arasında method adı değişebiliyor.
-            }
+            } catch (ReflectiveOperationException ignored) { }
         }
         return null;
     }
@@ -344,22 +399,15 @@ public final class SkinAnalyzer {
             try {
                 Object result = property.getClass().getMethod(methodName).invoke(property);
                 if (result instanceof String string) return string;
-            } catch (ReflectiveOperationException ignored) {
-                // Authlib sürümleri arasında method adı değişebiliyor.
-            }
+            } catch (ReflectiveOperationException ignored) { }
         }
         return null;
     }
 
-    private static double clamp01(double value) {
-        return Math.max(0.0, Math.min(1.0, value));
-    }
+    private static double clamp01(double value) { return Math.max(0.0, Math.min(1.0, value)); }
 
     public record Result(
-        double warden,
-        double flight,
-        double fire,
-        double nature,
+        double[] scores,
         int[] dominantColors,
         boolean fromSkin,
         int[] skinPixels,
@@ -368,42 +416,26 @@ public final class SkinAnalyzer {
         double matchedFraction
     ) {
         public static Result unavailable() {
-            return new Result(0.0, 0.0, 0.0, 0.0, new int[]{0x233044, 0x8FCBE8, 0xE95818, 0x4F8B3B}, false, new int[0], 0, 0, 0.0);
+            return new Result(new double[CLASS_COUNT], new int[]{0x233044, 0x8FCBE8, 0xE95818, 0x4F8B3B, 0xD5AF42}, false, new int[0], 0, 0, 0.0);
         }
 
         public double score(int index) {
-            return switch (index) {
-                case 0 -> warden;
-                case 1 -> flight;
-                case 2 -> fire;
-                default -> nature;
-            };
+            return scores == null || index < 0 || index >= scores.length ? 0.0 : scores[index];
         }
 
-        public int bestIndex() {
-            if (!hasRecommendation()) return -1;
-            double[] values = {warden, flight, fire, nature};
-            int best = 0;
-            for (int i = 1; i < values.length; i++) {
-                if (values[i] > values[best]) best = i;
-            }
-            return best;
+        public int bestIndex() { return rankedIndex(0); }
+        public int secondIndex() { return rankedIndex(1); }
+
+        private int rankedIndex(int rank) {
+            if (!fromSkin || scores == null || scores.length == 0) return -1;
+            Integer[] indices = new Integer[scores.length];
+            for (int i = 0; i < indices.length; i++) indices[i] = i;
+            java.util.Arrays.sort(indices, (a, b) -> Double.compare(scores[b], scores[a]));
+            return rank >= 0 && rank < indices.length ? indices[rank] : -1;
         }
 
         public boolean hasRecommendation() {
-            if (!fromSkin || matchedFraction < 0.035) return false;
-            double[] values = {warden, flight, fire, nature};
-            double best = -1.0;
-            double second = -1.0;
-            for (double value : values) {
-                if (value > best) {
-                    second = best;
-                    best = value;
-                } else if (value > second) {
-                    second = value;
-                }
-            }
-            return best >= 0.075 && best - second >= 0.015;
+            return fromSkin && skinPixels != null && skinPixels.length > 0;
         }
 
         public boolean hasSkinImage() {

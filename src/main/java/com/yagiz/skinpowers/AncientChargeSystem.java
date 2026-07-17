@@ -1,5 +1,6 @@
 package com.yagiz.skinpowers;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -11,6 +12,8 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -33,6 +36,8 @@ public final class AncientChargeSystem {
     private AncientChargeSystem() {}
 
     public static void clearPendingBeams() {
+        for (PendingBeam beam : BEAMS) clearArmBlocks(beam.level, beam.visualBlocks);
+        for (PendingSelfCharge pending : SELF_CHARGES) clearArmBlocks(pending.level, pending.visualBlocks);
         BEAMS.clear();
         SELF_CHARGES.clear();
         MOB_CHARGES.clear();
@@ -69,10 +74,6 @@ public final class AncientChargeSystem {
                 if (player.getHealth() > sacrificedCap) player.setHealth(sacrificedCap);
             }
 
-            if (remaining == 200 || remaining == 100) {
-                String right = ready ? "1 güç hakkı" : "güç kullanıldı";
-                player.sendSystemMessage(Component.literal("Antik Şehir Şarjı: " + Math.max(1, remaining / 20) + " saniye • " + right));
-            }
         } else if (data.ancientChargeCyclePresent()) {
             boolean unused = data.ancientChargeAvailable();
             boolean selfSacrifice = data.selfSacrificeActive();
@@ -117,7 +118,7 @@ public final class AncientChargeSystem {
     public static boolean isUsableCharge(PlayerPowerData data, long now, int power) {
         if (!data.ancientChargeReady(now) || power == 6) return false;
         return switch (data.powerClass()) {
-            case FLIGHT, FIRE, NATURE -> power != 1;
+            case FLIGHT, FIRE, NATURE, TIME -> power != 1;
             case WARDEN -> true;
             default -> false;
         };
@@ -152,10 +153,10 @@ public final class AncientChargeSystem {
 
         ServerLevel level = (ServerLevel) player.level();
         level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ROAR, SoundSource.PLAYERS, 1.35F, 1.32F);
-        level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), 115, 1.25, 1.45, 1.25, 0.055);
-        level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 92, 1.05, 1.25, 1.05, 0.075);
-        drawRing(level, player.position().add(0.0, 0.12, 0.0), 1.35, ParticleTypes.WITCH, 54);
-        drawRing(level, player.position().add(0.0, 1.05, 0.0), 0.95, ParticleTypes.SCULK_SOUL, 42);
+        // Ana görünürlük artık oyuncu dış çizgisi ve model kollarından gelir; parçacıklar yalnızca hafif vurgudur.
+        level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 0.55, player.getZ(), 6, 0.42, 0.28, 0.42, 0.012);
+        level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 0.35, player.getZ(), 4, 0.38, 0.22, 0.38, 0.018);
+        drawRing(level, player.position().add(0.0, 0.06, 0.0), 0.86, ParticleTypes.WITCH, 10);
         player.sendSystemMessage(Component.literal("ANTİK ŞEHİR ŞARJI • " + (duration / 20.0F) + " saniye • 1 güç hakkı"));
         return true;
     }
@@ -179,10 +180,7 @@ public final class AncientChargeSystem {
         if (!isUsableCharge(data, now, usedPower)) return;
         data.consumeAncientCharge(now, usedPower);
         emitChargedBurst((ServerLevel) player.level(), player.position().add(0.0, 1.0, 0.0), data.powerClass(), 2.15);
-        int remaining = (int) Math.max(0L, data.ancientChargeUntil() - now);
-        player.sendSystemMessage(Component.literal(
-            "Antik Şehir gücü kullanıldı. Çöküş " + String.format(java.util.Locale.ROOT, "%.1f", remaining / 20.0) + " saniye sonra başlayacak."
-        ));
+        player.sendSystemMessage(Component.literal("Antik Şehir enerjisi gücü dönüştürdü. Bedel, yirmi saniyelik yük tamamlandığında başlayacak."));
         PlayerDataStore.markDirty();
         ServerNetworking.sync(player);
     }
@@ -256,6 +254,7 @@ public final class AncientChargeSystem {
             ServerPlayer caster = beam.level.getServer().getPlayerList().getPlayer(beam.caster);
             long now = beam.level.getGameTime();
             if (caster == null || caster.level() != beam.level) {
+                clearArmBlocks(beam.level, beam.visualBlocks);
                 iterator.remove();
                 continue;
             }
@@ -264,7 +263,7 @@ public final class AncientChargeSystem {
             Vec3 targetPoint = target != null && target.isAlive() && target.level() == beam.level
                 ? target.getEyePosition()
                 : beam.endpoint;
-            drawBeamAnimation(beam.level, caster, targetPoint, now - beam.startTick);
+            drawBeamAnimation(beam.level, caster, targetPoint, now - beam.startTick, beam.visualBlocks);
             if (now < beam.finishTick) continue;
 
             boolean transferred = false;
@@ -280,10 +279,11 @@ public final class AncientChargeSystem {
             if (transferred) {
                 beam.level.playSound(null, target.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.5F, 1.15F);
             } else {
-                beam.level.sendParticles(ParticleTypes.WITCH, targetPoint.x, targetPoint.y, targetPoint.z, 52, 0.65, 0.65, 0.65, 0.08);
-                beam.level.sendParticles(ParticleTypes.SCULK_SOUL, targetPoint.x, targetPoint.y, targetPoint.z, 30, 0.5, 0.5, 0.5, 0.04);
+                beam.level.sendParticles(ParticleTypes.WITCH, targetPoint.x, targetPoint.y, targetPoint.z, 18, 0.48, 0.48, 0.48, 0.045);
+                beam.level.sendParticles(ParticleTypes.SCULK_SOUL, targetPoint.x, targetPoint.y, targetPoint.z, 10, 0.36, 0.36, 0.36, 0.022);
                 beam.level.playSound(null, caster.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.0F, 1.38F);
             }
+            clearArmBlocks(beam.level, beam.visualBlocks);
             iterator.remove();
         }
     }
@@ -295,12 +295,13 @@ public final class AncientChargeSystem {
             ServerPlayer caster = pending.level.getServer().getPlayerList().getPlayer(pending.caster);
             long now = pending.level.getGameTime();
             if (caster == null || !caster.isAlive() || caster.level() != pending.level) {
+                clearArmBlocks(pending.level, pending.visualBlocks);
                 iterator.remove();
                 continue;
             }
 
             long age = now - pending.startTick;
-            drawSelfChargeAnimation(pending.level, caster, age, pending.finishTick - pending.startTick);
+            drawSelfChargeAnimation(pending.level, caster, age, pending.finishTick - pending.startTick, pending.visualBlocks);
             if (age % 8L == 0L) {
                 pending.level.playSound(null, caster.blockPosition(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 1.15F, 0.78F + age * 0.006F);
             }
@@ -309,18 +310,20 @@ public final class AncientChargeSystem {
             PlayerPowerData data = PlayerDataStore.get(caster.getUUID());
             if (caster.getHealth() <= SELF_CHARGE_HEALTH_COST || data.ancientChargeCyclePresent() || data.ancientExhausted(now)) {
                 caster.sendSystemMessage(Component.literal("Antik Kalp göğsüne yerleşemedi; şarj iptal edildi."));
+                clearArmBlocks(pending.level, pending.visualBlocks);
                 iterator.remove();
                 continue;
             }
 
             caster.setHealth(Math.max(1.0F, caster.getHealth() - SELF_CHARGE_HEALTH_COST));
             if (grant(caster, MAX_CHARGE_TICKS, false, true)) {
-                pending.level.sendParticles(ParticleTypes.WITCH, caster.getX(), caster.getY() + 1.15, caster.getZ(), 150, 1.15, 1.35, 1.15, 0.1);
-                pending.level.sendParticles(ParticleTypes.SCULK_SOUL, caster.getX(), caster.getY() + 1.1, caster.getZ(), 95, 0.9, 1.1, 0.9, 0.055);
+                pending.level.sendParticles(ParticleTypes.WITCH, caster.getX(), caster.getY() + 0.55, caster.getZ(), 8, 0.45, 0.35, 0.45, 0.022);
+                pending.level.sendParticles(ParticleTypes.SCULK_SOUL, caster.getX(), caster.getY() + 0.45, caster.getZ(), 6, 0.36, 0.30, 0.36, 0.014);
                 caster.sendSystemMessage(Component.literal("Antik Kalp göğsüne yerleşti. Üç kalp feda edildi; 20 saniyelik şarj başladı."));
             } else {
                 caster.heal(SELF_CHARGE_HEALTH_COST);
             }
+            clearArmBlocks(pending.level, pending.visualBlocks);
             iterator.remove();
         }
     }
@@ -331,8 +334,8 @@ public final class AncientChargeSystem {
         MOB_CHARGES.removeIf(charge -> charge.target == target);
         MOB_CHARGES.add(new ChargedMob((ServerLevel) target.level(), target, now + Math.min(MAX_CHARGE_TICKS, Math.max(1, durationTicks))));
         ServerLevel level = (ServerLevel) target.level();
-        level.sendParticles(ParticleTypes.WITCH, target.getX(), target.getEyePosition().y - 0.30, target.getZ(), 82, 0.8, 0.9, 0.8, 0.08);
-        level.sendParticles(ParticleTypes.SCULK_SOUL, target.getX(), target.getEyePosition().y - 0.30, target.getZ(), 52, 0.65, 0.75, 0.65, 0.04);
+        level.sendParticles(ParticleTypes.WITCH, target.getX(), target.getEyePosition().y - 0.30, target.getZ(), 18, 0.55, 0.65, 0.55, 0.035);
+        level.sendParticles(ParticleTypes.SCULK_SOUL, target.getX(), target.getEyePosition().y - 0.30, target.getZ(), 12, 0.45, 0.55, 0.45, 0.025);
         return true;
     }
 
@@ -366,7 +369,7 @@ public final class AncientChargeSystem {
         }
     }
 
-    private static void drawBeamAnimation(ServerLevel level, ServerPlayer caster, Vec3 targetPoint, long age) {
+    private static void drawBeamAnimation(ServerLevel level, ServerPlayer caster, Vec3 targetPoint, long age, List<PlacedArmBlock> visualBlocks) {
         Vec3 look = caster.getLookAngle().normalize();
         Vec3 horizontal = horizontalDirection(look);
         Vec3 right = new Vec3(-horizontal.z, 0.0, horizontal.x);
@@ -376,15 +379,21 @@ public final class AncientChargeSystem {
         double growth = Math.min(1.0, (age + 1.0) / 8.0);
 
         Vec3[] roots = armRoots(back, right);
+        if (age % 2L == 0L) clearArmBlocks(level, visualBlocks);
         for (int i = 0; i < roots.length; i++) {
             double side = i % 2 == 0 ? 1.0 : -1.0;
             double height = i < 2 ? 0.35 : -0.20;
             Vec3 bendFull = roots[i].add(right.scale(side * 0.82)).add(horizontal.scale(0.50)).add(0.0, height, 0.0);
             Vec3 bend = roots[i].lerp(bendFull, growth);
             Vec3 end = roots[i].lerp(convergence, growth);
-            drawParticleLine(level, roots[i], bend, ParticleTypes.SCULK_SOUL, 10);
-            drawParticleLine(level, bend, end, ParticleTypes.WITCH, 12);
-            drawParticleLine(level, roots[i].add(0.0, 0.04, 0.0), end.add(0.0, 0.04, 0.0), ParticleTypes.SCULK_SOUL, 8);
+            if (age % 2L == 0L) {
+                // Katı model kollar oyuncunun arka ve yan tarafında kalır; görüş çizgisine ve gövdesine blok yerleştirilmez.
+                Vec3 visibleTip = bend.lerp(end, 0.32);
+                placeArmLine(level, visualBlocks, roots[i], bend, Blocks.SCULK.defaultBlockState(), 4);
+                placeArmLine(level, visualBlocks, bend, visibleTip,
+                    i < 2 ? Blocks.CYAN_STAINED_GLASS.defaultBlockState() : Blocks.SCULK.defaultBlockState(), 2);
+            }
+            if (age % 4L == 0L) drawParticleLine(level, bend, end, ParticleTypes.SCULK_SOUL, 4);
         }
 
         if (age >= 6L) {
@@ -395,7 +404,7 @@ public final class AncientChargeSystem {
         }
     }
 
-    private static void drawSelfChargeAnimation(ServerLevel level, ServerPlayer caster, long age, long duration) {
+    private static void drawSelfChargeAnimation(ServerLevel level, ServerPlayer caster, long age, long duration, List<PlacedArmBlock> visualBlocks) {
         Vec3 look = caster.getLookAngle().normalize();
         Vec3 horizontal = horizontalDirection(look);
         Vec3 right = new Vec3(-horizontal.z, 0.0, horizontal.x);
@@ -410,6 +419,7 @@ public final class AncientChargeSystem {
         Vec3 heartCenter = front.lerp(chest, insertion);
 
         Vec3[] roots = armRoots(back, right);
+        if (age % 2L == 0L) clearArmBlocks(level, visualBlocks);
         Vec3[] aroundHeart = {
             heartCenter.add(right.scale(0.48)).add(0.0, 0.38, 0.0),
             heartCenter.subtract(right.scale(0.48)).add(0.0, 0.38, 0.0),
@@ -420,24 +430,28 @@ public final class AncientChargeSystem {
             Vec3 elbowFull = roots[i].lerp(aroundHeart[i], 0.52).subtract(horizontal.scale(0.32));
             Vec3 elbow = roots[i].lerp(elbowFull, armGrowth);
             Vec3 end = roots[i].lerp(aroundHeart[i], armGrowth);
-            drawParticleLine(level, roots[i], elbow, ParticleTypes.SCULK_SOUL, 10);
-            drawParticleLine(level, elbow, end, ParticleTypes.WITCH, 12);
+            if (age % 2L == 0L) {
+                // Gerçek kol gövdesi arkada kalır; kalbe uzanan son bölüm ışın olarak çizilir ve oyuncuyu sıkıştırmaz.
+                Vec3 visibleTip = elbow.lerp(end, 0.28);
+                placeArmLine(level, visualBlocks, roots[i], elbow, Blocks.SCULK.defaultBlockState(), 4);
+                placeArmLine(level, visualBlocks, elbow, visibleTip, Blocks.CYAN_STAINED_GLASS.defaultBlockState(), 2);
+            }
         }
 
         if (progress >= 0.28) {
             double pulse = 0.92 + Math.sin(age * 0.55) * 0.12;
             drawPurpleHeart(level, heartCenter, right, pulse);
-            level.sendParticles(ParticleTypes.SCULK_SOUL, heartCenter.x, heartCenter.y, heartCenter.z, 5, 0.22, 0.25, 0.22, 0.01);
+            level.sendParticles(ParticleTypes.SCULK_SOUL, heartCenter.x, heartCenter.y, heartCenter.z, 2, 0.16, 0.18, 0.16, 0.005);
         }
         if (insertion > 0.05) {
-            drawParticleLine(level, front, chest, ParticleTypes.WITCH, 15);
-            drawRing(level, chest, 0.42 + insertion * 0.25, ParticleTypes.SCULK_SOUL, 26);
+            drawParticleLine(level, front, chest, ParticleTypes.WITCH, 7);
+            drawRing(level, chest, 0.38 + insertion * 0.20, ParticleTypes.SCULK_SOUL, 12);
         }
     }
 
     private static void drawPurpleHeart(ServerLevel level, Vec3 center, Vec3 right, double scale) {
         Vec3 up = new Vec3(0.0, 1.0, 0.0);
-        int points = 32;
+        int points = 22;
         for (int i = 0; i < points; i++) {
             double t = Math.PI * 2.0 * i / points;
             double x = 16.0 * Math.pow(Math.sin(t), 3.0);
@@ -448,40 +462,24 @@ public final class AncientChargeSystem {
     }
 
     private static void drawMutation(ServerLevel level, ServerPlayer player, int phase, long now, boolean ready) {
-        if (now % 2L != 0L) return;
-        double radius = 0.62 + phase * 0.17;
-        int count = (ready ? 12 : 7) + phase * (ready ? 5 : 3);
-        double y = player.getY() + 0.20 + (now % 24L) / 24.0 * 1.65;
-        for (int i = 0; i < count; i++) {
-            double angle = Math.PI * 2.0 * i / count + now * (ready ? 0.12 : 0.075);
-            level.sendParticles(ParticleTypes.WITCH,
-                player.getX() + Math.cos(angle) * radius, y, player.getZ() + Math.sin(angle) * radius,
-                1, 0.0, 0.025, 0.0, 0.0);
-        }
-        level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), (ready ? 7 : 4) + phase * 2, 0.62 + phase * 0.12, 0.9, 0.62 + phase * 0.12, 0.015);
-        drawRing(level, player.position().add(0.0, 0.10, 0.0), 0.85 + phase * 0.16, ready ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, 28 + phase * 8);
-        if (phase >= 2 || ready) drawRing(level, player.position().add(0.0, 1.05, 0.0), 0.72 + phase * 0.12, ParticleTypes.WITCH, 24 + phase * 7);
-
-        // Mutasyon ilerledikçe omuz ve sırttan çıkan dört sivri enerji uzantısı büyür.
+        // Görüşü kapatan parçacık duvarı kaldırıldı. Ana aura, oyunun görünür parlama dış çizgisidir.
+        // Az sayıdaki kıvılcım oyuncunun göz hizasından uzakta, ayak ve sırt tarafında kalır.
+        if (now % 8L != 0L) return;
         Vec3 horizontal = horizontalDirection(player.getLookAngle());
-        Vec3 right = new Vec3(-horizontal.z, 0.0, horizontal.x);
-        Vec3 back = player.position().add(0.0, 1.05, 0.0).subtract(horizontal.scale(0.45));
-        double length = 0.72 + phase * 0.36;
-        Vec3[] roots = armRoots(back, right);
-        for (int i = 0; i < roots.length; i++) {
-            double side = i % 2 == 0 ? 1.0 : -1.0;
-            double vertical = i < 2 ? 0.72 : -0.48;
-            Vec3 end = roots[i].add(right.scale(side * (0.62 + phase * 0.12))).subtract(horizontal.scale(length)).add(0.0, vertical, 0.0);
-            drawParticleLine(level, roots[i], end, i < 2 ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, 9 + phase * 3);
+        Vec3 back = player.position().add(0.0, 0.85, 0.0).subtract(horizontal.scale(0.72));
+        double spread = 0.28 + phase * 0.08;
+        level.sendParticles(ParticleTypes.SCULK_SOUL, back.x, back.y, back.z, ready ? 4 : 2, spread, 0.42, spread, 0.008);
+        if (now % 16L == 0L) {
+            drawRing(level, player.position().add(0.0, 0.08, 0.0), 0.78 + phase * 0.10, ParticleTypes.WITCH, 12 + phase * 2);
         }
-
         ParticleOptions classParticle = switch (PlayerDataStore.get(player.getUUID()).powerClass()) {
             case FIRE -> ParticleTypes.FLAME;
             case FLIGHT -> ParticleTypes.CLOUD;
             case NATURE -> ParticleTypes.HAPPY_VILLAGER;
+            case TIME -> ParticleTypes.END_ROD;
             default -> ParticleTypes.SCULK_SOUL;
         };
-        level.sendParticles(classParticle, player.getX(), player.getY() + 0.9, player.getZ(), (ready ? 4 : 2) + phase, 0.42, 0.72, 0.42, 0.012);
+        level.sendParticles(classParticle, back.x, back.y + 0.18, back.z, ready ? 2 : 1, 0.22, 0.30, 0.22, 0.005);
     }
 
     public static float damage(float base, boolean charged) {
@@ -501,16 +499,37 @@ public final class AncientChargeSystem {
     }
 
     public static void emitChargedBurst(ServerLevel level, Vec3 center, PowerClass powerClass, double spread) {
-        level.sendParticles(ParticleTypes.WITCH, center.x, center.y, center.z, 64, spread, spread * 0.9, spread, 0.1);
-        level.sendParticles(ParticleTypes.SCULK_SOUL, center.x, center.y, center.z, 48, spread * 0.82, spread * 0.72, spread * 0.82, 0.055);
-        drawRing(level, center, Math.max(0.8, spread * 0.78), ParticleTypes.WITCH, 52);
+        level.sendParticles(ParticleTypes.WITCH, center.x, center.y, center.z, 22, spread * 0.75, spread * 0.65, spread * 0.75, 0.055);
+        level.sendParticles(ParticleTypes.SCULK_SOUL, center.x, center.y, center.z, 16, spread * 0.62, spread * 0.55, spread * 0.62, 0.035);
+        drawRing(level, center, Math.max(0.8, spread * 0.78), ParticleTypes.WITCH, 20);
         ParticleOptions original = switch (powerClass) {
             case FIRE -> ParticleTypes.FLAME;
             case FLIGHT -> ParticleTypes.CLOUD;
             case NATURE -> ParticleTypes.HAPPY_VILLAGER;
+            case TIME -> ParticleTypes.END_ROD;
             default -> ParticleTypes.SONIC_BOOM;
         };
-        level.sendParticles(original, center.x, center.y, center.z, powerClass == PowerClass.WARDEN ? 3 : 24, spread * 0.58, spread * 0.5, spread * 0.58, 0.04);
+        level.sendParticles(original, center.x, center.y, center.z, powerClass == PowerClass.WARDEN ? 2 : 8, spread * 0.58, spread * 0.5, spread * 0.58, 0.04);
+    }
+
+    private static void placeArmLine(ServerLevel level, List<PlacedArmBlock> list, Vec3 from, Vec3 to, BlockState state, int points) {
+        int safePoints = Math.max(2, points);
+        for (int i = 0; i <= safePoints; i++) {
+            Vec3 point = from.lerp(to, i / (double) safePoints);
+            BlockPos pos = BlockPos.containing(point);
+            if (!level.getBlockState(pos).isAir()) continue;
+            level.setBlockAndUpdate(pos, state);
+            list.add(new PlacedArmBlock(pos, state));
+        }
+    }
+
+    private static void clearArmBlocks(ServerLevel level, List<PlacedArmBlock> list) {
+        for (PlacedArmBlock placed : list) {
+            if (level.getBlockState(placed.pos).is(placed.state.getBlock())) {
+                level.setBlockAndUpdate(placed.pos, Blocks.AIR.defaultBlockState());
+            }
+        }
+        list.clear();
     }
 
     private static Vec3 horizontalDirection(Vec3 look) {
@@ -533,11 +552,11 @@ public final class AncientChargeSystem {
         Vec3 horizontal = horizontalDirection(direction);
         Vec3 right = new Vec3(-horizontal.z, 0.0, horizontal.x).scale(thickness);
         Vec3 up = new Vec3(0.0, thickness, 0.0);
-        drawParticleLine(level, from, to, ParticleTypes.WITCH, 34);
-        drawParticleLine(level, from.add(right), to.add(right), ParticleTypes.SCULK_SOUL, 28);
-        drawParticleLine(level, from.subtract(right), to.subtract(right), ParticleTypes.SCULK_SOUL, 28);
-        drawParticleLine(level, from.add(up), to.add(up), ParticleTypes.WITCH, 28);
-        drawParticleLine(level, from.subtract(up), to.subtract(up), ParticleTypes.WITCH, 28);
+        drawParticleLine(level, from, to, ParticleTypes.WITCH, 15);
+        drawParticleLine(level, from.add(right), to.add(right), ParticleTypes.SCULK_SOUL, 10);
+        drawParticleLine(level, from.subtract(right), to.subtract(right), ParticleTypes.SCULK_SOUL, 10);
+        drawParticleLine(level, from.add(up), to.add(up), ParticleTypes.WITCH, 9);
+        drawParticleLine(level, from.subtract(up), to.subtract(up), ParticleTypes.WITCH, 9);
     }
 
     private static void drawRing(ServerLevel level, Vec3 center, double radius, ParticleOptions particle, int count) {
@@ -558,7 +577,28 @@ public final class AncientChargeSystem {
         }
     }
 
-    private record PendingBeam(ServerLevel level, UUID caster, LivingEntity target, Vec3 endpoint, long startTick, long finishTick) {}
-    private record PendingSelfCharge(ServerLevel level, UUID caster, long startTick, long finishTick) {}
+    private static final class PendingBeam {
+        private final ServerLevel level;
+        private final UUID caster;
+        private final LivingEntity target;
+        private final Vec3 endpoint;
+        private final long startTick;
+        private final long finishTick;
+        private final List<PlacedArmBlock> visualBlocks = new ArrayList<>();
+        private PendingBeam(ServerLevel level, UUID caster, LivingEntity target, Vec3 endpoint, long startTick, long finishTick) {
+            this.level = level; this.caster = caster; this.target = target; this.endpoint = endpoint; this.startTick = startTick; this.finishTick = finishTick;
+        }
+    }
+    private static final class PendingSelfCharge {
+        private final ServerLevel level;
+        private final UUID caster;
+        private final long startTick;
+        private final long finishTick;
+        private final List<PlacedArmBlock> visualBlocks = new ArrayList<>();
+        private PendingSelfCharge(ServerLevel level, UUID caster, long startTick, long finishTick) {
+            this.level = level; this.caster = caster; this.startTick = startTick; this.finishTick = finishTick;
+        }
+    }
+    private record PlacedArmBlock(BlockPos pos, BlockState state) {}
     private record ChargedMob(ServerLevel level, LivingEntity target, long untilTick) {}
 }

@@ -14,7 +14,8 @@
   "class.skinpowers.fire": "ATEŞ",
   "class.skinpowers.nature": "DOĞA",
   "modmenu.nameTranslation.skinpowers": "Skin Powers",
-  "modmenu.descriptionTranslation.skinpowers": "Skin renklerinden Warden, Uçuş, Ateş ve Doğa güçleri seç.",
-  "modmenu.summaryTranslation.skinpowers": "Skin tabanlı güç sınıfları.",
-  "key.skinpowers.combo": "Kombo Modu"
+  "modmenu.descriptionTranslation.skinpowers": "Skin renklerinden Warden, Uçuş, Ateş, Doğa ve Zaman güçleri seç.",
+  "modmenu.summaryTranslation.skinpowers": "Skin tabanlı beş güç sınıfı.",
+  "key.skinpowers.combo": "Kombo Modu",
+  "class.skinpowers.time": "ZAMAN"
 }

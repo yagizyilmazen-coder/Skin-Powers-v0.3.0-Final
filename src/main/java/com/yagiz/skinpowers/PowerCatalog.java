@@ -3,32 +3,34 @@ package com.yagiz.skinpowers;
 public final class PowerCatalog {
     public static final int[] XP_COSTS = {5, 15, 30, 40, 50};
     public static final int[] NATURE_XP_COSTS = {10, 20, 30, 40, 50};
+    public static final int[] TIME_XP_COSTS = {10, 20, 30, 40, 50};
     public static final int WARDEN_ANCIENT_CHARGE_XP = 70;
 
     private static final String[][] NAMES = {
         {"-", "-", "-", "-", "-", "-"},
         {"Warden Zırhı", "Yer Sarsıntısı", "Sonik Patlama", "Sculk Avı", "Warden Uyanışı", "Şarj Et Beni Antik Şehir"},
-        {"Yavaş Düşüş", "Süreli Elytra", "Roketsiz Kalkış", "Hava Patlaması", "Gökyüzü Hâkimiyeti", "-"},
+        {"Hafif Beden", "Gökyüzü Kanatları", "Gök Mızrağı", "Gökyüzü Bombası", "Göksel Kıyamet", "-"},
         {"Ateş Bağışıklığı", "Alevli Yakın Dövüş", "Ateş Çemberi", "Cehennem Küresi", "Meteor Yağmuru", "-"},
-        {"Doğal Yenilenme", "Dikenli Tohum", "Sarmaşık Kapanı", "Yaşam Ağacı", "Kadim Orman Uyanışı", "-"}
+        {"Doğanın Canı", "Dikenli Tohum", "Sarmaşık Kapanı", "Yaşam Ağacı", "Kadim Orman Hükmü", "-"},
+        {"Zaman Sezgisi", "Krono Mızrağı", "Geri Sarma", "Zaman Hapishanesi", "Zamanın Sonu", "-"}
     };
 
     private static final String[][] DESCRIPTIONS = {
         {"", "", "", "", "", ""},
         {
-            "Uzun süre Güç ve Direnç kazanırsın.",
+            "Uzun süre Güç, Direnç ve soğurma kazanırsın.",
             "Geniş alandaki düşmanları ezer, savurur ve zayıflatır.",
             "Önündeki hedeflere yüksek hasarlı sonik enerji yollar.",
-            "Yakındaki düşmanları duvar arkasından parlatır ve avlar.",
+            "Yakındaki düşmanları işaretler, yavaşlatır ve hareket ettikçe avlar.",
             "Güç, direnç, yenilenme ve hasar aurası kazandırır.",
-            "Dört sculk kolu ışın oluşturur; oyuncu veya mobu şarj eder. Çömelerek kullanırsan üç kalp karşılığında Antik Kalbi kendi göğsüne yerleştirir."
+            "Dört sculk kolu hedefe Antik Şehir enerjisi aktarır; çömelerek kendine uygulayabilirsin."
         },
         {
-            "Düşüş hasarını engeller; Y ile açıp kapatılır.",
-            "R ile göğüs yuvasına süreli Elytra takar; süre bitince silinir.",
-            "Geçici Elytra açıkken çift zıplamayla havalanırsın.",
-            "Öndeki canlıları ve mermileri güçlü biçimde savurur.",
-            "Süreli Elytra ile uçuş yolundaki hedeflere çarpar; darbeyi yumuşatıp hasar verir.",
+            "Düşme hasarını azaltır; çömelirken yavaş düşersin.",
+            "Göğüs yuvasına süreli Elytra takar ve havada hızlanmanı sağlar.",
+            "Havada net görünen uzun bir rüzgâr mızrağı fırlatır.",
+            "Kavisle düşen görünür gökyüzü çekirdeği geniş hava patlaması oluşturur.",
+            "Altı büyük hava mızrağını hedef alana indirip dev basınç kubbesi oluşturur.",
             ""
         },
         {
@@ -40,11 +42,19 @@ public final class PowerCatalog {
             ""
         },
         {
-            "Doğal zeminde savaş dışında yavaşça iyileşirsin.",
-            "Havada görünen dikenli tohumu fırlatır; hedefi zehirleyip kökler.",
-            "Bakılan yerde kalın kökler çıkarır; düşmanları tutup hasar verir.",
-            "Geçici bir ağaç büyütür; dostları iyileştirip düşmanları yavaşlatır.",
-            "İleri ilerleyen dev kök dalgası düşmanları vurur ve savurur.",
+            "Doğal zeminde iyileşir; kritik cana düşünce uzun beklemeli kurtarma tetiklenir.",
+            "Görünür dikenli tohumu fırlatır; hedefi zehirleyip kökler.",
+            "Bakılan yerde kalın kökler çıkarır; düşmanları sabitler ve ezer.",
+            "Büyük geçici ağaç dostları iyileştirir, ek kalp verir ve mermileri engeller.",
+            "Dev kök dalgası ilerler; sonunda Kadim Ağaç yükselip geniş alanı parçalar.",
+            ""
+        },
+        {
+            "Yakındaki düşman mermilerini yavaşlatır ve düşme hasarını azaltır.",
+            "Havada görünen altın-lacivert zaman mızrağı hedefi yaralar ve zamanını ağırlaştırır.",
+            "Seni yaklaşık 5 saniye önceki konumuna ve canına geri döndürür.",
+            "Hedefi görünür saat halkalarının içinde hareket edemez hâle getirir; ekran efekti vermez.",
+            "Geniş zaman alanındaki düşmanları dondurur; süre sonunda biriken enerji büyük patlamayla açığa çıkar.",
             ""
         }
     };
@@ -74,17 +84,21 @@ public final class PowerCatalog {
     public static int xpCostForLevel(PowerClass powerClass, int level) {
         if (level < 1 || level > maxLevel(powerClass)) return Integer.MAX_VALUE;
         if (powerClass == PowerClass.WARDEN && level == 6) return WARDEN_ANCIENT_CHARGE_XP;
-        int[] costs = powerClass == PowerClass.NATURE ? NATURE_XP_COSTS : XP_COSTS;
+        int[] costs = switch (powerClass) {
+            case NATURE -> NATURE_XP_COSTS;
+            case TIME -> TIME_XP_COSTS;
+            default -> XP_COSTS;
+        };
         return costs[level - 1];
     }
-
 
     public static int comboStarterPower(PowerClass powerClass) {
         return switch (powerClass) {
             case WARDEN -> 2;
-            case FLIGHT -> 2;
+            case FLIGHT -> 3;
             case FIRE -> 4;
             case NATURE -> 3;
+            case TIME -> 4;
             default -> 0;
         };
     }
@@ -92,9 +106,10 @@ public final class PowerCatalog {
     public static int comboFinisherPower(PowerClass powerClass) {
         return switch (powerClass) {
             case WARDEN -> 3;
-            case FLIGHT -> 5;
+            case FLIGHT -> 4;
             case FIRE -> 5;
             case NATURE -> 2;
+            case TIME -> 5;
             default -> 0;
         };
     }
@@ -102,9 +117,10 @@ public final class PowerCatalog {
     public static String comboName(PowerClass powerClass) {
         return switch (powerClass) {
             case WARDEN -> "Sonik Fay";
-            case FLIGHT -> "Gök Dalışı";
+            case FLIGHT -> "Göksel Bombardıman";
             case FIRE -> "Cehennem Felaketi";
             case NATURE -> "Diken Ormanı";
+            case TIME -> "Sonsuz Mahkûmiyet";
             default -> "-";
         };
     }

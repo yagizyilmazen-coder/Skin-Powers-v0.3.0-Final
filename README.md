@@ -1,102 +1,73 @@
-# Skin Powers 4.1.0
+# Skin Powers 1.0.0
 
-Minecraft Java Edition 26.1.2 için Fabric modudur. İlk sınıf seçiminde oyuncunun skini renklerine göre analiz edilir ve dört sınıf önerilir:
+Minecraft Java Edition 26.1.2 için Fabric güç modudur. Oyuncunun gerçek skin piksellerini analiz eder, en güçlü ve ikinci en yakın sınıf önerisini gösterir; oyuncu önerilerden birini veya diğer sınıfları seçebilir.
+
+## Sınıflar
 
 - Warden
 - Uçuş
 - Ateş
 - Doğa
+- Zaman
 
-## Temel kontroller
+## Kontroller
 
 - `R`: seçili aktif gücü kullan
-- `Y`: uygun yardımcı özelliği kullan
-- `Sol/Sağ`: açık güçler arasında geçiş yap
+- `Y`: uygun yardımcı/pasif özelliği değiştir
+- `Sol/Sağ`: açık güçler arasında geç
 - `O`: güç menüsünü aç/kapat
-- `ESC`: açık menüyü kapat
+- `K`: Kombo Modunu aç/kapat
+- `ESC`: menüyü kapat
 
-## Warden 6. güç — Şarj Et Beni Antik Şehir
+## Zaman sınıfı
 
-Bu güç 70 XP gerektirir.
+1. **Zaman Sezgisi — 10 XP:** yakındaki mermileri yavaşlatır.
+2. **Krono Mızrağı — 20 XP:** havada görünür altın-lacivert mızrak fırlatır.
+3. **Geri Sarma — 30 XP:** oyuncuyu yaklaşık beş saniye önceki konum ve canına döndürür.
+4. **Zaman Hapishanesi — 40 XP:** hedefi ekran efekti uygulamadan görünür saat halkaları içinde sabitler.
+5. **Zamanın Sonu — 50 XP:** geniş alandaki hedefleri durdurur ve süre sonunda büyük zaman patlaması oluşturur.
 
-### Normal kullanım
+## Skin analizi
 
-- Dört sculk kolu oyuncunun arkasından çıkar ve ışınlarını 1–1,5 blok önde birleştirir.
-- Birleşen kalın ışın, karşıda hedef bulunmasa da mutlaka ileri ateşlenir.
-- İlk uygun oyuncuya veya canlı moba çarparsa Antik Şehir enerjisini aktarır.
-- Oyuncular 20 saniye boyunca bir adet güçlendirilmiş aktif güç kullanabilir.
-- Moblar 20 saniye boyunca mor/camgöbeği Antik Mutasyon, güç, hız ve direnç kazanır.
+- Skin analizi ve skin indirme ayrı iş parçacıklarında çalışır; ilk ekran ağ isteği yüzünden kilitlenmez.
+- Profil dokusu bulunamazsa UUID, ardından oyuncu adı üzerinden Mojang skin adresi yeniden çözülür ve HTTPS ile alınır.
+- Ana katman ve ikinci katmanlar analiz edilir; şeffaf pikseller sayılmaz.
+- Baş/ten bölgesi düşük, gövde ve kıyafet katmanları daha yüksek ağırlık alır.
+- En yüksek ve ikinci en yüksek sonuç ayrı öneri olarak gösterilir.
+- Skin alınamazsa uydurma yüzdeler gösterilmez; manuel sınıf seçimi açık kalır.
 
-### Kendi kendine kullanım
+## Antik Şehir Şarjı
 
-6. güç seçiliyken çömelip `R` tuşuna bas:
+Warden'ın 6. gücü 70 XP gerektirir. Hedef oyuncuya veya moba ışın atar; çömelerek kullanılırsa oyuncu üç kalp feda ederek kendini şarj eder.
 
-1. Dört sculk kolu animasyonla çıkar.
-2. Kollar göğsün önünde atan mor/camgöbeği Antik Kalp oluşturur.
-3. Kalp göğse itilip içeri girdikten sonra üç kalp feda edilir.
-4. Yalnızca kalp tamamen yerleştiği anda 20 saniyelik şarj sayacı ve cooldown serbestliği başlar.
-5. 20 saniye sonunda kalpler yarım kalplik adımlarla yavaşça geri dolar.
+- Şarj en fazla 20 saniye sürer ve bir güçlendirilmiş aktif güç hakkı verir.
+- Uygun güçlerin bekleme süreleri geçici olarak açılır.
+- Hasar, alan, süre, savurma ve görünür saldırı boyutu güç türüne göre artar. Uçuş, Doğa ve Zaman pasifleri de 20 saniyelik taşıma süresince geçici olarak güçlenir.
+- Şarjlı Meteor Yağmuru tam 20 büyük morumsu meteor üretir.
+- Yoğun parçacık duvarı kaldırılmıştır; ana görünürlük parlama dış çizgisi ve geçici sculk kol modellerinden gelir.
+- Çöküş etkileri 20 saniye tamamlandıktan sonra başlar.
 
-Kendi kendine şarj başlatmak için üç kalpten fazla can gerekir.
-
-## Şarj zamanlaması
-
-- Şarj geldiği anda uygun aktif güçlerin mevcut bekleme süreleri geçici olarak kapanır.
-- Yalnızca bir güçlendirilmiş aktif güç kullanılabilir.
-- Güç hakkı kullanıldığında diğer cooldownlar geri gelir; fakat 20 saniyelik aşırı yük sayacı devam eder.
-- Yavaşlık V, Bulantı ve Madencilik Yorgunluğu güç kullanıldığı anda değil, ilk şarjın başlamasından 20 saniye sonra uygulanır.
-- Güç hiç kullanılmasa da 20 saniye sonunda aynı çöküş başlar.
-- Warden'ın 6. gücü kendi şarjıyla güçlendirilemez ve cooldownu temizlenmez.
-- Şarjlı saldırılar mor/camgöbeği sculk görünümü kazanır.
-- Şarjlı Meteor Yağmuru 10 yerine 20 daha büyük morumsu meteor oluşturur.
-
-## Tek oyunculu test komutları
-
-Hileler açıkken veya yönetici yetkisiyle:
+Tek oyunculu test:
 
 ```text
 /skinpowers charge give @s 20
 /skinpowers charge clear @s
 ```
 
-Türkçe karşılıkları:
-
-```text
-/skingucu sarj ver @s 20
-/skingucu sarj temizle @s
-```
-
-Süre 20 saniyeden büyük yazılsa bile 20 saniyeyle sınırlandırılır. Komutla verilen şarj, kendi kendine kullanımın üç kalplik bedelini uygulamaz; test amacı taşır.
-
 ## Gereksinimler
 
 - Minecraft Java Edition 26.1.2
-- Fabric Loader 0.19.3 veya üzeri
+- Fabric Loader 0.19.3+
 - Fabric API 0.154.2+26.1.2
 - Java 25
-- Mod Menu 18.0.0 isteğe bağlıdır; yalnızca ayar düğmesini gösterir.
+- Mod Menu 18.0.0 isteğe bağlı
 
-## GitHub Actions ile JAR oluşturma
+## GitHub Actions ile derleme
 
-1. Bu klasörün içeriğini GitHub deposunun ana dizinine kopyalayın.
-2. Eski sürümden kalan `CHANGELOG_0.3.x.md` gibi dosyaları silin; `.git` klasörünü silmeyin.
-3. `Actions` sekmesindeki **Fabric JAR Derle** iş akışını çalıştırın.
-4. Yeşil tikten sonra `skinpowers-4.1.0-jar` artifact'ini indirin.
-5. ZIP içindeki `skinpowers-4.1.0.jar` dosyasını Minecraft `mods` klasörüne koyun.
-6. Eski Skin Powers JAR dosyalarını `mods` klasöründen kaldırın.
-
-## Yapımcı
+1. Mevcut GitHub proje klasöründe gizli `.git` klasörünü koruyun.
+2. Eski proje dosyalarını temizleyip bu paketin içeriğini ana klasöre kopyalayın.
+3. `Commit to main` ve `Push origin` yapın.
+4. GitHub `Actions` sekmesinde **Fabric JAR Derle** işinin yeşil tamamlanmasını bekleyin.
+5. `skinpowers-1.0.0-jar` artifact'ini indirip içindeki `skinpowers-1.0.0.jar` dosyasını `mods` klasörüne koyun.
 
 **Made by Yankalan**
-
-
-## 4.1 Güç kombinasyonları
-
-`K` ile Kombo Modu açılır/kapatılır. Mod açıkken doğru iki güç kısa süre içinde kullanılırsa özel saldırı oluşur:
-
-- Warden: Yer Sarsıntısı → Sonik Patlama = Sonik Fay
-- Uçuş: Süreli Elytra → Gökyüzü Hâkimiyeti = Gök Dalışı
-- Ateş: Cehennem Küresi → Meteor Yağmuru = Cehennem Felaketi
-- Doğa: Sarmaşık Kapanı → Dikenli Tohum = Diken Ormanı
-
-Antik Şehir Şarjı varsa hazırlık gücü hakkı tüketmez; birleşik saldırı mor-camgöbeği güçlendirilmiş biçimde hakkı tüketir.

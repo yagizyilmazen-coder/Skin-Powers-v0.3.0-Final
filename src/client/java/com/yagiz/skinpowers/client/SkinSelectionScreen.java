@@ -10,19 +10,19 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 
 public final class SkinSelectionScreen extends Screen {
-    private static final String[] TITLES = {"WARDEN", "UÇUŞ", "ATEŞ", "DOĞA"};
-    private static final String[] SUBTITLES = {"Derinliğin gücü", "Gökyüzünün özgürlüğü", "Alevin hâkimiyeti", "Ormanın yaşamı"};
-    private static final PowerClass[] CLASSES = {PowerClass.WARDEN, PowerClass.FLIGHT, PowerClass.FIRE, PowerClass.NATURE};
-    private static final int[] TOP_COLORS = {0xFF07111C, 0xFF74BDE8, 0xFF5B0B08, 0xFF102B13};
-    private static final int[] BOTTOM_COLORS = {0xFF16384B, 0xFFEAF8FF, 0xFFFF6B18, 0xFF4C8B3C};
-    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFFFFFFF, 0xFFFFC22E, 0xFF74E36D};
+    private static final String[] TITLES = {"WARDEN", "UÇUŞ", "ATEŞ", "DOĞA", "ZAMAN"};
+    private static final String[] SUBTITLES = {"Derinliğin gücü", "Gökyüzünün özgürlüğü", "Alevin hâkimiyeti", "Ormanın yaşamı", "Anların hâkimiyeti"};
+    private static final PowerClass[] CLASSES = {PowerClass.WARDEN, PowerClass.FLIGHT, PowerClass.FIRE, PowerClass.NATURE, PowerClass.TIME};
+    private static final int[] TOP_COLORS = {0xFF07111C, 0xFF74BDE8, 0xFF5B0B08, 0xFF102B13, 0xFF09142C};
+    private static final int[] BOTTOM_COLORS = {0xFF16384B, 0xFFEAF8FF, 0xFFFF6B18, 0xFF4C8B3C, 0xFFD6AF42};
+    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFFFFFFF, 0xFFFFC22E, 0xFF74E36D, 0xFFFFD86A};
 
     private final long openedAt = Util.getMillis();
     private SkinAnalyzer.Result result = SkinAnalyzer.Result.unavailable();
     private boolean analysisFinished;
     private int selectedIndex = -1;
     private long selectedAt;
-    private final Button[] selectButtons = new Button[4];
+    private final Button[] selectButtons = new Button[5];
     private CardLayout cachedLayout;
     private int cachedLayoutWidth = -1;
     private int cachedLayoutHeight = -1;
@@ -41,8 +41,9 @@ public final class SkinSelectionScreen extends Screen {
             int buttonHeight = layout.compact() ? 18 : 20;
             int y = layout.cardY() + layout.cardHeight() - buttonHeight - 7;
             selectButtons[i] = Button.builder(Component.translatable("screen.skinpowers.select"), button -> select(index))
-                .bounds(x, y, buttonWidth, buttonHeight)
+                .bounds(x, y + 35, buttonWidth, buttonHeight)
                 .build();
+            selectButtons[i].active = false;
             addRenderableWidget(selectButtons[i]);
         }
 
@@ -117,6 +118,14 @@ public final class SkinSelectionScreen extends Screen {
             }
             int y = layout.cardY() + (int) ((1.0F - cardProgress) * 35.0F);
             drawCard(graphics, i, baseX + shake, y, layout.cardWidth(), layout.cardHeight(), cardProgress, now);
+
+            // Seçim düğmesi karttan ayrı kalmaz; kartla aynı animasyon grubunda yükselir.
+            Button selectButton = selectButtons[i];
+            if (selectButton != null) {
+                int buttonHeight = layout.compact() ? 18 : 20;
+                selectButton.setY(y + layout.cardHeight() - buttonHeight - 7);
+                selectButton.active = cardProgress >= 0.98F && selectedIndex < 0;
+            }
         }
 
         if (!analysisFinished && ClientConfig.get().scanAnimation()) {
@@ -136,11 +145,12 @@ public final class SkinSelectionScreen extends Screen {
         graphics.fillGradient(x, y, x + w, y + h, top, bottom);
 
         boolean recommended = analysisFinished && result.bestIndex() == index;
+        boolean secondRecommended = analysisFinished && result.secondIndex() == index;
         float pulse = (float) ((Math.sin(now / 260.0) + 1.0) * 0.5);
-        int outlineAlpha = recommended ? 180 + (int) (75 * pulse) : 110;
+        int outlineAlpha = recommended ? 180 + (int) (75 * pulse) : (secondRecommended ? 155 + (int) (55 * pulse) : 110);
         graphics.outline(x, y, w, h, withAlpha(ACCENTS[index], outlineAlpha));
-        if (recommended) {
-            graphics.outline(x - 2, y - 2, w + 4, h + 4, withAlpha(ACCENTS[index], 80 + (int) (80 * pulse)));
+        if (recommended || secondRecommended) {
+            graphics.outline(x - 2, y - 2, w + 4, h + 4, withAlpha(ACCENTS[index], (recommended ? 80 : 48) + (int) ((recommended ? 80 : 45) * pulse)));
         }
 
         int buttonHeight = layout().compact() ? 18 : 20;
@@ -154,6 +164,7 @@ public final class SkinSelectionScreen extends Screen {
             case 1 -> drawClouds(graphics, x, y, w, artBottom - y, now);
             case 2 -> drawLavaCave(graphics, x, y, w, artBottom - y, now);
             case 3 -> drawForest(graphics, x, y, w, artBottom - y, now);
+            case 4 -> drawTimeTemple(graphics, x, y, w, artBottom - y, now);
             default -> { }
         }
         graphics.disableScissor();
@@ -173,10 +184,10 @@ public final class SkinSelectionScreen extends Screen {
             : (result.fromSkin() ? (w < 82 ? "%" + score : "Eşleşme: %" + score) : "Eşleşme: —");
         scoreText = fit(scoreText, w - 8);
         graphics.text(font, scoreText, x + (w - font.width(scoreText)) / 2, scoreY, recommended ? ACCENTS[index] : 0xFFC8D0D8, false);
-        if (recommended) {
-            String recommendedText = "ÖNERİLEN";
-            graphics.fill(x + 8, y + 8, x + 8 + font.width(recommendedText) + 8, y + 21, withAlpha(ACCENTS[index], 155));
-            graphics.text(font, recommendedText, x + 12, y + 10, index == 1 ? 0xFF183348 : 0xFFFFFFFF, true);
+        if (recommended || secondRecommended) {
+            String recommendedText = recommended ? "1. ÖNERİ" : "2. ÖNERİ";
+            graphics.fill(x + 5, y + 6, x + 5 + font.width(recommendedText) + 7, y + 19, withAlpha(ACCENTS[index], recommended ? 180 : 125));
+            graphics.text(font, recommendedText, x + 9, y + 8, index == 1 || index == 4 ? 0xFF183348 : 0xFFFFFFFF, true);
         }
     }
 
@@ -255,31 +266,38 @@ public final class SkinSelectionScreen extends Screen {
     }
 
     private void drawAncientCity(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
-        int floor = y + h - 18;
-        g.fill(x, floor, x + w, y + h, 0xFF071018);
-        for (int i = 0; i < 5; i++) {
-            int towerX = x + 5 + i * Math.max(10, (w - 10) / 5);
-            int towerH = 19 + (i % 3) * 10;
-            g.fill(towerX, floor - towerH, towerX + 6, floor, 0xFF102733);
-            g.fill(towerX + 1, floor - towerH + 4, towerX + 5, floor - towerH + 8, 0xFF28BFB8);
+        int floor = y + h - 16;
+        g.fillGradient(x, y, x + w, y + h, 0xFF03070B, 0xFF0B2631);
+        g.fill(x, floor, x + w, y + h, 0xFF061018);
+        for (int i = 0; i < 6; i++) {
+            int towerX = x + 3 + i * Math.max(8, (w - 7) / 6);
+            int towerH = 15 + (i % 3) * 9;
+            g.fill(towerX, floor - towerH, towerX + 5, floor, 0xFF102733);
+            g.fill(towerX + 1, floor - towerH + 3, towerX + 4, floor - towerH + 7, 0xFF22BDB8);
         }
 
-        // Kartta sınıfı açıkça anlatan Warden silüeti.
+        // Oyun içindeki Warden'ın geniş gövde, uzun kol, boynuz ve parlayan göğüs yapısına yakın piksel çizimi.
         int cx = x + w / 2;
-        int bodyBottom = floor - 3;
-        int bodyTop = Math.max(y + 22, bodyBottom - Math.min(63, h - 28));
-        int bodyHalf = Math.max(9, Math.min(17, w / 7));
-        g.fill(cx - bodyHalf, bodyTop + 15, cx + bodyHalf, bodyBottom, 0xFF101C25);
-        g.fill(cx - bodyHalf - 7, bodyTop + 19, cx - bodyHalf, bodyBottom - 8, 0xFF0A141C);
-        g.fill(cx + bodyHalf, bodyTop + 19, cx + bodyHalf + 7, bodyBottom - 8, 0xFF0A141C);
-        g.fill(cx - bodyHalf + 2, bodyTop, cx + bodyHalf - 2, bodyTop + 19, 0xFF111A22);
-        g.fill(cx - bodyHalf - 9, bodyTop + 3, cx - bodyHalf + 2, bodyTop + 8, 0xFF173847);
-        g.fill(cx + bodyHalf - 2, bodyTop + 3, cx + bodyHalf + 9, bodyTop + 8, 0xFF173847);
-        int glow = 135 + (int) ((Math.sin(now / 250.0) + 1) * 48);
-        g.fill(cx - 6, bodyTop + 22, cx - 2, bodyTop + 35, withAlpha(0xFF39E2D6, glow));
-        g.fill(cx + 2, bodyTop + 22, cx + 6, bodyTop + 35, withAlpha(0xFF39E2D6, glow));
-        g.fill(cx - 8, bodyTop + 7, cx - 4, bodyTop + 11, 0xFFEFFFFF);
-        g.fill(cx + 4, bodyTop + 7, cx + 8, bodyTop + 11, 0xFFEFFFFF);
+        int bottom = floor - 2;
+        int top = Math.max(y + 12, bottom - Math.min(72, h - 19));
+        int bodyHalf = Math.max(10, Math.min(18, w / 6));
+        int horn = Math.max(7, bodyHalf / 2);
+        g.fill(cx - bodyHalf, top + 16, cx + bodyHalf, bottom, 0xFF0B171D);
+        g.fill(cx - bodyHalf + 3, top + 7, cx + bodyHalf - 3, top + 23, 0xFF101C23);
+        g.fill(cx - bodyHalf - horn, top + 5, cx - bodyHalf + 3, top + 10, 0xFF176071);
+        g.fill(cx + bodyHalf - 3, top + 5, cx + bodyHalf + horn, top + 10, 0xFF176071);
+        g.fill(cx - bodyHalf - 7, top + 21, cx - bodyHalf, bottom - 5, 0xFF091216);
+        g.fill(cx + bodyHalf, top + 21, cx + bodyHalf + 7, bottom - 5, 0xFF091216);
+        g.fill(cx - bodyHalf + 2, bottom - 3, cx - 3, bottom + 5, 0xFF071014);
+        g.fill(cx + 3, bottom - 3, cx + bodyHalf - 2, bottom + 5, 0xFF071014);
+        int glow = 145 + (int) ((Math.sin(now / 220.0) + 1.0) * 45.0);
+        for (int rib = 0; rib < 3; rib++) {
+            int ry = top + 25 + rib * 7;
+            g.fill(cx - 8 - rib, ry, cx - 2, ry + 4, withAlpha(0xFF43E5DC, glow));
+            g.fill(cx + 2, ry, cx + 8 + rib, ry + 4, withAlpha(0xFF43E5DC, glow));
+        }
+        g.fill(cx - 7, top + 12, cx - 3, top + 16, 0xFFE7FFFF);
+        g.fill(cx + 3, top + 12, cx + 7, top + 16, 0xFFE7FFFF);
     }
 
     private void drawClouds(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
@@ -355,14 +373,42 @@ public final class SkinSelectionScreen extends Screen {
         g.fill(cx - 2, cy + 7 + bob, cx + 2, cy + 14 + bob, 0xFFB5E56A);
     }
 
+    private void drawTimeTemple(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
+        g.fillGradient(x, y, x + w, y + h, 0xFF071127, 0xFFB78C2E);
+        int floor = y + h - 16;
+        g.fill(x, floor, x + w, y + h, 0xFF111A35);
+        int cx = x + w / 2;
+        int cy = y + Math.max(32, h / 2);
+        int radius = Math.max(13, Math.min(27, w / 4));
+        for (int i = 0; i < 32; i++) {
+            double angle = Math.PI * 2.0 * i / 32.0;
+            int px = cx + (int) Math.round(Math.cos(angle) * radius);
+            int py = cy + (int) Math.round(Math.sin(angle) * radius);
+            g.fill(px - 1, py - 1, px + 2, py + 2, i % 4 == 0 ? 0xFFFFE28A : 0xFF5ED9E5);
+        }
+        double hand = now / 480.0;
+        int hx = cx + (int) Math.round(Math.cos(hand) * (radius - 4));
+        int hy = cy + (int) Math.round(Math.sin(hand) * (radius - 4));
+        int steps = Math.max(1, radius);
+        for (int i = 0; i <= steps; i++) {
+            double t = i / (double) steps;
+            int px = (int) Math.round(cx + (hx - cx) * t);
+            int py = (int) Math.round(cy + (hy - cy) * t);
+            g.fill(px, py, px + 2, py + 2, 0xFFFFD861);
+        }
+        int spearBob = (int) Math.round(Math.sin(now / 230.0) * 3.0);
+        g.fill(cx - 3, cy - radius - 15 + spearBob, cx + 3, cy - radius + 10 + spearBob, 0xFFFFD861);
+        g.fill(cx - 7, cy - radius - 14 + spearBob, cx + 7, cy - radius - 8 + spearBob, 0xFF4FD6E3);
+    }
+
     private CardLayout layout() {
         if (cachedLayout != null && cachedLayoutWidth == width && cachedLayoutHeight == height) return cachedLayout;
         int count = CLASSES.length;
         boolean compact = width < 520 || height < 330;
-        int gap = compact ? 4 : Math.max(5, Math.min(10, width / 105));
-        int sideMargin = compact ? 8 : 20;
+        int gap = compact ? 3 : Math.max(4, Math.min(8, width / 125));
+        int sideMargin = compact ? 5 : 14;
         int availableWidth = Math.max(count * 44, width - sideMargin * 2 - gap * (count - 1));
-        int cardWidth = Math.max(44, Math.min(145, availableWidth / count));
+        int cardWidth = Math.max(42, Math.min(132, availableWidth / count));
         int cardY = compact ? 44 : 112;
         int maxHeight = Math.max(112, height - cardY - 20);
         int preferredHeight = compact ? Math.max(142, (int) (cardWidth * 2.15)) : Math.max(178, (int) (cardWidth * 1.62));

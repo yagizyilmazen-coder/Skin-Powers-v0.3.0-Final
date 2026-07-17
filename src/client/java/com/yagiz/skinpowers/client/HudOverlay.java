@@ -37,6 +37,7 @@ public final class HudOverlay {
             case FLIGHT -> 0xFFEAF8FF;
             case FIRE -> 0xFFFFA826;
             case NATURE -> 0xFF67D96E;
+            case TIME -> 0xFFFFD76A;
             default -> 0xFFBFC9D2;
         };
 
@@ -81,7 +82,8 @@ public final class HudOverlay {
             case FIRE -> ClientState.unlockedLevel() >= 4 ? "Seviye 4: Cehennem Küresi" : "Ateş bağışıklığı: AÇIK";
             case NATURE -> ClientState.natureTreeTicks() > 0
                 ? String.format(java.util.Locale.ROOT, "Yaşam Ağacı: %.1f sn", ClientState.natureTreeTicks() / 20.0)
-                : "Doğal Yenilenme: AÇIK";
+                : "Doğanın Canı: AÇIK";
+            case TIME -> "Zaman Sezgisi: " + (ClientState.passiveEnabled() ? "AÇIK" : "KAPALI");
             default -> "";
         };
         int statusY = Math.min(y + panelHeight - 11, y + 40);
@@ -116,39 +118,26 @@ public final class HudOverlay {
         int hudWidth,
         int hudTotalHeight
     ) {
-        boolean charged = ClientState.ancientChargeTicks() > 0;
-        boolean exhausted = !charged && ClientState.ancientExhaustionTicks() > 0;
-        if (!charged && !exhausted) return;
+        boolean active = ClientState.ancientChargeTicks() > 0 || ClientState.ancientExhaustionTicks() > 0;
+        if (!active) return;
 
-        int width = charged
-            ? Math.min(292, Math.max(202, screenWidth - 24))
-            : Math.min(222, Math.max(170, screenWidth - 24));
-        int height = charged ? 34 : 23;
+        int width = Math.min(330, Math.max(220, screenWidth - 24));
+        int height = 36;
         int left = (screenWidth - width) / 2;
         int top = 7;
-
         boolean horizontalOverlap = left < hudX + hudWidth + 6 && left + width > hudX - 6;
         if (horizontalOverlap) top = hudY + hudTotalHeight + 6;
         if (top + height > screenHeight - 8) top = Math.max(7, screenHeight - height - 8);
 
-        if (charged) {
-            graphics.fill(left, top, left + width, top + 34, 0xDD12071D);
-            graphics.fill(left, top, left + 5, top + 34, 0xFFB24DFF);
-            graphics.outline(left, top, width, 34, 0xFF65E7E0);
-            String title = ClientState.ancientChargeAvailable()
-                ? "ANTİK ŞEHİR ŞARJI • 1 GÜÇ HAKKI"
-                : "ANTİK ŞEHİR ŞARJI • GÜÇ KULLANILDI";
-            graphics.text(client.font, fit(client, title, width - 18), left + 10, top + 7, 0xFFFFFFFF, true);
-            String timer = ClientState.ancientChargeAvailable()
-                ? String.format(java.util.Locale.ROOT, "%.1f sn • bekleme süreleri kapalı", ClientState.ancientChargeTicks() / 20.0)
-                : String.format(java.util.Locale.ROOT, "Çöküşe %.1f sn", ClientState.ancientChargeTicks() / 20.0);
-            graphics.text(client.font, fit(client, timer, width - 18), left + 10, top + 20, 0xFFCFA8FF, false);
-        } else {
-            graphics.fill(left, top, left + width, top + 23, 0xD0180C16);
-            graphics.outline(left, top, width, 23, 0xFF7C506F);
-            String text = String.format(java.util.Locale.ROOT, "ANTİK ÇÖKÜŞ • %.1f sn", ClientState.ancientExhaustionTicks() / 20.0);
-            graphics.text(client.font, fit(client, text, width - 12), left + (width - client.font.width(fit(client, text, width - 12))) / 2, top + 8, 0xFFE2B7DA, true);
-        }
+        boolean charged = ClientState.ancientChargeTicks() > 0;
+        int accent = charged ? 0xFF65E7E0 : 0xFF9E557D;
+        graphics.fill(left, top, left + width, top + height, charged ? 0xDD12071D : 0xDD190B16);
+        graphics.fill(left, top, left + 5, top + height, charged ? 0xFFB24DFF : 0xFF7C3D65);
+        graphics.outline(left, top, width, height, accent);
+        String line1 = "ANTİK ŞEHİR SENİ ŞARJ ETTİ";
+        String line2 = "BEDELLERİ OLACAK...";
+        graphics.text(client.font, line1, left + (width - client.font.width(line1)) / 2, top + 7, 0xFFFFFFFF, true);
+        graphics.text(client.font, line2, left + (width - client.font.width(line2)) / 2, top + 21, charged ? 0xFFCFA8FF : 0xFFE0AFCF, true);
     }
 
     private static void drawShakeOverlay(GuiGraphicsExtractor graphics, int width, int height, ClientConfig config) {

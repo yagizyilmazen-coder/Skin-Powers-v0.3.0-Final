@@ -5,7 +5,8 @@ public enum PowerClass {
     WARDEN("Warden"),
     FLIGHT("Uçuş"),
     FIRE("Ateş"),
-    NATURE("Doğa");
+    NATURE("Doğa"),
+    TIME("Zaman");
 
     private final String displayName;
 
@@ -22,7 +23,6 @@ public enum PowerClass {
         try {
             return PowerClass.valueOf(value.toUpperCase(java.util.Locale.ROOT));
         } catch (IllegalArgumentException ignored) {
-            // Eski veya bilinmeyen kayıtlar yeniden sınıf seçim ekranına döner.
             return NONE;
         }
     }

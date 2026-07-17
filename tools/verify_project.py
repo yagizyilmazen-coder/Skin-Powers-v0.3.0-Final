@@ -8,7 +8,7 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "4.1.0"
+VERSION = "1.0.0"
 REQUIRED = [
     "build.gradle",
     "settings.gradle",
@@ -77,7 +77,16 @@ REQUIRED_SOURCE_SNIPPETS = {
     "SONİK FAY": "Warden Sonik Fay kombosu",
     "CEHENNEM FELAKETİ": "Ateş Cehennem Felaketi kombosu",
     "DİKEN ORMANI": "Doğa Diken Ormanı kombosu",
-    "GÖK DALIŞI": "Uçuş Gök Dalışı kombosu",
+    "GÖKSEL BOMBARDIMAN": "Uçuş Göksel Bombardıman kombosu",
+    "Zamanın Sonu": "Zaman sınıfı nihai gücü",
+    "Krono Mızrağı": "Zaman sınıfı görünür mızrağı",
+    "case FLIGHT, FIRE, NATURE, TIME": "Antik Şehir Şarjının beş sınıf altyapısı",
+    "HTTP_EXECUTOR": "skin ağ istekleri için ayrı iş parçacığı havuzu",
+    "api.mojang.com/users/profiles/minecraft/": "oyuncu adından skin UUID yedek çözümü",
+    "secondIndex()": "ikinci skin önerisi",
+    "selectButton.setY": "ilk seçim ekranında düğmelerin kartlarla birlikte hareketi",
+    "target.setPos(prison.anchor.x": "Zaman Hapishanesinin ekran efektsiz sabitlemesi",
+    "boolean ancientBoost = data.ancientChargeActive(now)": "pasif güçlerin Antik Şehir süresince güçlenmesi",
 }
 
 errors: list[str] = []
@@ -117,6 +126,17 @@ for snippet, explanation in FORBIDDEN_SOURCE_SNIPPETS.items():
 for snippet, explanation in REQUIRED_SOURCE_SNIPPETS.items():
     if snippet not in all_source:
         errors.append(f"Beklenen özellik kodu bulunamadı: {explanation} ({snippet})")
+
+power_system_path = ROOT / "src/main/java/com/yagiz/skinpowers/PowerSystem.java"
+if power_system_path.exists():
+    power_source = power_system_path.read_text(encoding="utf-8")
+    prison_start = power_source.find("private static void tickTimePrisons()")
+    prison_end = power_source.find("private static void createTimeField", prison_start)
+    prison_section = power_source[prison_start:prison_end] if prison_start >= 0 and prison_end > prison_start else ""
+    if not prison_section:
+        errors.append("Zaman Hapishanesi tick bölümü bulunamadı")
+    elif "MobEffects.SLOWNESS" in prison_section or "MobEffects.NAUSEA" in prison_section:
+        errors.append("Zaman Hapishanesi ekran/potion efekti kullanmamalı; hedef doğrudan sabitlenmeli")
 
 fabric = ROOT / "src/main/resources/fabric.mod.json"
 if fabric.exists():
@@ -163,7 +183,7 @@ if workflow.exists():
 icon = ROOT / "src/main/resources/assets/skinpowers/icon.png"
 if icon.exists() and icon.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
     errors.append("Mod ikonu geçerli PNG imzasına sahip değil")
-for name in ["warden", "flight", "fire", "nature"]:
+for name in ["warden", "flight", "fire", "nature", "time"]:
     card = ROOT / f"src/main/resources/assets/skinpowers/textures/gui/cards/{name}.png"
     if not card.is_file():
         errors.append(f"Eksik sınıf kartı görseli: {card.relative_to(ROOT)}")
@@ -178,7 +198,7 @@ for unwanted_dir in ["build", ".gradle", "run", "out", "__pycache__"]:
         errors.append(f"Paketlenmemesi gereken klasör mevcut: {unwanted_dir}")
 for obsolete in [
     "DESIGN.md", "FEATURE_STATUS.md", "FILE_MANIFEST.txt", "VALIDATION.md",
-    "KURULUM_0.3.3.txt", "CHANGELOG_0.3.3.md", "CHANGELOG_0.3.6.md", "CHANGELOG_0.3.7.md", "CHANGELOG_4.0.0.md",
+    "KURULUM_0.3.3.txt", "CHANGELOG_0.3.3.md", "CHANGELOG_0.3.6.md", "CHANGELOG_0.3.7.md", "CHANGELOG_4.0.0.md", "CHANGELOG_4.1.0.md",
 ]:
     if (ROOT / obsolete).exists():
         errors.append(f"Eski/gereksiz kök dosyası kalmış: {obsolete}")
@@ -205,6 +225,8 @@ public final class CoreLogicSmokeTest {
     }
     public static void main(String[] args) {
         check(PowerCatalog.maxLevel(PowerClass.WARDEN) == 6, "warden level cap");
+        check(PowerCatalog.maxLevel(PowerClass.TIME) == 5, "time level cap");
+        check("Zamanın Sonu".equals(PowerCatalog.powerName(PowerClass.TIME, 5)), "time ultimate name");
         check(PowerCatalog.xpCostForLevel(PowerClass.WARDEN, 6) == 70, "warden sixth xp");
         check(PowerCatalog.comboStarterPower(PowerClass.FIRE) == 4, "fire combo starter");
         check(PowerCatalog.comboFinisherPower(PowerClass.FIRE) == 5, "fire combo finisher");
@@ -292,5 +314,5 @@ print(
     f"PROJE DENETİMİ BAŞARILI — {len(java_files)} Java dosyası; JSON, PNG, sürüm, "
     "Warden 6. güç, hedef olmasa da ışın, mob şarjı, iki saniyelik Antik Kalp animasyonu, "
     "üç kalp bedeli, 20 saniye sonunda çöküş, yavaş kalp dönüşü, cooldown dondurma, "
-    "20 mor meteor, K kombo modu, dört kombinasyon, dinamik HUD yerleşimi, komutlar ve çekirdek davranış testleri kontrol edildi."
+    "20 mor meteor, K kombo modu, beş kombinasyon, Zaman sınıfı, skin öneri sıralaması, dinamik HUD yerleşimi, komutlar ve çekirdek davranış testleri kontrol edildi."
 )

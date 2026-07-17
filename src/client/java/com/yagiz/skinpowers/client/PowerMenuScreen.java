@@ -15,6 +15,7 @@ import java.util.List;
 
 public final class PowerMenuScreen extends Screen {
     private final long openedAt = Util.getMillis();
+    private final Button[] powerButtons = new Button[6];
 
     public PowerMenuScreen() {
         super(Component.literal("Skin Powers"));
@@ -34,16 +35,20 @@ public final class PowerMenuScreen extends Screen {
             if (level <= unlocked) {
                 final int selectedLevel = level;
                 String label = level == selected ? "SEÇİLİ" : "SEÇ";
-                addRenderableWidget(Button.builder(Component.literal(label), button -> {
+                powerButtons[level - 1] = Button.builder(Component.literal(label), button -> {
                     ClientPlayNetworking.send(new ClientCommandPayload("SELECT:" + selectedLevel));
                     onClose();
-                }).bounds(buttonX, y + (layout.rowHeight() - 22) / 2, 90, 22).build());
+                }).bounds(buttonX, y + (layout.rowHeight() - 22) / 2 + 36, 90, 22).build();
+                powerButtons[level - 1].active = false;
+                addRenderableWidget(powerButtons[level - 1]);
             } else if (level == next) {
                 int cost = PowerCatalog.xpCostForLevel(ClientState.powerClass(), level);
-                addRenderableWidget(Button.builder(Component.literal("AÇ  " + cost + " XP"), button -> {
+                powerButtons[level - 1] = Button.builder(Component.literal("AÇ  " + cost + " XP"), button -> {
                     ClientPlayNetworking.send(new ClientCommandPayload("UNLOCK"));
                     onClose();
-                }).bounds(buttonX, y + (layout.rowHeight() - 22) / 2, 90, 22).build());
+                }).bounds(buttonX, y + (layout.rowHeight() - 22) / 2 + 36, 90, 22).build();
+                powerButtons[level - 1].active = false;
+                addRenderableWidget(powerButtons[level - 1]);
             }
         }
 
@@ -67,9 +72,15 @@ public final class PowerMenuScreen extends Screen {
         graphics.outline(layout.listLeft() - 8, layout.rowTop() - 8, layout.listWidth() + 16, contentBottom - layout.rowTop() + 16, withAlpha(colors[2], 165));
 
         for (int level = 1; level <= maximum; level++) {
+            float rowProgress = smoothStep(clamp01(appear * 1.35F - (level - 1) * 0.10F));
             int baseY = layout.rowTop() + (level - 1) * (layout.rowHeight() + layout.gap());
-            int y = baseY + (int) ((1.0F - appear) * (20 + level * 4));
+            int y = baseY + (int) ((1.0F - rowProgress) * (32 + level * 5));
             drawPowerRow(graphics, layout, powerClass, colors, level, y, now);
+            Button button = powerButtons[level - 1];
+            if (button != null) {
+                button.setY(y + (layout.rowHeight() - 22) / 2);
+                button.active = rowProgress >= 0.98F;
+            }
         }
 
         if (layout.wide()) {
@@ -274,15 +285,21 @@ public final class PowerMenuScreen extends Screen {
             graphics.fill(x + 4, y + 4, x + 18, y + 17, withAlpha(accent, 190));
             graphics.fill(x + 19, y, x + 33, y + 15, withAlpha(accent, 220));
             graphics.fill(x + 12, y - 2, x + 25, y + 11, 0xFF9BE66D);
+        } else if (powerClass == PowerClass.TIME) {
+            graphics.outline(x + 4, y, 28, 28, accent);
+            graphics.fill(x + 17, y + 5, x + 20, y + 16, 0xFFFFE28A);
+            graphics.fill(x + 17, y + 14, x + 27, y + 17, 0xFF5ED9E5);
+            graphics.fill(x + 16, y + 13, x + 21, y + 18, 0xFFFFFFFF);
         }
     }
 
     private String controlHint(PowerClass powerClass, int level) {
         if (powerClass == PowerClass.FLIGHT && level == 1) return "R veya Y: aç/kapat";
         if (powerClass == PowerClass.FLIGHT && level == 3) return "R veya çift boşluk";
-        if (powerClass == PowerClass.FLIGHT && level == 5) return "Otomatik çarpışma";
+        if (powerClass == PowerClass.FLIGHT && level == 5) return "R: Göksel Kıyamet";
         if (powerClass == PowerClass.WARDEN && level == 6) return "R: başka oyuncuya ışın";
         if (powerClass == PowerClass.FIRE && (level == 1 || level == 2)) return "Otomatik";
+        if (powerClass == PowerClass.TIME && level == 1) return "R veya Y: aç/kapat";
         return "R: kullan";
     }
 
@@ -301,6 +318,9 @@ public final class PowerMenuScreen extends Screen {
         }
         if (powerClass == PowerClass.NATURE && level == 4 && ClientState.natureTreeTicks() > 0) {
             return String.format(java.util.Locale.ROOT, "Yaşam Ağacı %.1f sn", ClientState.natureTreeTicks() / 20.0);
+        }
+        if (powerClass == PowerClass.TIME && level == 1) {
+            return ClientState.passiveEnabled() ? "Zaman Sezgisi açık" : "Zaman Sezgisi kapalı";
         }
         return ClientState.cooldownTicks() <= 0 ? "Kullanıma hazır" : "Bekleme süresinde";
     }
@@ -332,6 +352,13 @@ public final class PowerMenuScreen extends Screen {
                 int y = 75 + (i * 47) % Math.max(90, height - 130);
                 g.fill(x, y, x + 7, y + 4, withAlpha(accent, 55 + (i % 4) * 18));
                 g.fill(x + 3, y - 5, x + 5, y + 8, 0x557A4A25);
+            }
+        } else if (powerClass == PowerClass.TIME) {
+            for (int i = 0; i < 18; i++) {
+                int x = (i * 107 + drift / 4) % Math.max(1, width);
+                int y = 72 + (i * 53) % Math.max(90, height - 130);
+                g.outline(x, y, 10, 10, withAlpha(accent, 45 + (i % 4) * 18));
+                g.fill(x + 4, y + 2, x + 6, y + 6, 0x88FFFFFF);
             }
         }
     }
@@ -404,6 +431,7 @@ public final class PowerMenuScreen extends Screen {
             case FLIGHT -> new int[]{0xFF2F719D, 0xFFBFE8FF, 0xFFF1FBFF};
             case FIRE -> new int[]{0xFF170201, 0xFF7C1608, 0xFFFFA51F};
             case NATURE -> new int[]{0xFF071008, 0xFF315A2A, 0xFF72D86A};
+            case TIME -> new int[]{0xFF050B1E, 0xFF6E5520, 0xFFFFD76A};
             default -> new int[]{0xFF080A0E, 0xFF1D2630, 0xFF93A5B2};
         };
     }

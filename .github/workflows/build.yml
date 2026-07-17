@@ -37,6 +37,6 @@ jobs:
       - name: Derlenen JAR dosyasını yükle
         uses: actions/upload-artifact@v4
         with:
-          name: skinpowers-4.1.0-jar
-          path: build/libs/skinpowers-4.1.0.jar
+          name: skinpowers-1.0.0-jar
+          path: build/libs/skinpowers-1.0.0.jar
           if-no-files-found: error
