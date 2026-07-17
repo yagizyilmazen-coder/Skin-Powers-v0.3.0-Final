@@ -51,12 +51,12 @@ public final class PowerCatalog {
             ""
         },
         {
-            "Baktığın yöne kırılarak sıçrar; yolundaki düşmanların içinden geçip hasar verir.",
-            "Nişangâhtaki hedefin hareketini ve saldırı yönünü kısa süre tersine çevirir.",
-            "Yakındaki rakibin son kopyalanabilir gücünü bir kez kullanmak üzere saklar.",
-            "5 saniye boyunca alınan hasarı yok sayıp depolar; sonra V ile kalbe, X ile saldırıya dönüştürür.",
-            "Nişangâhtaki hedefi kısa süre gerçeklikten siler; geri geldiğinde savunması kırılır.",
-            "Geniş bir 404 alanı açar; düşmanları bozar, mermileri ters çevirir ve seni bir kez ölümden döndürür."
+            "Koşarken veya havada gerçekliği yararak ileri sıçrar; yolundakilere vurur ve gecikmeli patlayan bozuk kopyalar bırakır.",
+            "Nişangâhtaki hedefin hareketini, mermilerini ve verdiği hasarın bir bölümünü kısa süre kendi üzerine çevirir.",
+            "Yakındaki rakibin son uygun aktif gücünü saklar; Sistem Çökmesi sırasında kopya iki kez kullanılabilir.",
+            "Moblar, oyuncular, mermiler ve patlamalar dâhil gelen hasarı depolar; V ile geçici kırmızı kalbe, X ile tam hasara dönüştürür.",
+            "Hedefi kısa süre gerçeklikten siler; geri döndüğünde merkezde çöken bir bozulma patlaması oluşturur.",
+            "Saldırıları ve mermileri reddeden geniş bir alan açar; hasarı geri yollar, cooldownları hızlandırır ve ölümü bir kez iptal eder."
         }
     };
 

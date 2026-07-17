@@ -23,6 +23,7 @@ public final class ClientConfig {
     private int notificationScalePercent = 85;
     private boolean showAwakeningBar = true;
     private boolean compactHud = false;
+    private boolean showBattlePanel = true;
 
     // Animasyon ve görsel kalite
     private boolean menuAnimations = true;
@@ -79,6 +80,7 @@ public final class ClientConfig {
         notificationScalePercent = 85;
         showAwakeningBar = true;
         compactHud = false;
+        showBattlePanel = true;
         menuAnimations = true;
         scanAnimation = true;
         screenShakePercent = 75;
@@ -118,6 +120,7 @@ public final class ClientConfig {
     public int notificationScalePercent() { return notificationScalePercent; }
     public boolean showAwakeningBar() { return showAwakeningBar; }
     public boolean compactHud() { return compactHud; }
+    public boolean showBattlePanel() { return showBattlePanel; }
     public boolean menuAnimations() { return menuAnimations; }
     public boolean scanAnimation() { return scanAnimation; }
     public int screenShakePercent() { return screenShakePercent; }
@@ -136,6 +139,7 @@ public final class ClientConfig {
     public void cycleNotificationScale() { notificationScalePercent = notificationScalePercent >= 120 ? 60 : notificationScalePercent + 10; save(); }
     public void toggleAwakeningBar() { showAwakeningBar = !showAwakeningBar; save(); }
     public void toggleCompactHud() { compactHud = !compactHud; save(); }
+    public void toggleBattlePanel() { showBattlePanel = !showBattlePanel; save(); }
     public void toggleMenuAnimations() { menuAnimations = !menuAnimations; save(); }
     public void toggleScanAnimation() { scanAnimation = !scanAnimation; save(); }
     public void cycleScreenShake() { screenShakePercent = screenShakePercent >= 100 ? 0 : screenShakePercent + 25; save(); }

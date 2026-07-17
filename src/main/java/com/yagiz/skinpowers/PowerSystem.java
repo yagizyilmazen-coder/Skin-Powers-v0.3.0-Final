@@ -85,10 +85,20 @@ public final class PowerSystem {
 
         long now = serverLevel.getGameTime();
         boolean charged = data.selectedPower() == 2 && AncientChargeSystem.isUsableCharge(data, now, 2);
-        float damage = AncientChargeSystem.damage(4.0F, charged);
+        int stage = data.masteryStage(2);
+        float damage = AncientChargeSystem.damage(4.0F + stage * 1.2F, charged || data.classAwakeningActive(now));
         target.hurtServer(serverLevel, serverLevel.damageSources().playerAttack(serverPlayer), damage);
-        target.setRemainingFireTicks(charged ? 220 : 80);
-        serverLevel.sendParticles(ParticleTypes.FLAME, target.getX(), target.getY() + 1.0, target.getZ(), charged ? 28 : 12, 0.35, 0.45, 0.35, 0.02);
+        target.setRemainingFireTicks(charged ? 220 : 90 + stage * 20);
+        drawRing(serverLevel, target.position().add(0.0, 0.8, 0.0), 1.1 + stage * 0.12, charged ? ParticleTypes.WITCH : ParticleTypes.FLAME, charged ? 42 : 24);
+        serverLevel.sendParticles(ParticleTypes.LAVA, target.getX(), target.getY() + 1.0, target.getZ(), charged ? 18 : 7, 0.35, 0.45, 0.35, 0.0);
+        if (stage >= 2 || data.classAwakeningActive(now)) {
+            for (LivingEntity nearby : serverLevel.getEntitiesOfClass(LivingEntity.class, target.getBoundingBox().inflate(2.8 + stage * 0.2))) {
+                if (nearby == target || nearby == serverPlayer || protectedAlly(serverPlayer, nearby)) continue;
+                nearby.hurtServer(serverLevel, serverLevel.damageSources().playerAttack(serverPlayer), damage * 0.42F);
+                nearby.setRemainingFireTicks(Math.max(nearby.getRemainingFireTicks(), 60));
+            }
+        }
+        ServerNetworking.sendScreenShake(serverLevel, target.position(), 10.0, charged ? 0.75F : 0.38F, 6);
         if (charged) {
             serverLevel.sendParticles(ParticleTypes.WITCH, target.getX(), target.getY() + 1.0, target.getZ(), 35, 0.55, 0.65, 0.55, 0.08);
             serverLevel.sendParticles(ParticleTypes.SCULK_SOUL, target.getX(), target.getY() + 1.0, target.getZ(), 18, 0.45, 0.55, 0.45, 0.04);
@@ -119,6 +129,7 @@ public final class PowerSystem {
         AncientChargeSystem.tick(server);
         PowerCollisionSystem.tick(server);
         DuelSystem.tick(server);
+        PvpBotSystem.tick(server);
         WorldEventSystem.tick(server);
 
         long gameTime = server.overworld().getGameTime();
@@ -153,6 +164,17 @@ public final class PowerSystem {
     }
 
     private static void tickWarden(ServerPlayer player, PlayerPowerData data, ServerLevel level, long now) {
+        // Göğüsteki sculk çekirdeği; Warden artık yalnızca iksir parçacığı gibi görünmez.
+        if (now % 6L == 0L) {
+            Vec3 chest = player.position().add(0.0, 1.15, 0.0);
+            double pulse = 0.34 + Math.sin(now * 0.24) * 0.08;
+            for (int i = 0; i < 8; i++) {
+                double angle = Math.PI * 2.0 * i / 8.0 + now * 0.07;
+                level.sendParticles(i % 2 == 0 ? ParticleTypes.SCULK_SOUL : ParticleTypes.SOUL_FIRE_FLAME,
+                    chest.x + Math.cos(angle) * pulse, chest.y + Math.sin(angle * 2.0) * 0.12,
+                    chest.z + Math.sin(angle) * pulse, 1, 0.02, 0.02, 0.02, 0.0);
+            }
+        }
         // Küçük sınıf pasifi: Warden oyuncusu yakındaki hareket eden canlıların titreşimlerini hisseder.
         if (data.unlockedLevel() >= 1 && now % 20L == 0L) {
             for (LivingEntity living : nearbyLiving(player, 12.0)) {
@@ -332,6 +354,19 @@ public final class PowerSystem {
             int stage = data.masteryStage(3);
             boolean boosted = data.chargedFireRing();
             double radius = AncientChargeSystem.radius(10.0 + stage * 0.6, boosted);
+            if (now % 2L == 0L) {
+                double baseAngle = now * 0.16;
+                int cores = boosted ? 6 : 4;
+                for (int i = 0; i < cores; i++) {
+                    double angle = baseAngle + Math.PI * 2.0 * i / cores;
+                    double orbit = 2.4 + Math.sin(now * 0.08 + i) * 0.35;
+                    double x = player.getX() + Math.cos(angle) * orbit;
+                    double z = player.getZ() + Math.sin(angle) * orbit;
+                    double y = player.getY() + 0.8 + Math.sin(angle * 2.0) * 0.45;
+                    level.sendParticles(i % 2 == 0 ? ParticleTypes.FLAME : ParticleTypes.LAVA, x, y, z,
+                        boosted ? 8 : 5, 0.16, 0.22, 0.16, 0.02);
+                }
+            }
             if (now % 20L == 0L) {
                 for (LivingEntity target : nearbyLiving(player, radius)) {
                     if (target == player || protectedAlly(player, target)) continue;
@@ -684,8 +719,19 @@ public final class PowerSystem {
                         target.push(push.x, 0.45, push.z);
                     }
                 }
-                drawRing(level, player.position(), radius, charged ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, charged ? 96 : 68);
-                level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.5F, 0.72F);
+                for (int wave = 0; wave < 3; wave++) {
+                    drawRing(level, player.position().add(0.0, 0.08 * wave, 0.0), radius * (0.45 + wave * 0.27),
+                        wave == 2 && charged ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, charged ? 72 : 48);
+                }
+                for (int i = 0; i < 24; i++) {
+                    double angle = Math.PI * 2.0 * i / 24.0;
+                    double distance = radius * (0.25 + (i % 4) * 0.18);
+                    level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME,
+                        player.getX() + Math.cos(angle) * distance, player.getY() + 0.18,
+                        player.getZ() + Math.sin(angle) * distance, 2, 0.08, 0.10, 0.08, 0.01);
+                }
+                level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ROAR, SoundSource.PLAYERS, 1.5F, 0.76F);
+                ServerNetworking.sendScreenShake(level, player.position(), 30.0, charged ? 1.55F : 1.05F, 14);
                 data.setCooldown(2, now, Math.max(360, 600 - stage * 60));
                 return true;
             }
@@ -876,8 +922,18 @@ public final class PowerSystem {
                     target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(6.0F + stage, charged));
                     target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), 80));
                 }
-                drawRing(level, player.position(), radius, charged ? ParticleTypes.WITCH : ParticleTypes.FLAME, charged ? 92 : 64);
-                level.playSound(null, player.blockPosition(), SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 1.2F, 0.8F);
+                for (int wave = 0; wave < 3; wave++) {
+                    drawRing(level, player.position().add(0.0, wave * 0.16, 0.0), radius * (0.38 + wave * 0.31),
+                        charged && wave == 2 ? ParticleTypes.WITCH : ParticleTypes.FLAME, charged ? 74 : 52);
+                }
+                for (int i = 0; i < 4; i++) {
+                    double angle = now * 0.18 + Math.PI * 0.5 * i;
+                    level.sendParticles(i % 2 == 0 ? ParticleTypes.LAVA : ParticleTypes.FLAME,
+                        player.getX() + Math.cos(angle) * 2.2, player.getY() + 1.0,
+                        player.getZ() + Math.sin(angle) * 2.2, charged ? 12 : 7, 0.22, 0.35, 0.22, 0.025);
+                }
+                level.playSound(null, player.blockPosition(), SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 1.35F, 0.72F);
+                ServerNetworking.sendScreenShake(level, player.position(), 24.0, charged ? 1.35F : 0.85F, 12);
                 data.setCooldown(3, now, Math.max(420, 600 - stage * 50));
                 return true;
             }
@@ -1239,12 +1295,18 @@ public final class PowerSystem {
             }
         }
 
-        for (double distance = 1.0; distance <= range; distance += 1.25) {
+        Vec3 side = look.cross(new Vec3(0.0, 1.0, 0.0));
+        if (side.lengthSqr() < 0.001) side = new Vec3(1.0, 0.0, 0.0); else side = side.normalize();
+        for (double distance = 1.0; distance <= range; distance += 0.85) {
             Vec3 point = origin.add(look.scale(distance));
             level.sendParticles(ParticleTypes.SONIC_BOOM, point.x, point.y, point.z, 1, 0.0, 0.0, 0.0, 0.0);
-            if (charged) level.sendParticles(ParticleTypes.WITCH, point.x, point.y, point.z, 4, 0.18, 0.18, 0.18, 0.01);
+            double spread = 0.25 + distance * 0.035;
+            level.sendParticles(ParticleTypes.SCULK_SOUL, point.x + side.x * spread, point.y, point.z + side.z * spread, 2, 0.07, 0.07, 0.07, 0.01);
+            level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, point.x - side.x * spread, point.y, point.z - side.z * spread, 2, 0.07, 0.07, 0.07, 0.01);
+            if (charged) level.sendParticles(ParticleTypes.WITCH, point.x, point.y, point.z, 5, 0.20, 0.20, 0.20, 0.012);
         }
-        level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.6F, 0.92F);
+        level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.75F, 0.88F);
+        ServerNetworking.sendScreenShake(level, origin, charged ? 42.0 : 30.0, charged ? 1.65F : 1.15F, charged ? 18 : 12);
     }
 
     private static void hellfireBeam(ServerPlayer player, int stage, boolean charged, boolean comboPrimer) {

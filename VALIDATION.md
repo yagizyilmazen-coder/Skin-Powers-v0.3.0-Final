@@ -1,17 +1,17 @@
-# Skin Powers 1.0.7 doğrulama notu
+# Skin Powers 1.0.8 doğrulama notu
 
-Bu paket için aşağıdaki kontroller otomatik yapılır:
+Paket oluşturulurken şu kontroller çalıştırılır:
 
-- Temel Gradle, Fabric, kaynak ve GitHub Actions dosyalarının varlığı.
+- Gradle, Fabric, kaynaklar ve GitHub Actions dosyalarının varlığı.
 - Bütün JSON dosyalarının ayrıştırılması.
-- Sürüm, artifact ve JAR adlarının 1.0.7 olması.
-- Kadim Ejderha'nın altı adı, açıklaması, komutları ve eski FLIGHT kayıt uyumluluğu.
-- Uyanış enerjisi, yüzdeye bağlı süre, G tuşu, HUD senkronizasyonu ve beş form adı.
-- Düello filtresi, komutları ve Uyanış başlangıç sıfırlaması.
-- Anomali, güç çarpışması, dünya olayı ve trigger sistemlerinin korunması.
-- Sınıf kart PNG dosyalarının varlığı, 288×512 boyutu ve dosya bütünlüğü.
-- Tüm Java dosyalarında kaba sözdizimi/parantez dengesi.
+- Sürüm, artifact ve JAR adlarının 1.0.8 olması.
+- Beş sınıf, Kadim Ejderha, Uyanış, düello ve mevcut kayıt geçişlerinin korunması.
+- PvP bot komutları, beş bot sınıfı, dört zorluk ve savaş paneli veri akışı.
+- Anomali kopya kullanım sayısı, Kırık Adım yankıları, hasar depolama ve 404 geliştirmeleri.
+- Ateş ve Warden animasyon/güçlendirme kodlarının varlığı.
+- Kart PNG dosyalarının 288×512 boyutu ve bütün JSON kaynakları.
+- Bütün Java dosyalarında parantez/sözdizimi dengesi.
 - Minecraft bağımlılığı olmayan çekirdek sınıfların gerçek `javac` derlemesi ve davranış testi.
-- ZIP arşiv bütünlüğü paket oluşturulduktan sonra ayrıca kontrol edilir.
+- Oluşturulan ZIP'in tekrar açılması ve arşiv bütünlüğü.
 
-Bu çalışma ortamında Java 25, Gradle 9.5.1 ve Minecraft/Fabric bağımlılıkları birlikte bulunmadığından tam `gradle clean build` burada çalıştırılamaz. Son API ve tam derleme kontrolü GitHub Actions sonucudur; bu yüzden hiçbir hata çıkmayacağı kesin olarak garanti edilmez.
+Bu çalışma ortamında Java 25 ve Minecraft/Fabric bağımlılıkları birlikte bulunmadığından tam `gradle clean build` burada çalıştırılamaz. Son API/derleme kontrolü GitHub Actions sonucudur.

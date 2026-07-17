@@ -166,6 +166,23 @@ public final class DuelSystem {
         return false;
     }
 
+    public static BattlePanel panelFor(ServerPlayer player) {
+        Duel duel = ACTIVE_BY_PLAYER.get(player.getUUID());
+        if (duel == null) return BattlePanel.hidden();
+        UUID opponentId = duel.other(player.getUUID());
+        if (opponentId == null) return BattlePanel.hidden();
+        ServerPlayer opponent = player.level().getServer().getPlayerList().getPlayer(opponentId);
+        if (opponent == null) return BattlePanel.hidden();
+        PlayerPowerData opponentData = PlayerDataStore.get(opponentId);
+        long now = opponent.level().getGameTime();
+        float awakening = opponentData.classAwakeningActive(now)
+            ? Math.max(0.0F, Math.min(100.0F, (opponentData.classAwakeningUntil() - now) / 4.8F))
+            : opponentData.awakeningEnergy();
+        String detail = opponentData.classAwakeningActive(now) ? "UYANIŞ AKTİF" : "Sınıf düellosu";
+        return new BattlePanel(true, "DÜELLO", opponent.getScoreboardName(), opponentData.powerClass().displayName(),
+            opponent.getHealth(), opponent.getMaxHealth(), awakening, detail);
+    }
+
     public static boolean isInDuel(UUID playerId) {
         return ACTIVE_BY_PLAYER.containsKey(playerId);
     }

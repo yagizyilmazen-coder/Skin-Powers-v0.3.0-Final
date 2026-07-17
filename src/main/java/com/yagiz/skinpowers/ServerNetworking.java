@@ -33,6 +33,7 @@ public final class ServerNetworking {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             AnomalySystem.handleDisconnect(handler.player);
             DuelSystem.handleDisconnect(handler.player);
+            PvpBotSystem.removeOwnerBot(handler.player, false);
         });
     }
 
@@ -112,6 +113,8 @@ public final class ServerNetworking {
     public static void sync(ServerPlayer player) {
         PlayerPowerData data = PlayerDataStore.get(player.getUUID());
         long gameTime = player.level().getGameTime();
+        BattlePanel battlePanel = DuelSystem.panelFor(player);
+        if (!battlePanel.visible()) battlePanel = PvpBotSystem.panelFor(player);
         State state = new State(
             data.powerClass().name(),
             data.unlockedLevel(),
@@ -144,7 +147,15 @@ public final class ServerNetworking {
             (int) Math.max(0L, data.dragonFormUntil() - gameTime),
             data.awakeningEnergy(),
             (int) Math.max(0L, data.classAwakeningUntil() - gameTime),
-            DuelSystem.isInDuel(player.getUUID())
+            DuelSystem.isInDuel(player.getUUID()),
+            battlePanel.visible(),
+            battlePanel.mode(),
+            battlePanel.opponentName(),
+            battlePanel.opponentClass(),
+            battlePanel.health(),
+            battlePanel.maxHealth(),
+            battlePanel.awakening(),
+            battlePanel.detail()
         );
         ServerPlayNetworking.send(player, new ServerStatePayload(GSON.toJson(state)));
     }
@@ -203,6 +214,14 @@ public final class ServerNetworking {
         int dragonFormTicks,
         float awakeningEnergy,
         int classAwakeningTicks,
-        boolean duelActive
+        boolean duelActive,
+        boolean battlePanelVisible,
+        String battleMode,
+        String battleOpponentName,
+        String battleOpponentClass,
+        float battleOpponentHealth,
+        float battleOpponentMaxHealth,
+        float battleOpponentAwakening,
+        String battleDetail
     ) {}
 }

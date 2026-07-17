@@ -58,6 +58,7 @@ public final class PlayerPowerData {
     // Anomali sınıfı: tek kullanımlık kopya, hasar deposu ve geçici gerçek kırmızı kalpler.
     private String copiedPowerClass = "NONE";
     private int copiedPowerLevel = 0;
+    private int copiedPowerUses = 0;
     private long anomalyDamageStoreUntil = 0L;
     private float anomalyStoredDamage = 0.0F;
     private long anomalyChoiceUntil = 0L;
@@ -110,6 +111,7 @@ public final class PlayerPowerData {
     public boolean chargedWardenHunt() { return chargedWardenHunt; }
     public PowerClass copiedPowerClass() { return PowerClass.safeValueOf(copiedPowerClass); }
     public int copiedPowerLevel() { return Math.max(0, Math.min(6, copiedPowerLevel)); }
+    public int copiedPowerUses() { return hasCopiedPower() ? Math.max(1, Math.min(2, copiedPowerUses <= 0 ? 1 : copiedPowerUses)) : 0; }
     public boolean hasCopiedPower() { return copiedPowerClass() != PowerClass.NONE && copiedPowerLevel() > 0; }
     public long anomalyDamageStoreUntil() { return anomalyDamageStoreUntil; }
     public float anomalyStoredDamage() { return Math.max(0.0F, anomalyStoredDamage); }
@@ -176,6 +178,7 @@ public final class PlayerPowerData {
         chargedWardenHunt = false;
         copiedPowerClass = "NONE";
         copiedPowerLevel = 0;
+        copiedPowerUses = 0;
         anomalyDamageStoreUntil = 0L;
         anomalyStoredDamage = 0.0F;
         anomalyChoiceUntil = 0L;
@@ -450,9 +453,26 @@ public final class PlayerPowerData {
         if (powerClass == null || powerClass == PowerClass.NONE || powerClass == PowerClass.ANOMALY || level <= 0) return;
         copiedPowerClass = powerClass.name();
         copiedPowerLevel = Math.max(1, Math.min(PowerCatalog.maxLevel(powerClass), level));
+        copiedPowerUses = 1;
     }
 
-    public void clearCopiedPower() { copiedPowerClass = "NONE"; copiedPowerLevel = 0; }
+    public void setCopiedPowerUses(int value) {
+        if (!hasCopiedPower()) { copiedPowerUses = 0; return; }
+        copiedPowerUses = Math.max(1, Math.min(2, value));
+    }
+
+    /** @return kullanımdan sonra kopya tamamen tükendiyse true. */
+    public boolean consumeCopiedPowerUse() {
+        if (!hasCopiedPower()) return true;
+        copiedPowerUses = Math.max(0, copiedPowerUses() - 1);
+        if (copiedPowerUses <= 0) {
+            clearCopiedPower();
+            return true;
+        }
+        return false;
+    }
+
+    public void clearCopiedPower() { copiedPowerClass = "NONE"; copiedPowerLevel = 0; copiedPowerUses = 0; }
 
     public void beginAnomalyDamageStore(long untilTick) {
         anomalyDamageStoreUntil = untilTick;

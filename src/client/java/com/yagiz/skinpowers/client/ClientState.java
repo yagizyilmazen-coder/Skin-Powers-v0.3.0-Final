@@ -39,6 +39,14 @@ public final class ClientState {
     private static float awakeningEnergy;
     private static int classAwakeningTicks;
     private static boolean duelActive;
+    private static boolean battlePanelVisible;
+    private static String battleMode = "";
+    private static String battleOpponentName = "";
+    private static String battleOpponentClass = "";
+    private static float battleOpponentHealth;
+    private static float battleOpponentMaxHealth;
+    private static float battleOpponentAwakening;
+    private static String battleDetail = "";
     private static boolean receivedState;
     private static int shakeTicks;
     private static float shakeStrength;
@@ -85,6 +93,14 @@ public final class ClientState {
             awakeningEnergy = Math.max(0.0F, Math.min(100.0F, state.awakeningEnergy));
             classAwakeningTicks = Math.max(0, state.classAwakeningTicks);
             duelActive = state.duelActive;
+            battlePanelVisible = state.battlePanelVisible;
+            battleMode = state.battleMode == null ? "" : state.battleMode;
+            battleOpponentName = state.battleOpponentName == null ? "" : state.battleOpponentName;
+            battleOpponentClass = state.battleOpponentClass == null ? "" : state.battleOpponentClass;
+            battleOpponentHealth = Math.max(0.0F, state.battleOpponentHealth);
+            battleOpponentMaxHealth = Math.max(0.0F, state.battleOpponentMaxHealth);
+            battleOpponentAwakening = Math.max(0.0F, Math.min(100.0F, state.battleOpponentAwakening));
+            battleDetail = state.battleDetail == null ? "" : state.battleDetail;
             receivedState = true;
         } catch (RuntimeException ignored) {
             // Bozuk/uyumsuz paket istemciyi düşürmesin.
@@ -168,6 +184,14 @@ public final class ClientState {
         awakeningEnergy = 0.0F;
         classAwakeningTicks = 0;
         duelActive = false;
+        battlePanelVisible = false;
+        battleMode = "";
+        battleOpponentName = "";
+        battleOpponentClass = "";
+        battleOpponentHealth = 0.0F;
+        battleOpponentMaxHealth = 0.0F;
+        battleOpponentAwakening = 0.0F;
+        battleDetail = "";
         receivedState = false;
         shakeTicks = 0;
         shakeStrength = 0.0F;
@@ -207,6 +231,14 @@ public final class ClientState {
     public static float awakeningEnergy() { return awakeningEnergy; }
     public static int classAwakeningTicks() { return classAwakeningTicks; }
     public static boolean duelActive() { return duelActive; }
+    public static boolean battlePanelVisible() { return battlePanelVisible; }
+    public static String battleMode() { return battleMode; }
+    public static String battleOpponentName() { return battleOpponentName; }
+    public static String battleOpponentClass() { return battleOpponentClass; }
+    public static float battleOpponentHealth() { return battleOpponentHealth; }
+    public static float battleOpponentMaxHealth() { return battleOpponentMaxHealth; }
+    public static float battleOpponentAwakening() { return battleOpponentAwakening; }
+    public static String battleDetail() { return battleDetail; }
     public static boolean receivedState() { return receivedState; }
     public static int shakeTicks() { return shakeTicks; }
     public static float shakeStrength() { return shakeStrength; }
@@ -255,5 +287,13 @@ public final class ClientState {
         private float awakeningEnergy;
         private int classAwakeningTicks;
         private boolean duelActive;
+        private boolean battlePanelVisible;
+        private String battleMode;
+        private String battleOpponentName;
+        private String battleOpponentClass;
+        private float battleOpponentHealth;
+        private float battleOpponentMaxHealth;
+        private float battleOpponentAwakening;
+        private String battleDetail;
     }
 }

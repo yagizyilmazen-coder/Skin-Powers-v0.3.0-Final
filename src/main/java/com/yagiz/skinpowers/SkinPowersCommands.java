@@ -39,6 +39,20 @@ public final class SkinPowersCommands {
             .then(Commands.argument("oyuncu", EntityArgument.player()).executes(context ->
                 DuelSystem.challenge(context.getSource().getPlayerOrException(), EntityArgument.getPlayer(context, "oyuncu")) ? 1 : 0)));
 
+        root.then(Commands.literal("bot")
+            .then(Commands.literal("cagir")
+                .then(botClass("warden", PowerClass.WARDEN))
+                .then(botClass("ejderha", PowerClass.FLIGHT))
+                .then(botClass("ates", PowerClass.FIRE))
+                .then(botClass("doga", PowerClass.NATURE))
+                .then(botClass("anomali", PowerClass.ANOMALY)))
+            .then(Commands.literal("temizle").executes(context ->
+                PvpBotSystem.removeOwnerBot(context.getSource().getPlayerOrException(), true) ? 1 : 0))
+            .then(Commands.literal("durdur").executes(context ->
+                PvpBotSystem.pause(context.getSource().getPlayerOrException(), true) ? 1 : 0))
+            .then(Commands.literal("devam").executes(context ->
+                PvpBotSystem.pause(context.getSource().getPlayerOrException(), false) ? 1 : 0)));
+
         root.then(Commands.literal("olay")
             .executes(context -> {
                 context.getSource().sendSuccess(() -> Component.literal(WorldEventSystem.status()), false);
@@ -137,6 +151,25 @@ public final class SkinPowersCommands {
                         .executes(context -> clearCharge(context.getSource(), EntityArgument.getPlayer(context, "oyuncu")))))));
 
         return root;
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> botClass(String literal, PowerClass powerClass) {
+        return Commands.literal(literal)
+            .then(botDifficulty("kolay", powerClass, PvpBotSystem.BotDifficulty.EASY))
+            .then(botDifficulty("normal", powerClass, PvpBotSystem.BotDifficulty.NORMAL))
+            .then(botDifficulty("zor", powerClass, PvpBotSystem.BotDifficulty.HARD))
+            .then(botDifficulty("kabus", powerClass, PvpBotSystem.BotDifficulty.NIGHTMARE))
+            .executes(context -> PvpBotSystem.spawn(
+                context.getSource().getPlayerOrException(), powerClass, PvpBotSystem.BotDifficulty.NORMAL
+            ) ? 1 : 0);
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> botDifficulty(
+        String literal, PowerClass powerClass, PvpBotSystem.BotDifficulty difficulty
+    ) {
+        return Commands.literal(literal).executes(context -> PvpBotSystem.spawn(
+            context.getSource().getPlayerOrException(), powerClass, difficulty
+        ) ? 1 : 0);
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> triggerLiteral(String literal) {

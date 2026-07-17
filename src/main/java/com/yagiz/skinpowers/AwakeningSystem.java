@@ -55,6 +55,7 @@ public final class AwakeningSystem {
             return;
         }
         ServerLevel level = (ServerLevel) player.level();
+        if (data.powerClass() == PowerClass.ANOMALY && data.hasCopiedPower()) data.setCopiedPowerUses(2);
         String name = awakeningName(data.powerClass());
         player.sendSystemMessage(Component.literal(name + " başladı: " + PowerSystem.formatSeconds(duration) + " saniye."));
         level.playSound(null, player.blockPosition(), SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 1.0F, awakeningPitch(data.powerClass()));
@@ -79,18 +80,29 @@ public final class AwakeningSystem {
                 player.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 30, 3, false, false, true));
                 player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 2, false, false, true));
                 player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 30, 1, false, false, true));
-                if (now % 10L == 0L) level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), 22, 1.15, 1.1, 1.15, 0.045);
-                if (now % 20L == 0L) pulseEnemies(player, level, 8.5, 8.0F, 0.9, 0.45, ParticleTypes.SCULK_SOUL);
+                if (now % 6L == 0L) {
+                    level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), 30, 1.35, 1.25, 1.35, 0.055);
+                    PowerSystem.drawExternalRing(level, player.position(), 4.0 + (now % 20L) * 0.18, ParticleTypes.SCULK_SOUL, 40);
+                }
+                if (now % 16L == 0L) pulseEnemies(player, level, 10.0, 10.0F, 1.25, 0.62, ParticleTypes.SCULK_SOUL);
             }
             case FIRE -> {
                 player.setRemainingFireTicks(0);
                 player.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 30, 0, false, false, true));
                 player.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 30, 2, false, false, true));
                 player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 1, false, false, true));
-                if (now % 8L == 0L) level.sendParticles(ParticleTypes.FLAME, player.getX(), player.getY() + 0.9, player.getZ(), 24, 1.05, 1.0, 1.05, 0.045);
-                if (now % 20L == 0L) {
-                    pulseEnemies(player, level, 8.0, 7.0F, 0.7, 0.35, ParticleTypes.FLAME);
-                    for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(8.0))) {
+                if (now % 2L == 0L) {
+                    double angle = now * 0.22;
+                    for (int i = 0; i < 4; i++) {
+                        double a = angle + Math.PI * 0.5 * i;
+                        double x = player.getX() + Math.cos(a) * 1.8;
+                        double z = player.getZ() + Math.sin(a) * 1.8;
+                        level.sendParticles(i % 2 == 0 ? ParticleTypes.FLAME : ParticleTypes.LAVA, x, player.getY() + 1.0, z, 5, 0.18, 0.30, 0.18, 0.025);
+                    }
+                }
+                if (now % 15L == 0L) {
+                    pulseEnemies(player, level, 9.5, 9.0F, 0.95, 0.48, ParticleTypes.FLAME);
+                    for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(9.5))) {
                         if (target != player && !PowerSystem.isProtectedAlly(player, target)) target.setRemainingFireTicks(Math.max(100, target.getRemainingFireTicks()));
                     }
                 }
@@ -120,10 +132,11 @@ public final class AwakeningSystem {
                     if (velocity.lengthSqr() > 0.001) projectile.setDeltaMovement(velocity.scale(-1.08));
                     projectile.setOwner(player);
                 }
-                if (now % 6L == 0L) {
-                    level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 20, 1.2, 1.2, 1.2, 0.055);
-                    level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 12, 0.9, 1.0, 0.9, 0.035);
+                if (now % 4L == 0L) {
+                    level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 26, 1.4, 1.35, 1.4, 0.065);
+                    level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 18, 1.1, 1.1, 1.1, 0.045);
                 }
+                if (now % 18L == 0L) pulseEnemies(player, level, 9.0, 7.0F, 0.8, 0.35, ParticleTypes.WITCH);
             }
             case FLIGHT -> {
                 if (!player.isCreative() && !player.isSpectator() && !player.getAbilities().mayfly) {
@@ -168,10 +181,10 @@ public final class AwakeningSystem {
         for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(radius))) {
             if (target == player || PowerSystem.isProtectedAlly(player, target)) continue;
             float damage = switch (powerClass) {
-                case WARDEN -> 16.0F;
-                case FIRE -> 15.0F;
-                case NATURE -> 11.0F;
-                case ANOMALY -> 14.0F;
+                case WARDEN -> 20.0F;
+                case FIRE -> 19.0F;
+                case NATURE -> 13.0F;
+                case ANOMALY -> 18.0F;
                 case FLIGHT -> 18.0F;
                 default -> 0.0F;
             };

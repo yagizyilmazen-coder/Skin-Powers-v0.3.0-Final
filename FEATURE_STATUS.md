@@ -1,18 +1,19 @@
-# Skin Powers 1.0.7 özellik durumu
+# Skin Powers 1.0.8 özellik durumu
 
 ## Hazır sistemler
 - Warden, Kadim Ejderha, Ateş, Doğa ve Anomali sınıfları.
 - Skin renk analizi ve yalnızca ilk iki öneriyi seçme kuralı.
-- Altı seviyeye kadar sınıf güçleri, XP, ustalık ve cooldown kayıtları.
-- Kadim Ejderha'nın altı gücü ve mor temalı pasifi.
-- Beş sınıf için enerjiye bağlı Uyanış Formları.
-- Animasyonlu sınıf kartları, sınıf temalı menüler ve istemci efektleri.
-- Ayrıntılı Mod Menu istemci ayarları.
-- Güvenli düellolar, güç çarpışmaları, dünya olayları ve trigger komutları.
-- Anomali `?`, Hasar Mevcut Değil, V/X seçimi ve 404 sistemi.
-- Eski `TIME/ZAMAN` kayıtlarının Anomaliye, eski `FLIGHT` kayıtlarının Kadim Ejderhaya uyumlu yüklenmesi.
+- XP, ustalık, altı seviyeye kadar güçler ve kalıcı oyuncu kayıtları.
+- Enerjiye bağlı beş Uyanış Formu.
+- Güvenli oyuncu düelloları ve üst-orta düello paneli.
+- Beş sınıflı PvP bot sistemi; Kolay, Normal, Zor ve Kâbus zorlukları.
+- Bot canı, sınıfı, zorluğu ve Uyanışını gösteren panel.
+- Yenilenmiş Anomali Kırık Adım yankıları, güç kopyalama, hasar depolama, Varlıktan Çıkar ve 404.
+- Ateş ve Warden için geliştirilmiş savaş animasyonları ve Uyanış etkileri.
+- Kadim Ejderha'nın altı gücü, Avcı Pençesi Z kaçışı ve mor görselleri.
+- Güç çarpışmaları, dünya olayları, yönetici trigger komutları ve Mod Menu ayarları.
 
-## Teknik not
-- Kod içindeki `FLIGHT` enum adı eski dünya kayıtlarını kırmamak için korunur; oyuncuya gösterilen ad Kadim Ejderha'dır.
-- Mod Menu görüntü ayarları istemciye özeldir. Sunucu tarafı meteor blok hasarı yönetici komutuyla kontrol edilir.
-- Gerçek son Minecraft/Fabric derlemesi GitHub Actions'ta Java 25 ve Gradle 9.5.1 ile yapılır.
+## Teknik notlar
+- Kod içindeki `FLIGHT` enum adı eski Uçuş kayıtlarını bozmamak için korunur; oyunda Kadim Ejderha olarak görünür.
+- PvP botları sahte kullanıcı hesabı değil, sunucunun yönettiği özel sınıf ustası savaş varlıklarıdır.
+- Tam Minecraft/Fabric derlemesi GitHub Actions'ta Java 25 ile yapılır.

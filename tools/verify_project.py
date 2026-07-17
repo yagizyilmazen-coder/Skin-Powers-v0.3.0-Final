@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.0.7"
+VERSION = "1.0.8"
 errors: list[str] = []
 checks: list[str] = []
 
@@ -39,13 +39,15 @@ def text(relative: str) -> str:
 
 required_files = [
     "build.gradle", "gradle.properties", "settings.gradle", "README.md", "VALIDATION.md", "FEATURE_STATUS.md",
-    "CHANGELOG_1.0.7.md", ".github/workflows/build.yml", "src/main/resources/fabric.mod.json",
+    "CHANGELOG_1.0.8.md", ".github/workflows/build.yml", "src/main/resources/fabric.mod.json",
     "src/main/resources/assets/skinpowers/lang/tr_tr.json",
     "src/main/resources/assets/skinpowers/lang/en_us.json",
     "src/main/java/com/yagiz/skinpowers/AwakeningSystem.java",
     "src/main/java/com/yagiz/skinpowers/DuelSystem.java",
     "src/main/java/com/yagiz/skinpowers/PowerCollisionSystem.java",
     "src/main/java/com/yagiz/skinpowers/WorldEventSystem.java",
+    "src/main/java/com/yagiz/skinpowers/PvpBotSystem.java",
+    "src/main/java/com/yagiz/skinpowers/BattlePanel.java",
     "src/client/java/com/yagiz/skinpowers/client/SkinPowersSettingsScreen.java",
 ]
 for file_name in required_files:
@@ -69,7 +71,7 @@ if f"skinpowers-{VERSION}-jar" not in workflow or f"skinpowers-{VERSION}.jar" no
 if "java-version: '25'" not in workflow or "gradle-version: '9.5.1'" not in workflow:
     fail("GitHub Actions Java 25 / Gradle 9.5.1 ayarı eksik")
 if "Kadim Ejderha" not in mod_json or "Uyanış" not in mod_json:
-    fail("fabric.mod.json 1.0.7 açıklamasını içermiyor")
+    fail("fabric.mod.json 1.0.8 açıklamasını içermiyor")
 
 power_class = text("src/main/java/com/yagiz/skinpowers/PowerClass.java")
 catalog = text("src/main/java/com/yagiz/skinpowers/PowerCatalog.java")
@@ -92,6 +94,8 @@ store = text("src/main/java/com/yagiz/skinpowers/PlayerDataStore.java")
 duel = text("src/main/java/com/yagiz/skinpowers/DuelSystem.java")
 collision = text("src/main/java/com/yagiz/skinpowers/PowerCollisionSystem.java")
 world_event = text("src/main/java/com/yagiz/skinpowers/WorldEventSystem.java")
+pvp_bot = text("src/main/java/com/yagiz/skinpowers/PvpBotSystem.java")
+battle_panel = text("src/main/java/com/yagiz/skinpowers/BattlePanel.java")
 
 required_tokens = {
     power_class: [
@@ -100,11 +104,11 @@ required_tokens = {
     catalog: [
         "Kuyruk Kasırgası", "Ejderha Nefesi", "Kadim Pullar", "Avcı Pençesi", "Kadim Kükreme",
         "Ejderha Hükümdarı", "DRAGON_XP_COSTS", "Mor Ejderha Fırtınası",
-        "Kırık Adım", '"?"', "404: Gerçeklik Bulunamadı"
+        "Kırık Adım", '"?"', "404: Gerçeklik Bulunamadı", "gecikmeli patlayan bozuk kopyalar"
     ],
     data: [
         "dragonScalesUntil", "dragonScaleCharges", "dragonFormUntil", "awakeningEnergy", "classAwakeningUntil",
-        "beginClassAwakening", "Math.round(energy * 4.8F)", "copiedPowerClass", "anomalyStoredDamage"
+        "beginClassAwakening", "Math.round(energy * 4.8F)", "copiedPowerClass", "copiedPowerUses", "anomalyStoredDamage"
     ],
     awakening: [
         "allowDamage", "beginClassAwakening", "Antik Şehir Uyanışı", "Cehennem Çekirdeği",
@@ -112,7 +116,7 @@ required_tokens = {
     ],
     anomaly: [
         "recordPowerUse", "chooseStoredDamage", "allowDamage", "VOIDED", "REVERSED",
-        "FROZEN_PROJECTILES", "SONUÇ REDDEDİLDİ", "handleDisconnect"
+        "FROZEN_PROJECTILES", "ECHOES", "PendingEcho", "copiedPowerUses", "SONUÇ REDDEDİLDİ", "handleDisconnect"
     ],
     power_system: [
         "tickFlight", "Kadim Ejderha pasifi", "DRAGON_CLAW_TARGET", "DRAGON_CLAW_ESCAPE_PRESSES", "DRAGON_BREATHS", "DRAGON_SILENCE_UNTIL",
@@ -150,15 +154,17 @@ required_tokens = {
         '"KADİM EJDERHA"', "drawDragonStorm", "drawAncientCity", "drawLavaCave", "drawForest", "drawAnomalyGlitch",
         "cardProgress >= 0.85F"
     ],
-    analyzer: ["FLIGHT_COLORS", "ANOMALY_COLORS", "SkinPowers/1.0.7"],
+    analyzer: ["FLIGHT_COLORS", "ANOMALY_COLORS", "SkinPowers/1.0.8"],
     commands: [
         'Commands.literal("degistir")', 'selfClass("ejderha"', 'Commands.literal("duello")',
-        'Commands.literal("trigger")', 'triggerLiteral("dragon_breath")', 'triggerLiteral("dragon_form")'
+        'Commands.literal("trigger")', 'triggerLiteral("dragon_breath")', 'triggerLiteral("dragon_form")',
+        'Commands.literal("bot")', 'botClass("anomali"', 'botDifficulty("kabus"'
     ],
     mod: [
         "ServerLivingEntityEvents.ALLOW_DAMAGE.register(DuelSystem::allowDamage)",
         "ServerLivingEntityEvents.ALLOW_DAMAGE.register(AwakeningSystem::allowDamage)",
-        "Skin Powers 1.0.7 yüklendi"
+        "ServerLivingEntityEvents.ALLOW_DAMAGE.register(PvpBotSystem::allowDamage)",
+        "Skin Powers 1.0.8 yüklendi"
     ],
     store: ["migrateLegacyClassNames", "JsonParser.parseReader"],
     duel: [
@@ -167,6 +173,11 @@ required_tokens = {
     ],
     collision: ["registerCast", "cancelActiveOffense", "GÜÇ ÇARPIŞMASI"],
     world_event: ["Sculk Uyanışı", "Meteor Fırtınası", "Gökyüzü Yarığı", "Kadim Çiçeklenme", "Gerçeklik Çatlağı"],
+    pvp_bot: [
+        "BotDifficulty", 'EASY("Kolay"', 'NIGHTMARE("Kâbus"', "botWarden", "botFire", "botNature",
+        "botAnomaly", "botDragon", "awakeningEnergy", "panelFor", "guardCharges"
+    ],
+    battle_panel: ["record BattlePanel", "opponentName", "awakening", "hidden()"],
 }
 for source, tokens in required_tokens.items():
     for token in tokens:
@@ -315,6 +326,11 @@ public final class CoreTest {
     data.changeClass(PowerClass.ANOMALY);
     data.setCopiedPower(PowerClass.FIRE, 5);
     check(data.hasCopiedPower() && data.copiedPowerClass() == PowerClass.FIRE, "copy persistence");
+    data.setCopiedPowerUses(2);
+    check(data.copiedPowerUses() == 2, "awakening copy has two uses");
+    check(!data.consumeCopiedPowerUse() && data.copiedPowerUses() == 1, "first copy use remains");
+    check(data.consumeCopiedPowerUse() && !data.hasCopiedPower(), "second copy use exhausts");
+    data.setCopiedPower(PowerClass.FIRE, 5);
     data.beginAnomalyDamageStore(100L);
     data.addAnomalyStoredDamage(24.0F);
     data.finishAnomalyDamageStore(300L);
@@ -356,4 +372,4 @@ if errors:
 
 print("SKIN POWERS PROJE DENETİMİ BAŞARILI")
 print(f"{len(checks)} kontrol geçti.")
-print("Kadim Ejderha, enerjiye bağlı Uyanış Formları, düellolar, görsel kartlar, ayarlar ve mevcut savaş sistemleri doğrulandı.")
+print("PvP botları, savaş panelleri, Anomali yenilemesi, Ateş/Warden görselleri ve mevcut sınıf sistemleri doğrulandı.")
