@@ -45,7 +45,9 @@ public final class PowerMenuScreen extends Screen {
                 addRenderableWidget(powerButtons[level - 1]);
             } else if (level == next) {
                 int cost = PowerCatalog.xpCostForLevel(ClientState.powerClass(), level);
-                powerButtons[level - 1] = Button.builder(Component.literal("AÇ  " + cost + " XP"), button -> {
+                boolean creative = minecraft != null && minecraft.player != null && minecraft.player.isCreative();
+                String unlockLabel = creative ? "AÇ  (YARATICI)" : "AÇ  " + cost + " XP";
+                powerButtons[level - 1] = Button.builder(Component.literal(unlockLabel), button -> {
                     ClientPlayNetworking.send(new ClientCommandPayload("UNLOCK"));
                     onClose();
                 }).bounds(buttonX, y + (layout.rowHeight() - buttonHeight) / 2 + 36, buttonWidth, buttonHeight).build();
@@ -74,7 +76,7 @@ public final class PowerMenuScreen extends Screen {
         graphics.outline(layout.listLeft() - 8, layout.rowTop() - 8, layout.listWidth() + 16, contentBottom - layout.rowTop() + 16, withAlpha(colors[2], 165));
 
         for (int level = 1; level <= maximum; level++) {
-            float rowProgress = smoothStep(clamp01(appear * 1.35F - (level - 1) * 0.10F));
+            float rowProgress = ClientUiRules.staggeredProgress(appear, level - 1, maximum, 0.30F);
             int baseY = layout.rowTop() + (level - 1) * (layout.rowHeight() + layout.gap());
             int y = baseY + (int) ((1.0F - rowProgress) * (32 + level * 5));
             drawPowerRow(graphics, layout, powerClass, colors, level, y, now);
@@ -82,13 +84,14 @@ public final class PowerMenuScreen extends Screen {
             if (button != null) {
                 int buttonHeight = Math.max(16, Math.min(22, layout.rowHeight() - 4));
                 button.setY(y + (layout.rowHeight() - buttonHeight) / 2);
-                button.active = rowProgress >= 0.98F;
+                // Altıncı Warden satırı da animasyon bittiğinde kesin olarak aktif olur.
+                button.active = rowProgress >= 0.85F;
             }
         }
 
         if (layout.wide()) {
             drawDetailPanel(graphics, layout, powerClass, colors, contentBottom, now);
-        } else if (contentBottom + 44 <= height) {
+        } else if (contentBottom + 54 <= height) {
             // Çok kısa pencerelerde alt bilgi satırı altıncı Warden kartıyla çakışmasın.
             drawCompactFooter(graphics, layout, powerClass, colors, contentBottom);
         }
@@ -134,8 +137,7 @@ public final class PowerMenuScreen extends Screen {
         boolean selected = level == ClientState.selectedPower();
         int uses = ClientState.masteryUses(level);
         int stage = ClientState.masteryStage(level);
-        boolean veryCompact = layout.rowHeight() < 32;
-        boolean compactRow = layout.rowHeight() < 52;
+        boolean veryCompact = layout.rowHeight() < 30;
 
         int rowColor = selected ? 0xE5283946 : (unlocked ? 0xD3131D25 : 0xC40C1117);
         graphics.fill(layout.listLeft(), y, layout.listLeft() + layout.listWidth(), y + layout.rowHeight(), rowColor);
@@ -158,22 +160,13 @@ public final class PowerMenuScreen extends Screen {
         int nameY = y + (veryCompact ? Math.max(4, (layout.rowHeight() - 8) / 2) : 6);
         graphics.text(font, name, textX, nameY, unlocked ? 0xFFFFFFFF : 0xFF8B969E, true);
 
-        String locked = level == ClientState.unlockedLevel() + 1
-            ? PowerCatalog.xpCostForLevel(powerClass, level) + " XP ile açılır"
-            : "Önceki seviye gerekli";
-        String usage = stage >= 3 ? uses + " kullanım • TAM" : uses + "/" + PowerCatalog.nextMasteryTarget(uses) + " kullanım";
-
+        String description = PowerCatalog.powerDescription(powerClass, level);
         if (!veryCompact) {
-            String secondLine;
-            if (compactRow) {
-                secondLine = unlocked ? usage : locked;
-            } else {
-                secondLine = PowerCatalog.powerDescription(powerClass, level);
-            }
-            graphics.text(font, fit(secondLine, textWidth), textX, y + 20, unlocked ? 0xFF91A8B5 : 0xFFB7786D, false);
+            // Ekran yüksekliği azalsa bile bütün sınıflarda güç açıklaması görünür kalır.
+            graphics.text(font, fit(description, textWidth), textX, y + 18, unlocked ? 0xFF91A8B5 : 0xFF8B969E, false);
         }
 
-        if (layout.rowHeight() >= 42) {
+        if (layout.rowHeight() >= 46) {
             String stageName = PowerCatalog.masteryStageName(stage);
             int chipWidth = font.width(stageName) + 10;
             int chipX = Math.max(textX, textRight - chipWidth);
@@ -182,7 +175,7 @@ public final class PowerMenuScreen extends Screen {
             graphics.text(font, stageName, chipX + 5, y + 8, unlocked ? 0xFFFFFFFF : 0xFF77828A, false);
         }
 
-        if (layout.rowHeight() >= 36) {
+        if (layout.rowHeight() >= 44) {
             int barY = y + layout.rowHeight() - 6;
             graphics.fill(textX, barY, textX + textWidth, barY + 3, 0xFF202933);
             if (unlocked) {
@@ -268,10 +261,12 @@ public final class PowerMenuScreen extends Screen {
     private void drawCompactFooter(GuiGraphicsExtractor graphics, Layout layout, PowerClass powerClass, int[] colors, int contentBottom) {
         int y = contentBottom + 12;
         int selected = ClientState.selectedPower();
-        graphics.fill(layout.totalLeft(), y, layout.totalLeft() + layout.totalWidth(), y + 28, 0xC9070B11);
-        graphics.outline(layout.totalLeft(), y, layout.totalWidth(), 28, withAlpha(colors[2], 150));
-        String text = PowerCatalog.powerName(powerClass, selected) + "  •  " + controlHint(powerClass, selected) + "  •  K: Kombo " + (ClientState.comboModeEnabled() ? "AÇIK" : "KAPALI");
-        graphics.text(font, fit(text, layout.totalWidth() - 20), layout.totalLeft() + 10, y + 10, 0xFFFFFFFF, false);
+        graphics.fill(layout.totalLeft(), y, layout.totalLeft() + layout.totalWidth(), y + 40, 0xC9070B11);
+        graphics.outline(layout.totalLeft(), y, layout.totalWidth(), 40, withAlpha(colors[2], 150));
+        String titleLine = PowerCatalog.powerName(powerClass, selected) + "  •  " + controlHint(powerClass, selected) + "  •  K: Kombo " + (ClientState.comboModeEnabled() ? "AÇIK" : "KAPALI");
+        String descriptionLine = PowerCatalog.powerDescription(powerClass, selected);
+        graphics.text(font, fit(titleLine, layout.totalWidth() - 20), layout.totalLeft() + 10, y + 7, 0xFFFFFFFF, false);
+        graphics.text(font, fit(descriptionLine, layout.totalWidth() - 20), layout.totalLeft() + 10, y + 22, 0xFFB9C8D1, false);
     }
 
     private void drawClassEmblem(GuiGraphicsExtractor graphics, PowerClass powerClass, int x, int y, int accent) {

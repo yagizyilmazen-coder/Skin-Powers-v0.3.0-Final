@@ -1,6 +1,14 @@
-# Skin Powers 1.0.1
+# Skin Powers 1.0.3
 
 Minecraft Java Edition 26.1.2 için Fabric güç modudur. Oyuncunun gerçek skin piksellerini analiz eder, en güçlü ve ikinci en yakın sınıf önerisini gösterir; oyuncu yalnızca en yüksek puanlı ve ona en yakın ikinci sınıftan birini seçebilir.
+
+## 1.0.3 düzeltmeleri
+
+- İkinci skin önerisi artık gerçekten seçilebilir.
+- Warden VI açma/seçme düğmesi son animasyon satırında kilitlenmez.
+- O menüsünde Zaman dâhil bütün güç açıklamaları normal ve kompakt ekran düzenlerinde korunur.
+- Zaman sınıfının hasar, alan, süre ve bekleme değerleri güçlendirildi.
+
 
 ## Sınıflar
 
@@ -81,6 +89,6 @@ Bu komutlar oyuncunun sınıfını değiştirir; eski sınıfa ait güç seviyel
 2. Eski proje dosyalarını temizleyip bu paketin içeriğini ana klasöre kopyalayın.
 3. `Commit to main` ve `Push origin` yapın.
 4. GitHub `Actions` sekmesinde **Fabric JAR Derle** işinin yeşil tamamlanmasını bekleyin.
-5. `skinpowers-1.0.1-jar` artifact'ini indirip içindeki `skinpowers-1.0.1.jar` dosyasını `mods` klasörüne koyun.
+5. `skinpowers-1.0.3-jar` artifact'ini indirip içindeki `skinpowers-1.0.3.jar` dosyasını `mods` klasörüne koyun.
 
 **Made by Yankalan**

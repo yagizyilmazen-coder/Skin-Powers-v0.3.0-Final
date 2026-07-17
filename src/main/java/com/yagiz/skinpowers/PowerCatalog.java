@@ -50,11 +50,11 @@ public final class PowerCatalog {
             ""
         },
         {
-            "Yakındaki düşman mermilerini yavaşlatır ve düşme hasarını azaltır.",
-            "Havada görünen altın-lacivert zaman mızrağı hedefi yaralar ve zamanını ağırlaştırır.",
-            "Seni yaklaşık 5 saniye önceki konumuna ve canına geri döndürür.",
-            "Hedefi görünür saat halkalarının içinde hareket edemez hâle getirir; ekran efekti vermez.",
-            "Geniş zaman alanındaki düşmanları dondurur; süre sonunda biriken enerji büyük patlamayla açığa çıkar.",
+            "Yakındaki düşman mermilerini güçlü biçimde yavaşlatır ve düşme hasarını sınırlar.",
+            "Güçlü zaman mızrağı hedefe ve çevresine hasar verir; düşmanların zamanını ağırlaştırır.",
+            "Seni 5-6,5 saniye önceki konumuna ve canına döndürür; kısa süre direnç ve yenilenme verir.",
+            "Uzak hedefi saat halkalarında tamamen sabitler; çıkışta zaman kırılması hasarı verir.",
+            "Çok geniş alandaki düşmanları dondurup süre boyunca aşındırır; sonunda büyük zaman patlaması yapar.",
             ""
         }
     };

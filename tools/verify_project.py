@@ -8,7 +8,7 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.0.1"
+VERSION = "1.0.3"
 REQUIRED = [
     "build.gradle",
     "settings.gradle",
@@ -85,12 +85,19 @@ REQUIRED_SOURCE_SNIPPETS = {
     "api.mojang.com/users/profiles/minecraft/": "oyuncu adından skin UUID yedek çözümü",
     "secondIndex()": "ikinci skin önerisi",
     "selectButton.setY": "ilk seçim ekranında düğmelerin kartlarla birlikte hareketi",
-    "result.bestIndex() == index || result.secondIndex() == index": "yalnızca ilk iki skin önerisinin seçilebilmesi",
     "Commands.literal(\"skinpower\")": "tek /skinpower komut kökü",
     "data.changeClass(powerClass)": "komutla sınıf değiştirme",
     "height < 300 ? 62": "Warden altıncı satırı için kısa ekran yerleşimi",
     "target.setPos(prison.anchor.x": "Zaman Hapishanesinin ekran efektsiz sabitlemesi",
     "boolean ancientBoost = data.ancientChargeActive(now)": "pasif güçlerin Antik Şehir süresince güçlenmesi",
+    "ClientUiRules.classChoiceAllowed": "birinci ve ikinci öneri seçim kuralı",
+    "ClientUiRules.staggeredProgress": "son GUI öğelerinin de tamamlanan animasyonu",
+    "button.active = rowProgress >= 0.85F": "Warden VI düğmesinin etkinleşmesi",
+    "String description = PowerCatalog.powerDescription": "O menüsünde her güç satırında açıklama",
+    "double burstRadius = AncientChargeSystem.radius(2.4": "Krono Mızrağı alan hasarı",
+    "float rewindBonus = 2.0F": "Geri Sarma güçlendirmesi",
+    "float releaseDamage = AncientChargeSystem.damage(8.0F": "Zaman Hapishanesi çıkış hasarı",
+    "float baseDamage = AncientChargeSystem.damage(24.0F": "Zamanın Sonu final hasarı",
 }
 
 errors: list[str] = []
@@ -220,9 +227,11 @@ def run_core_smoke_test() -> None:
         ROOT / "src/main/java/com/yagiz/skinpowers/PowerCatalog.java",
         ROOT / "src/main/java/com/yagiz/skinpowers/PlayerPowerData.java",
         ROOT / "src/main/java/com/yagiz/skinpowers/ModConfig.java",
+        ROOT / "src/client/java/com/yagiz/skinpowers/client/ClientUiRules.java",
     ]
     test_source = r'''
 package com.yagiz.skinpowers;
+import com.yagiz.skinpowers.client.ClientUiRules;
 public final class CoreLogicSmokeTest {
     private static void check(boolean value, String message) {
         if (!value) throw new AssertionError(message);
@@ -236,6 +245,13 @@ public final class CoreLogicSmokeTest {
         check(PowerCatalog.comboFinisherPower(PowerClass.FIRE) == 5, "fire combo finisher");
         check("Cehennem Felaketi".equals(PowerCatalog.comboName(PowerClass.FIRE)), "fire combo name");
         check("Şarj Et Beni Antik Şehir".equals(PowerCatalog.powerName(PowerClass.WARDEN, 6)), "sixth name");
+        for (int level = 1; level <= 5; level++) {
+            check(!PowerCatalog.powerDescription(PowerClass.TIME, level).isBlank(), "time description " + level);
+        }
+        check(ClientUiRules.classChoiceAllowed(true, true, 4, 5, 1, 4), "second recommendation selectable");
+        check(!ClientUiRules.classChoiceAllowed(true, true, 3, 5, 1, 4), "non-recommended class locked");
+        check(ClientUiRules.staggeredProgress(1.0F, 4, 5, 0.34F) == 1.0F, "last class card completes");
+        check(ClientUiRules.staggeredProgress(1.0F, 5, 6, 0.30F) == 1.0F, "warden sixth row completes");
 
         PlayerPowerData data = new PlayerPowerData();
         data.chooseClass(PowerClass.TIME);

@@ -70,7 +70,14 @@ public final class SkinSelectionScreen extends Screen {
         if (!analysisFinished || index < 0 || index >= CLASSES.length) return false;
         // Gerçek skin analizi başarılıysa yalnızca en yüksek ve ikinci en yüksek puanlı sınıf seçilebilir.
         // Skin alınamadığında oyuncuyu kilitlememek için bütün sınıflar geçici olarak seçilebilir.
-        return !result.hasRecommendation() || result.bestIndex() == index || result.secondIndex() == index;
+        return ClientUiRules.classChoiceAllowed(
+            analysisFinished,
+            result.hasRecommendation(),
+            index,
+            CLASSES.length,
+            result.bestIndex(),
+            result.secondIndex()
+        );
     }
 
     @Override
@@ -117,7 +124,7 @@ public final class SkinSelectionScreen extends Screen {
         if (!layout.compact() && !ClientConfig.get().performanceMode()) drawAvatar(graphics, now);
 
         for (int i = 0; i < CLASSES.length; i++) {
-            float cardProgress = smoothStep(clamp01((totalProgress * 1.4F) - i * 0.15F));
+            float cardProgress = ClientUiRules.staggeredProgress(totalProgress, i, CLASSES.length, 0.34F);
             int baseX = layout.startX() + i * (layout.cardWidth() + layout.gap());
             int shake = 0;
             if (selectedIndex == i) {
@@ -135,7 +142,9 @@ public final class SkinSelectionScreen extends Screen {
                 boolean selectable = isSelectable(i);
                 String buttonText = selectable ? "SEÇ" : (analysisFinished ? (layout.cardWidth() < 68 ? "KİLİT" : "KİLİTLİ") : "...");
                 selectButton.setMessage(Component.literal(buttonText));
-                selectButton.active = cardProgress >= 0.98F && selectedIndex < 0 && selectable;
+                // Düğme, kartın son animasyon karesine matematiksel olarak bağlı değildir.
+                // Böylece ikinci öneri Zaman olsa bile tıklanabilir kalır.
+                selectButton.active = cardProgress >= 0.85F && selectedIndex < 0 && selectable;
             }
         }
 
