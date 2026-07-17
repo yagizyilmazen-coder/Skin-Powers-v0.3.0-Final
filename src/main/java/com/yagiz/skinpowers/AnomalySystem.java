@@ -27,6 +27,7 @@ import java.util.UUID;
 public final class AnomalySystem {
     private static final Map<UUID, ReversedTarget> REVERSED = new HashMap<>();
     private static final Map<UUID, VoidedTarget> VOIDED = new HashMap<>();
+    private static final Map<UUID, FrozenProjectile> FROZEN_PROJECTILES = new HashMap<>();
     private static boolean reflectingDamage;
 
     private AnomalySystem() {}
@@ -47,16 +48,17 @@ public final class AnomalySystem {
 
     private static boolean brokenStep(ServerPlayer player, PlayerPowerData data, ServerLevel level, long now, int stage, boolean charged) {
         Vec3 start = player.position();
-        Vec3 direction = horizontal(player.getLookAngle());
-        double maximum = (charged ? 17.0 : 11.0) + stage * 1.5;
-        Vec3 destination = start;
-        for (double distance = 1.0; distance <= maximum; distance += 0.75) {
-            Vec3 candidate = start.add(direction.scale(distance));
-            if (!safeForPlayer(level, candidate)) break;
-            destination = candidate;
+        Vec3 running = new Vec3(player.getDeltaMovement().x, 0.0, player.getDeltaMovement().z);
+        Vec3 direction = player.isSprinting() && running.lengthSqr() > 0.015 ? running.normalize() : horizontal(player.getLookAngle());
+        double maximum = (charged ? 19.0 : 14.0) + stage * 2.0;
+        Vec3 destination = null;
+        // En uzak güvenli noktadan geriye doğru aranır; eğim ve koşu sırasında ilk küçük engelde durmaz.
+        for (double distance = maximum; distance >= 2.0; distance -= 0.5) {
+            destination = findSafeStepPosition(level, start.add(direction.scale(distance)));
+            if (destination != null) break;
         }
-        if (destination.distanceToSqr(start) < 1.0) {
-            player.sendSystemMessage(Component.literal("Kırık Adım için önünde güvenli bir boşluk yok."));
+        if (destination == null || destination.distanceToSqr(start) < 3.0) {
+            player.sendSystemMessage(Component.literal("Kırık Adım için ileride güvenli bir boşluk yok."));
             return false;
         }
 
@@ -74,7 +76,8 @@ public final class AnomalySystem {
                 point.x, point.y, point.z, charged ? 8 : 4, 0.20, 0.35, 0.20, 0.02);
         }
         moveEntity(player, destination);
-        player.setDeltaMovement(direction.scale(0.35));
+        double momentum = 1.05 + stage * 0.12 + (charged ? 0.30 : 0.0);
+        player.setDeltaMovement(direction.scale(momentum).add(0.0, Math.max(0.05, player.getDeltaMovement().y), 0.0));
         player.hurtMarked = true;
         player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 18 + stage * 4, charged ? 4 : 2, false, false, true));
         level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0F, 0.55F);
@@ -173,27 +176,38 @@ public final class AnomalySystem {
     }
 
     public static boolean allowDamage(LivingEntity entity, DamageSource source, float amount) {
-        if (!(entity instanceof ServerPlayer player)) {
-            ReversedTarget reversed = REVERSED.get(entity.getUUID());
-            if (reversed != null) reflectPartOfDamage(reversed, source, amount);
-            return true;
-        }
-        PlayerPowerData data = PlayerDataStore.get(player.getUUID());
-        long now = player.level().getGameTime();
-        if (data.powerClass() == PowerClass.ANOMALY && data.anomalyDamageStoreUntil() > now) {
-            data.addAnomalyStoredDamage(amount);
-            PlayerDataStore.markDirty();
-            ServerLevel level = (ServerLevel) player.level();
-            level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 10, 0.35, 0.55, 0.35, 0.03);
-            return false;
-        }
-        if (data.powerClass() == PowerClass.ANOMALY && data.anomalyRealityUntil() > now) {
-            if (player.level().getRandom().nextFloat() < 0.22F) {
-                dodgeInsideReality(player, data);
+        if (reflectingDamage) return true;
+
+        if (entity instanceof ServerPlayer player) {
+            PlayerPowerData data = PlayerDataStore.get(player.getUUID());
+            long now = player.level().getGameTime();
+            // Oyuncu, mob, mermi, patlama, ateş ve mod güçleri dâhil bütün normal hasar kaynaklarını yakalar.
+            if (data.powerClass() == PowerClass.ANOMALY && data.anomalyDamageStoreUntil() > now && amount > 0.0F) {
+                data.addAnomalyStoredDamage(amount);
+                PlayerDataStore.markDirty();
+                ServerNetworking.sync(player);
+                ServerLevel level = (ServerLevel) player.level();
+                level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 12, 0.35, 0.55, 0.35, 0.03);
                 return false;
             }
         }
-        ReversedTarget reversed = REVERSED.get(player.getUUID());
+
+        ServerLevel level = (ServerLevel) entity.level();
+        Entity attackerEntity = source.getEntity();
+        ServerPlayer realityOwner = findRealityOwner(level, entity.position(), attackerEntity == null ? null : attackerEntity.getUUID());
+        if (realityOwner != null && attackerEntity instanceof LivingEntity attacker && attacker != realityOwner
+            && !PowerSystem.isProtectedAlly(realityOwner, attacker)) {
+            try {
+                reflectingDamage = true;
+                attacker.hurtServer(level, level.damageSources().playerAttack(realityOwner), Math.max(2.0F, amount * 1.15F));
+                level.sendParticles(ParticleTypes.WITCH, attacker.getX(), attacker.getY() + 1.0, attacker.getZ(), 28, 0.55, 0.75, 0.55, 0.08);
+            } finally {
+                reflectingDamage = false;
+            }
+            return false;
+        }
+
+        ReversedTarget reversed = REVERSED.get(entity.getUUID());
         if (reversed != null) reflectPartOfDamage(reversed, source, amount);
         return true;
     }
@@ -203,16 +217,30 @@ public final class AnomalySystem {
         if (!(entity instanceof ServerPlayer player)) return true;
         PlayerPowerData data = PlayerDataStore.get(player.getUUID());
         long now = player.level().getGameTime();
-        if (data.powerClass() != PowerClass.ANOMALY || data.anomalyRealityUntil() <= now
-            || !data.anomalyRealityReviveAvailable()) return true;
-        data.consumeAnomalyRealityRevive();
-        player.setHealth(Math.min(player.getMaxHealth(), 10.0F));
-        moveEntity(player, new Vec3(data.anomalyRealityX(), data.anomalyRealityY(), data.anomalyRealityZ()));
-        player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 80, 4, false, true, true));
-        player.sendSystemMessage(Component.literal("404: Ölüm sonucu reddedildi."));
-        PlayerDataStore.markDirty();
-        ServerNetworking.sync(player);
-        return false;
+        if (data.powerClass() == PowerClass.ANOMALY && data.anomalyRealityUntil() > now
+            && data.anomalyRealityReviveAvailable()) {
+            data.consumeAnomalyRealityRevive();
+            player.setHealth(Math.min(player.getMaxHealth(), 10.0F));
+            moveEntity(player, new Vec3(data.anomalyRealityX(), data.anomalyRealityY(), data.anomalyRealityZ()));
+            player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 80, 4, false, true, true));
+            player.sendSystemMessage(Component.literal("404: Ölüm sonucu reddedildi."));
+            PlayerDataStore.markDirty();
+            ServerNetworking.sync(player);
+            return false;
+        }
+        // Küçük sınıf pasifi: 10 dakikada bir ölümcül sonuç reddedilir.
+        if (data.powerClass() == PowerClass.ANOMALY && now >= data.anomalyErrorCooldownUntil()) {
+            data.setAnomalyErrorCooldownUntil(now + 12000L);
+            player.setHealth(1.0F);
+            dodgeInsideReality(player, data);
+            player.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 60, 0, false, false, true));
+            player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 80, 4, false, true, true));
+            player.sendSystemMessage(Component.literal("SONUÇ REDDEDİLDİ"));
+            PlayerDataStore.markDirty();
+            ServerNetworking.sync(player);
+            return false;
+        }
+        return true;
     }
 
     private static void reflectPartOfDamage(ReversedTarget reversed, DamageSource source, float amount) {
@@ -336,6 +364,7 @@ public final class AnomalySystem {
     public static void tickServer(MinecraftServer server) {
         tickReversed();
         tickVoided();
+        tickFrozenProjectiles();
     }
 
     private static void tickReversed() {
@@ -407,7 +436,12 @@ public final class AnomalySystem {
         }
         for (Projectile projectile : level.getEntitiesOfClass(Projectile.class, area)) {
             if (projectile.getOwner() == player) continue;
-            if (now % 8L == 0L) projectile.setDeltaMovement(projectile.getDeltaMovement().scale(-1.05));
+            FROZEN_PROJECTILES.computeIfAbsent(projectile.getUUID(), ignored -> new FrozenProjectile(
+                level, projectile, projectile.position(), projectile.getDeltaMovement(), projectile.isNoGravity(),
+                projectile.getOwner() == null ? null : projectile.getOwner().getUUID(), player.getUUID(), data.anomalyRealityUntil()
+            ));
+            projectile.setNoGravity(true);
+            projectile.setDeltaMovement(Vec3.ZERO);
         }
     }
 
@@ -465,6 +499,13 @@ public final class AnomalySystem {
             restoreVoidedTarget(entry, entry.targetEntity, false);
             iterator.remove();
         }
+        Iterator<Map.Entry<UUID, FrozenProjectile>> frozenIterator = FROZEN_PROJECTILES.entrySet().iterator();
+        while (frozenIterator.hasNext()) {
+            FrozenProjectile frozen = frozenIterator.next().getValue();
+            if (!frozen.anomalyOwner.equals(playerId)) continue;
+            releaseProjectile(frozen, false);
+            frozenIterator.remove();
+        }
     }
 
     private static void restoreVoidedTarget(VoidedTarget entry, LivingEntity target, boolean applyReturnPenalty) {
@@ -497,14 +538,89 @@ public final class AnomalySystem {
         data.clearCopiedPower();
         data.clearAnomalyStoredDamage();
         data.clearAnomalyReality();
+        Iterator<Map.Entry<UUID, FrozenProjectile>> frozenIterator = FROZEN_PROJECTILES.entrySet().iterator();
+        while (frozenIterator.hasNext()) {
+            FrozenProjectile frozen = frozenIterator.next().getValue();
+            if (!frozen.anomalyOwner.equals(ownerId)) continue;
+            releaseProjectile(frozen, false);
+            frozenIterator.remove();
+        }
     }
 
     public static void clearAll() {
+        for (FrozenProjectile frozen : FROZEN_PROJECTILES.values()) releaseProjectile(frozen, false);
+        FROZEN_PROJECTILES.clear();
         for (VoidedTarget entry : VOIDED.values()) {
             restoreVoidedTarget(entry, entry.targetEntity, false);
         }
         REVERSED.clear();
         VOIDED.clear();
+    }
+
+    static ServerPlayer findRealityOwner(ServerLevel level, Vec3 position, UUID attackOwner) {
+        for (ServerPlayer candidate : level.players()) {
+            PlayerPowerData data = PlayerDataStore.get(candidate.getUUID());
+            long now = level.getGameTime();
+            if (data.powerClass() != PowerClass.ANOMALY || data.anomalyRealityUntil() <= now) continue;
+            if (attackOwner != null && attackOwner.equals(candidate.getUUID())) continue;
+            Vec3 center = new Vec3(data.anomalyRealityX(), data.anomalyRealityY(), data.anomalyRealityZ());
+            double radius = 18.0 + data.masteryStage(6) * 2.0;
+            if (position.distanceToSqr(center) <= radius * radius) return candidate;
+        }
+        return null;
+    }
+
+    private static void tickFrozenProjectiles() {
+        Iterator<FrozenProjectile> iterator = FROZEN_PROJECTILES.values().iterator();
+        while (iterator.hasNext()) {
+            FrozenProjectile frozen = iterator.next();
+            Projectile projectile = frozen.projectile;
+            long now = frozen.level.getGameTime();
+            if (projectile.isRemoved()) {
+                iterator.remove();
+                continue;
+            }
+            PlayerPowerData ownerData = PlayerDataStore.get(frozen.anomalyOwner);
+            boolean fieldOpen = ownerData.powerClass() == PowerClass.ANOMALY && ownerData.anomalyRealityUntil() > now;
+            if (fieldOpen && now < frozen.releaseAt) {
+                projectile.setPos(frozen.anchor.x, frozen.anchor.y, frozen.anchor.z);
+                projectile.setDeltaMovement(Vec3.ZERO);
+                projectile.setNoGravity(true);
+                if (now % 4L == 0L) frozen.level.sendParticles(ParticleTypes.WITCH, frozen.anchor.x, frozen.anchor.y, frozen.anchor.z, 8, 0.25, 0.25, 0.25, 0.03);
+                continue;
+            }
+            releaseProjectile(frozen, true);
+            iterator.remove();
+        }
+    }
+
+    private static void releaseProjectile(FrozenProjectile frozen, boolean returnToOwner) {
+        Projectile projectile = frozen.projectile;
+        if (projectile.isRemoved()) return;
+        Vec3 velocity = frozen.velocity.scale(-1.0);
+        Entity originalOwner = frozen.originalOwner == null ? null : frozen.level.getEntity(frozen.originalOwner);
+        ServerPlayer anomalyOwner = frozen.level.getServer().getPlayerList().getPlayer(frozen.anomalyOwner);
+        if (returnToOwner && originalOwner instanceof LivingEntity living && living.isAlive()) {
+            Vec3 target = living.getEyePosition().subtract(projectile.position());
+            double speed = Math.max(1.15, Math.sqrt(frozen.velocity.lengthSqr()));
+            if (target.lengthSqr() > 0.001) velocity = target.normalize().scale(speed);
+            if (anomalyOwner != null) projectile.setOwner(anomalyOwner);
+        }
+        projectile.setNoGravity(frozen.wasNoGravity);
+        projectile.setDeltaMovement(velocity);
+        frozen.level.sendParticles(ParticleTypes.REVERSE_PORTAL, projectile.getX(), projectile.getY(), projectile.getZ(), 22, 0.35, 0.35, 0.35, 0.08);
+    }
+
+    private static Vec3 findSafeStepPosition(ServerLevel level, Vec3 candidate) {
+        BlockPos base = BlockPos.containing(candidate);
+        for (int dy = 2; dy >= -3; dy--) {
+            BlockPos feet = base.offset(0, dy, 0);
+            if (level.getBlockState(feet).isAir() && level.getBlockState(feet.above()).isAir()
+                && !level.getBlockState(feet.below()).isAir()) {
+                return new Vec3(candidate.x, feet.getY(), candidate.z);
+            }
+        }
+        return null;
     }
 
     private static Vec3 horizontal(Vec3 look) {
@@ -527,6 +643,23 @@ public final class AnomalySystem {
 
     private static boolean safeForLiving(ServerLevel level, LivingEntity entity, Vec3 position) {
         return level.noCollision(entity, entity.getBoundingBox().move(position.subtract(entity.position())));
+    }
+
+    private static final class FrozenProjectile {
+        private final ServerLevel level;
+        private final Projectile projectile;
+        private final Vec3 anchor;
+        private final Vec3 velocity;
+        private final boolean wasNoGravity;
+        private final UUID originalOwner;
+        private final UUID anomalyOwner;
+        private final long releaseAt;
+
+        private FrozenProjectile(ServerLevel level, Projectile projectile, Vec3 anchor, Vec3 velocity, boolean wasNoGravity,
+                                 UUID originalOwner, UUID anomalyOwner, long releaseAt) {
+            this.level = level; this.projectile = projectile; this.anchor = anchor; this.velocity = velocity;
+            this.wasNoGravity = wasNoGravity; this.originalOwner = originalOwner; this.anomalyOwner = anomalyOwner; this.releaseAt = releaseAt;
+        }
     }
 
     private record ReversedTarget(ServerLevel level, UUID owner, UUID target, long expireTick) {}

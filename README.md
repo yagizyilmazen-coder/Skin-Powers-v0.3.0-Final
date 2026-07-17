@@ -1,13 +1,17 @@
-# Skin Powers 1.0.4
+# Skin Powers 1.0.5
 
 Minecraft Java Edition 26.1.2 için Fabric güç modu.
 
-## 1.0.4 ana değişiklikleri
+## 1.0.5 ana değişiklikleri
 
-- Zaman sınıfı kaldırıldı ve yerine **Anomali** eklendi.
-- Eski `TIME/ZAMAN` oyuncu kayıtları otomatik olarak Anomaliye taşınır.
-- Warden, Uçuş, Ateş ve Doğa sınıfları korunur.
-- Warden şarj bildirimi küçültüldü ve alt-orta bölüme taşındı.
+- **Kırık Adım** koşarken çalışır, daha uzağa gider ve eğimli zeminde güvenli iniş noktası arar.
+- **Hasar Mevcut Değil** mob, oyuncu, mermi, patlama ve mod güçlerinden gelen hasarı depolar.
+- **404**; Warden saldırıları dâhil alan içindeki hasarı saldırana geri yollar. Minecraft mermileri ile Meteor, Cehennem Küresi, Doğa Tohumu, Kök Dalgası, Uçuş Mızrağı ve Gök Bombası havada durur; alan kapanınca saldırıyı yapan kişiye geri döner.
+- Büyük güçler yakın zamanda ve yakın mesafede kullanılırsa **güç çarpışması** oluşur. Zayıf saldırının devam eden parçaları temizlenir.
+- Güvenli **sınıf düelloları** eklendi. Düelloda gerçek ölüm ve eşya kaybı olmaz; dışarıdaki oyuncular ve moblar karışamaz.
+- Beş **dünya olayı** eklendi: Sculk Uyanışı, Meteor Fırtınası, Gökyüzü Yarığı, Kadim Çiçeklenme ve Gerçeklik Çatlağı.
+- Küçük sınıf pasifleri tamamlandı. Warden hareket titreşimlerini hisseder; Uçuş yavaş düşer; Ateş yanmaz; Doğa doğal zeminde toparlanır; Anomali on dakikada bir ölümcül sonucu reddedebilir.
+- Eski `TIME/ZAMAN` oyuncu kayıtları Anomaliye taşınmaya devam eder.
 - Sınıf değiştirme yalnızca `/skinpower degistir <sinif>` üzerinden yapılır.
 
 ## Anomali güçleri
@@ -48,15 +52,45 @@ Oyuncunun kendi sınıfını değiştirmesi:
 
 Sınıf adları `/skinpower` kökünde doğrudan görünmez; önce `degistir` seçilmelidir.
 
+Düello komutları:
+
+```text
+/skinpower duello <oyuncu>
+/skinpower duello kabul
+/skinpower duello reddet
+/skinpower duello bitir
+```
+
+Dünya olayı durumunu görmek:
+
+```text
+/skinpower olay
+```
+
 Yönetici komutları:
 
 ```text
 /skinpower admin degistir <oyuncu> <sinif>
 /skinpower admin reset <oyuncu>
 /skinpower admin meteor blokhasari <true|false>
+/skinpower admin olay baslat <sculk|meteor|gok|doga|anomali|rastgele>
+/skinpower admin olay durdur
 /skinpower admin sarj ver <oyuncu> <saniye>
 /skinpower admin sarj temizle <oyuncu>
 ```
+
+### Yönetici saldırı tetikleme komutu
+
+Sınıfı değiştirmeden ve cooldown beklemeden saldırı test etmek için:
+
+```text
+/skinpower trigger meteor
+/skinpower trigger meteor_charged
+/skinpower trigger sonic
+/skinpower trigger sky_bomb_charged
+```
+
+`_charged` son eki saldırının Antik Şehir ile güçlendirilmiş sürümünü çağırır. `trigger` dalı yalnızca operatör/moderatör yetkisine açıktır.
 
 ## GitHub Actions ile JAR
 
@@ -64,8 +98,8 @@ Yönetici komutları:
 2. İçindeki dosyaları GitHub Desktop'taki proje ana klasörüne kopyalayın.
 3. Değişiklikleri commit edip **Push origin** yapın.
 4. GitHub'da **Actions → Fabric JAR Derle** işleminin yeşil tamamlanmasını bekleyin.
-5. `skinpowers-1.0.4-jar` artifact'ini indirin.
-6. İçindeki `skinpowers-1.0.4.jar` dosyasını Minecraft `mods` klasörüne koyun.
+5. `skinpowers-1.0.5-jar` artifact'ini indirin.
+6. İçindeki `skinpowers-1.0.5.jar` dosyasını Minecraft `mods` klasörüne koyun.
 
 ## Sürüm hedefleri
 

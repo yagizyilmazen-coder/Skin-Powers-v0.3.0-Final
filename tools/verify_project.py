@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 errors: list[str] = []
 checks: list[str] = []
 
@@ -44,6 +44,9 @@ for file_name in [
     "src/main/resources/assets/skinpowers/lang/tr_tr.json",
     "src/main/resources/assets/skinpowers/lang/en_us.json",
     "src/main/resources/assets/skinpowers/textures/gui/cards/anomaly.png",
+    "src/main/java/com/yagiz/skinpowers/DuelSystem.java",
+    "src/main/java/com/yagiz/skinpowers/PowerCollisionSystem.java",
+    "src/main/java/com/yagiz/skinpowers/WorldEventSystem.java",
 ]:
     require_file(file_name)
 
@@ -59,9 +62,9 @@ props = text("gradle.properties")
 workflow = text(".github/workflows/build.yml")
 mod_json = text("src/main/resources/fabric.mod.json")
 if f"mod_version={VERSION}" not in props:
-    fail("gradle.properties sürümü 1.0.4 değil")
+    fail("gradle.properties sürümü 1.0.5 değil")
 if f"skinpowers-{VERSION}-jar" not in workflow or f"skinpowers-{VERSION}.jar" not in workflow:
-    fail("GitHub Actions artifact/JAR adı 1.0.4 değil")
+    fail("GitHub Actions artifact/JAR adı 1.0.5 değil")
 if "rm -f src/main/resources/assets/skinpowers/textures/gui/cards/time.png" not in workflow:
     fail("GitHub Actions eski time.png temizliğini içermiyor")
 if "Anomali" not in mod_json:
@@ -82,23 +85,29 @@ analyzer = text("src/client/java/com/yagiz/skinpowers/client/SkinAnalyzer.java")
 commands = text("src/main/java/com/yagiz/skinpowers/SkinPowersCommands.java")
 mod = text("src/main/java/com/yagiz/skinpowers/SkinPowersMod.java")
 store = text("src/main/java/com/yagiz/skinpowers/PlayerDataStore.java")
+duel = text("src/main/java/com/yagiz/skinpowers/DuelSystem.java")
+collision = text("src/main/java/com/yagiz/skinpowers/PowerCollisionSystem.java")
+world_event = text("src/main/java/com/yagiz/skinpowers/WorldEventSystem.java")
 
 required_tokens = {
     power_class: ["ANOMALY(\"Anomali\")", 'normalized.equals("TIME")', "return ANOMALY"],
     catalog: ["Kırık Adım", "Tersine Çevir", '"?"', "Hasar Mevcut Değil", "Varlıktan Çıkar", "404: Gerçeklik Bulunamadı", "ANOMALY_XP_COSTS"],
-    data: ["copiedPowerClass", "anomalyStoredDamage", "anomalyBonusHealthUntil", "anomalyHealthBaseBeforeBonus", "anomalyRealityReviveAvailable"],
-    anomaly: ["recordPowerUse", "chooseStoredDamage", "setBaseValue", "3600L", "allowDamage", "VOIDED", "REVERSED", "handleDisconnect", "restoreVoidedTarget"],
-    power_system: ["tickBorrowedClassEffects", "tickActiveFireRing", "executeCopiedPower", "clearBorrowedClassEffects", "beginCopiedBeam"],
+    data: ["copiedPowerClass", "anomalyStoredDamage", "anomalyBonusHealthUntil", "anomalyHealthBaseBeforeBonus", "anomalyRealityReviveAvailable", "anomalyErrorCooldownUntil", "resetAllCooldowns"],
+    anomaly: ["recordPowerUse", "chooseStoredDamage", "setBaseValue", "3600L", "allowDamage", "VOIDED", "REVERSED", "FROZEN_PROJECTILES", "findRealityOwner", "SONUÇ REDDEDİLDİ", "handleDisconnect", "restoreVoidedTarget"],
+    power_system: ["tickBorrowedClassEffects", "tickActiveFireRing", "executeCopiedPower", "clearBorrowedClassEffects", "beginCopiedBeam", "PowerCollisionSystem.registerCast", "cancelActiveOffense", "DuelSystem.protects", "WorldEventSystem.tick", "triggerAttack", 'case "meteor"', 'case "sonic"'],
     network: ["ANOMALY_HEALTH", "ANOMALY_RETURN", "copiedPowerName", "anomalyChoiceTicks", "ServerPlayConnectionEvents.DISCONNECT.register"],
     client: ["GLFW.GLFW_KEY_V", "GLFW.GLFW_KEY_X", 'send("ANOMALY_HEALTH")', 'send("ANOMALY_RETURN")'],
     client_state: ["copiedPowerName", "anomalyStoredDamage", "anomalyBonusHealthTicks"],
     hud: ["Antik Şehir Seni Şarj etti.", "Vücudun bunu kaldırabilecek Mi?", "[V] Kalp", "[X] Geri gönder"],
     menu: ["displayName(powerClass, level)", "copiedPowerDescription", "R: depola • V: kalp • X: geri gönder"],
     selection: ['"ANOMALİ"', "drawAnomalyGlitch"],
-    analyzer: ["ANOMALY_COLORS", "diversityBonus", "SkinPowers/1.0.4"],
-    commands: ['Commands.literal("degistir")', 'selfClass("anomali"', 'Commands.literal("admin")'],
-    mod: ["ServerLivingEntityEvents.ALLOW_DAMAGE.register(AnomalySystem::allowDamage)", "ServerLivingEntityEvents.ALLOW_DEATH.register(AnomalySystem::allowDeath)", "Skin Powers 1.0.4 yüklendi"],
+    analyzer: ["ANOMALY_COLORS", "diversityBonus", "SkinPowers/1.0.5"],
+    commands: ['Commands.literal("degistir")', 'selfClass("anomali"', 'Commands.literal("duello")', 'Commands.literal("olay")', 'Commands.literal("trigger")', 'triggerLiteral("meteor")', 'triggerLiteral("meteor_charged")', 'Commands.literal("admin")'],
+    mod: ["ServerLivingEntityEvents.ALLOW_DAMAGE.register(AnomalySystem::allowDamage)", "ServerLivingEntityEvents.ALLOW_DEATH.register(AnomalySystem::allowDeath)", "Skin Powers 1.0.5 yüklendi"],
     store: ["migrateLegacyClassNames", 'object.addProperty("powerClass", "ANOMALY")', "JsonParser.parseReader"],
+    duel: ["challenge", "accept", "allowDamage", "allowDeath", "DÜELLO BAŞLADI"],
+    collision: ["registerCast", "cancelActiveOffense", "GÜÇ ÇARPIŞMASI"],
+    world_event: ["Sculk Uyanışı", "Meteor Fırtınası", "Gökyüzü Yarığı", "Kadim Çiçeklenme", "Gerçeklik Çatlağı"],
 }
 for source, tokens in required_tokens.items():
     for token in tokens:
@@ -195,6 +204,11 @@ public final class CoreTest {
       && data.anomalyHealthBaseBeforeBonus() == 20.0, "bonus hearts");
     data.beginAnomalyReality(500L, 1, 2, 3);
     check(data.anomalyRealityReviveAvailable(), "404 revive");
+    data.setAnomalyErrorCooldownUntil(12000L);
+    check(data.anomalyErrorCooldownUntil() == 12000L, "anomaly passive cooldown");
+    data.setCooldown(1, 100L, 200);
+    data.resetAllCooldowns(150L);
+    check(data.cooldownRemaining(1, 150L) == 0, "duel cooldown reset");
     data.reset();
     check(data.powerClass() == PowerClass.NONE && !data.hasCopiedPower() && data.anomalyStoredDamage() == 0.0F, "reset");
     check(com.yagiz.skinpowers.client.ClientUiRules.classChoiceAllowed(true, true, 1, 5, 0, 1), "second suggestion selectable");
@@ -229,4 +243,4 @@ if errors:
 
 print("SKIN POWERS PROJE DENETİMİ BAŞARILI")
 print(f"{len(checks)} kontrol geçti.")
-print("Anomali, V/X hasar seçimi, tek kullanımlık güç kopyası, eski kayıt geçişi, küçük Warden HUD'u ve degistir komut yapısı doğrulandı.")
+print("Anomali 404, güç çarpışmaları, güvenli düellolar, dünya olayları, pasifler ve trigger komutları doğrulandı.")

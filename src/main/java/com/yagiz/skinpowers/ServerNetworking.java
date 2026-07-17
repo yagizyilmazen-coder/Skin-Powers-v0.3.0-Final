@@ -30,7 +30,10 @@ public final class ServerNetworking {
         );
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> sync(handler.player));
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> AnomalySystem.handleDisconnect(handler.player));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            AnomalySystem.handleDisconnect(handler.player);
+            DuelSystem.handleDisconnect(handler.player);
+        });
     }
 
     private static void handle(ServerPlayer player, String rawCommand) {

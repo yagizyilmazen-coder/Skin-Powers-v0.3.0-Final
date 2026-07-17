@@ -1,15 +1,15 @@
-# Skin Powers 1.0.4 doğrulama notu
+# Skin Powers 1.0.5 doğrulama notu
 
 ## Otomatik geçen kontroller
 
 - Bütün JSON kaynakları ayrıştırıldı.
-- 24 Java kaynak dosyasının parantez/sınıf yapısı denetlendi.
+- Ana ve istemci Java kaynaklarının parantez/sınıf yapısı denetlendi.
 - Minecraft bağımlılığı olmayan çekirdek sınıflar gerçek `javac` ile derlendi.
-- Anomali VI seviyesi, güç açıklamaları, kopya kaydı, hasar deposu, üç dakikalık ek kalpler ve sıfırlama davranışı test edildi.
+- Anomali VI, güç açıklamaları, kopya kaydı, hasar deposu, üç dakikalık ek kalpler, Hata Payı süresi ve düello cooldown sıfırlaması test edildi.
 - İkinci skin önerisinin seçilebildiği ve altıncı menü satırı animasyonunun yüzde 100'e ulaştığı test edildi.
-- Eski `TIME/ZAMAN` kayıtlarını yükleme sırasında `ANOMALY` değerine dönüştüren geçiş kodu kontrol edildi.
-- `/skinpower` kökünde doğrudan sınıf seçimi bulunmadığı; sınıfların yalnızca `degistir` dalından sonra geldiği kontrol edildi.
-- Varlıktan Çıkar bağlantı-kesilme temizliği ve kopyalanan Warden VI saldırı ışını yolu kod denetimine eklendi.
+- Eski `TIME/ZAMAN` kayıtlarını `ANOMALY` değerine dönüştüren geçiş kodu kontrol edildi.
+- Güç çarpışması, düello, dünya olayı ve 404 iç saldırı geri çevirme kodlarının gerekli giriş noktaları tarandı.
+- `/skinpower` kökünde doğrudan sınıf seçimi bulunmadığı kontrol edildi.
 - ZIP oluşturulduktan sonra arşiv bütünlüğü ayrıca denetlenecektir.
 
 ## Son derleme sınırı

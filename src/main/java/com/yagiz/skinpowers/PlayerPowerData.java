@@ -62,6 +62,7 @@ public final class PlayerPowerData {
     private double anomalyRealityX = 0.0;
     private double anomalyRealityY = 0.0;
     private double anomalyRealityZ = 0.0;
+    private long anomalyErrorCooldownUntil = 0L;
 
     public PowerClass powerClass() { return powerClass == null ? PowerClass.NONE : powerClass; }
     public int maxPowerLevel() { return PowerCatalog.maxLevel(powerClass()); }
@@ -108,6 +109,7 @@ public final class PlayerPowerData {
     public double anomalyRealityX() { return anomalyRealityX; }
     public double anomalyRealityY() { return anomalyRealityY; }
     public double anomalyRealityZ() { return anomalyRealityZ; }
+    public long anomalyErrorCooldownUntil() { return anomalyErrorCooldownUntil; }
 
     public void chooseClass(PowerClass value) {
         if (powerClass() != PowerClass.NONE || value == null || value == PowerClass.NONE) return;
@@ -165,6 +167,7 @@ public final class PlayerPowerData {
         anomalyRealityUntil = 0L;
         anomalyRealityReviveAvailable = false;
         anomalyRealityX = anomalyRealityY = anomalyRealityZ = 0.0;
+        anomalyErrorCooldownUntil = 0L;
     }
 
     public void unlockNextLevel() {
@@ -446,6 +449,14 @@ public final class PlayerPowerData {
 
     public void consumeAnomalyRealityRevive() { anomalyRealityReviveAvailable = false; }
     public void clearAnomalyReality() { anomalyRealityUntil = 0L; anomalyRealityReviveAvailable = false; }
+    public void setAnomalyErrorCooldownUntil(long value) { anomalyErrorCooldownUntil = Math.max(0L, value); }
+
+    public void resetAllCooldowns(long gameTime) {
+        ensureArrays();
+        for (int i = 0; i < cooldownUntil.length; i++) cooldownUntil[i] = gameTime;
+        for (int i = 0; i < frozenCooldownTicks.length; i++) frozenCooldownTicks[i] = 0;
+        clearCombo();
+    }
 
     public void clearCooldown(int level, long gameTime) {
         ensureArrays();

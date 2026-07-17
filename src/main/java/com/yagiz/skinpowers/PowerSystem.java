@@ -111,6 +111,9 @@ public final class PowerSystem {
         tickTimeShapes();
         AnomalySystem.tickServer(server);
         AncientChargeSystem.tick(server);
+        PowerCollisionSystem.tick(server);
+        DuelSystem.tick(server);
+        WorldEventSystem.tick(server);
 
         long gameTime = server.overworld().getGameTime();
         if (gameTime - lastAutosaveTick >= 1200L) {
@@ -142,6 +145,15 @@ public final class PowerSystem {
     }
 
     private static void tickWarden(ServerPlayer player, PlayerPowerData data, ServerLevel level, long now) {
+        // Küçük sınıf pasifi: Warden oyuncusu yakındaki hareket eden canlıların titreşimlerini hisseder.
+        if (data.unlockedLevel() >= 1 && now % 20L == 0L) {
+            for (LivingEntity living : nearbyLiving(player, 12.0)) {
+                if (living == player || protectedAlly(player, living)) continue;
+                if (living.getDeltaMovement().lengthSqr() > 0.006) {
+                    living.addEffect(new MobEffectInstance(MobEffects.GLOWING, 28, 0, false, false, true));
+                }
+            }
+        }
         if (data.wardenHuntUntil() > now) {
             int stage = data.masteryStage(4);
             boolean boosted = data.chargedWardenHunt();
@@ -274,7 +286,7 @@ public final class PowerSystem {
             }
             if (now % 3L == 0L) {
                 drawRing(level, player.position(), radius, boosted ? ParticleTypes.WITCH : ParticleTypes.FLAME, boosted ? 82 : 48);
-                igniteSparseGround(level, player.blockPosition(), (int) Math.ceil(radius), now);
+                if (!DuelSystem.isInDuel(player.getUUID())) igniteSparseGround(level, player.blockPosition(), (int) Math.ceil(radius), now);
             }
         } else if (data.fireRingUntil() != 0L) {
             data.setFireRingUntil(0L);
@@ -392,12 +404,131 @@ public final class PowerSystem {
 
         if (used) {
             if (comboStarter) beginImmediateComboIfNeeded(player, data, power, now);
+            PowerCollisionSystem.registerCast(player, data, power, now, normalCharged);
             recordMasteryUse(player, data, power);
             AnomalySystem.recordPowerUse(player, data.powerClass(), power);
             if (normalCharged) AncientChargeSystem.consume(player, data, power, now);
             PlayerDataStore.markDirty();
             ServerNetworking.sync(player);
         }
+    }
+
+    /**
+     * Yönetici/test komutundan bir saldırıyı doğrudan çağırır.
+     * Sınıfı değiştirmez, XP/ustalık kazandırmaz ve komutun oluşturduğu cooldown'u temizler.
+     * "_charged" son eki aynı saldırının Antik Şehir ile güçlendirilmiş hâlini çağırır.
+     */
+    public static boolean triggerAttack(ServerPlayer player, String attackId) {
+        if (player == null || attackId == null || attackId.isBlank()) return false;
+
+        String normalized = attackId.trim().toLowerCase(java.util.Locale.ROOT);
+        boolean charged = normalized.endsWith("_charged");
+        String base = charged ? normalized.substring(0, normalized.length() - "_charged".length()) : normalized;
+        PlayerPowerData data = PlayerDataStore.get(player.getUUID());
+        ServerLevel level = (ServerLevel) player.level();
+        long now = level.getGameTime();
+        int stage = 3; // Trigger saldırıları yayın/test amacıyla tam ustalık görünümünde çalışır.
+        int cooldownSlot = 0;
+
+        boolean used = switch (base) {
+            case "earthquake" -> {
+                double radius = AncientChargeSystem.radius(7.0 + stage * 1.2, charged);
+                for (LivingEntity target : nearbyLiving(player, radius)) {
+                    if (target == player || protectedAlly(player, target)) continue;
+                    target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(10.0F + stage * 2.0F, charged));
+                    target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 160, 3, false, true, true));
+                    target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 160, 2, false, true, true));
+                    Vec3 push = target.position().subtract(player.position());
+                    if (push.lengthSqr() > 0.0001) {
+                        push = push.normalize().scale(AncientChargeSystem.knockback(1.25, charged));
+                        target.push(push.x, 0.52, push.z);
+                    }
+                }
+                drawRing(level, player.position(), radius, charged ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, charged ? 104 : 76);
+                level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ATTACK_IMPACT, SoundSource.PLAYERS, 1.5F, 0.72F);
+                yield true;
+            }
+            case "sonic" -> {
+                sonicBlast(player, data, stage, charged);
+                yield true;
+            }
+            case "sonic_fault" -> {
+                sonicFault(player, stage, charged);
+                yield true;
+            }
+            case "sky_spear" -> {
+                launchFlightSpear(player, stage, charged, false);
+                yield true;
+            }
+            case "sky_bomb" -> {
+                launchSkyBomb(player, stage, charged, false, null);
+                yield true;
+            }
+            case "sky_cataclysm" -> {
+                launchSkyCataclysm(player, stage, charged);
+                yield true;
+            }
+            case "fire_ring" -> {
+                cooldownSlot = 3;
+                yield useFire(player, data, 3, now, charged, false);
+            }
+            case "hellfire" -> {
+                hellfireBeam(player, stage, charged, false);
+                yield true;
+            }
+            case "meteor" -> {
+                scheduleMeteors(player, data, stage, charged);
+                yield true;
+            }
+            case "nature_seed" -> {
+                launchNatureSeed(player, stage, charged);
+                yield true;
+            }
+            case "vine_trap" -> {
+                cooldownSlot = 3;
+                yield useNature(player, data, 3, now, charged, false);
+            }
+            case "life_tree" -> {
+                cooldownSlot = 4;
+                yield useNature(player, data, 4, now, charged, false);
+            }
+            case "root_wave" -> {
+                cooldownSlot = 5;
+                yield useNature(player, data, 5, now, charged, false);
+            }
+            case "thorn_forest" -> {
+                Vec3 center = findGroundPoint(level, player.position().add(horizontalDirection(player.getLookAngle()).scale(8.0)));
+                launchNatureComboSeed(player, stage, charged, center);
+                yield true;
+            }
+            case "broken_step" -> {
+                cooldownSlot = 1;
+                yield AnomalySystem.use(player, data, 1, now, charged);
+            }
+            case "reverse" -> {
+                cooldownSlot = 2;
+                yield AnomalySystem.use(player, data, 2, now, charged);
+            }
+            case "void_out" -> {
+                cooldownSlot = 5;
+                yield AnomalySystem.use(player, data, 5, now, charged);
+            }
+            case "reality_404" -> {
+                if (data.powerClass() != PowerClass.ANOMALY) {
+                    player.sendSystemMessage(Component.literal("reality_404 yalnızca Anomali sınıfındayken çağrılabilir."));
+                    yield false;
+                }
+                cooldownSlot = 6;
+                yield AnomalySystem.use(player, data, 6, now, charged);
+            }
+            default -> false;
+        };
+
+        if (!used) return false;
+        if (cooldownSlot > 0) data.clearCooldown(cooldownSlot, now);
+        PlayerDataStore.markDirty();
+        ServerNetworking.sync(player);
+        return true;
     }
 
     public static void toggleSelectedFeature(ServerPlayer player, PlayerPowerData data) {
@@ -987,6 +1118,28 @@ public final class PowerSystem {
             PendingHellfireOrb orb = iterator.next();
             ServerLevel level = orb.level;
             long now = level.getGameTime();
+            ServerPlayer fieldOwner = AnomalySystem.findRealityOwner(level, orb.position, orb.owner);
+            if (fieldOwner != null) {
+                orb.realityFrozen = true;
+                orb.realityOwner = fieldOwner.getUUID();
+                orb.expireTick++;
+                clearHellfireVisual(orb);
+                placeHellfireVisual(orb, orb.position);
+                level.sendParticles(ParticleTypes.WITCH, orb.position.x, orb.position.y, orb.position.z, 12, 0.45, 0.45, 0.45, 0.04);
+                continue;
+            }
+            if (orb.realityFrozen) {
+                ServerPlayer originalCaster = level.getServer().getPlayerList().getPlayer(orb.owner);
+                if (originalCaster != null) {
+                    Vec3 back = originalCaster.getEyePosition().subtract(orb.position);
+                    if (back.lengthSqr() > 0.001) orb.velocity = back.normalize().scale(Math.max(1.15, orb.velocity.length()));
+                } else {
+                    orb.velocity = orb.velocity.scale(-1.0);
+                }
+                if (orb.realityOwner != null) orb.owner = orb.realityOwner;
+                orb.expireTick = now + 45L;
+                orb.realityFrozen = false;
+            }
             ServerPlayer owner = level.getServer().getPlayerList().getPlayer(orb.owner);
 
             clearHellfireVisual(orb);
@@ -1126,6 +1279,25 @@ public final class PowerSystem {
             PendingNatureSeed seed = iterator.next();
             clearPlaced(seed.level, seed.visualBlocks);
             long now = seed.level.getGameTime();
+            ServerPlayer fieldOwner = AnomalySystem.findRealityOwner(seed.level, seed.position, seed.owner);
+            if (fieldOwner != null) {
+                seed.realityFrozen = true;
+                seed.realityOwner = fieldOwner.getUUID();
+                seed.expireTick++;
+                placeNatureSeedVisual(seed, seed.position);
+                seed.level.sendParticles(ParticleTypes.WITCH, seed.position.x, seed.position.y, seed.position.z, 10, 0.35, 0.35, 0.35, 0.04);
+                continue;
+            }
+            if (seed.realityFrozen) {
+                ServerPlayer originalCaster = seed.level.getServer().getPlayerList().getPlayer(seed.owner);
+                if (originalCaster != null) {
+                    Vec3 back = originalCaster.getEyePosition().subtract(seed.position);
+                    if (back.lengthSqr() > 0.001) seed.velocity = back.normalize().scale(Math.max(1.0, seed.velocity.length()));
+                } else seed.velocity = seed.velocity.scale(-1.0);
+                if (seed.realityOwner != null) seed.owner = seed.realityOwner;
+                seed.expireTick = now + 45L;
+                seed.realityFrozen = false;
+            }
             ServerPlayer owner = seed.level.getServer().getPlayerList().getPlayer(seed.owner);
             Vec3 from = seed.position;
             Vec3 to = from.add(seed.velocity);
@@ -1270,6 +1442,29 @@ public final class PowerSystem {
         while (iterator.hasNext()) {
             PendingRootWave wave = iterator.next();
             long now = wave.level.getGameTime();
+            Vec3 nextCenter = findGroundPoint(wave.level, wave.start.add(wave.direction.scale(wave.nextStep + 1.0)));
+            ServerPlayer fieldOwner = AnomalySystem.findRealityOwner(wave.level, nextCenter, wave.owner);
+            if (fieldOwner != null) {
+                wave.realityFrozen = true;
+                wave.realityOwner = fieldOwner.getUUID();
+                wave.startTick++;
+                wave.level.sendParticles(ParticleTypes.WITCH, nextCenter.x, nextCenter.y + 0.7, nextCenter.z, 10, 0.5, 0.5, 0.5, 0.04);
+                continue;
+            }
+            if (wave.realityFrozen) {
+                ServerPlayer originalCaster = wave.level.getServer().getPlayerList().getPlayer(wave.owner);
+                Vec3 origin = nextCenter;
+                if (originalCaster != null) {
+                    Vec3 back = originalCaster.position().subtract(origin);
+                    if (back.lengthSqr() > 0.001) wave.direction = horizontalDirection(back);
+                } else wave.direction = wave.direction.scale(-1.0);
+                wave.start = origin;
+                wave.nextStep = 0;
+                wave.hitTargets.clear();
+                if (wave.realityOwner != null) wave.owner = wave.realityOwner;
+                wave.startTick = now;
+                wave.realityFrozen = false;
+            }
             int wantedStep = (int) ((now - wave.startTick) / 2L);
             while (wave.nextStep <= wantedStep && wave.nextStep < wave.maxSteps) {
                 spawnRootWaveStep(wave, wave.nextStep++);
@@ -1335,6 +1530,25 @@ public final class PowerSystem {
             long now = spear.level.getGameTime();
             if (now < spear.spawnTick) continue;
             clearPlaced(spear.level, spear.visualBlocks);
+            ServerPlayer fieldOwner = AnomalySystem.findRealityOwner(spear.level, spear.position, spear.owner);
+            if (fieldOwner != null) {
+                spear.realityFrozen = true;
+                spear.realityOwner = fieldOwner.getUUID();
+                spear.expireTick++;
+                placeFlightSpearVisual(spear, spear.position);
+                spear.level.sendParticles(ParticleTypes.WITCH, spear.position.x, spear.position.y, spear.position.z, 12, 0.4, 0.4, 0.4, 0.04);
+                continue;
+            }
+            if (spear.realityFrozen) {
+                ServerPlayer originalCaster = spear.level.getServer().getPlayerList().getPlayer(spear.owner);
+                if (originalCaster != null) {
+                    Vec3 back = originalCaster.getEyePosition().subtract(spear.position);
+                    if (back.lengthSqr() > 0.001) spear.velocity = back.normalize().scale(Math.max(1.25, spear.velocity.length()));
+                } else spear.velocity = spear.velocity.scale(-1.0);
+                if (spear.realityOwner != null) spear.owner = spear.realityOwner;
+                spear.expireTick = now + 50L;
+                spear.realityFrozen = false;
+            }
             ServerPlayer owner = spear.level.getServer().getPlayerList().getPlayer(spear.owner);
             Vec3 from = spear.position;
             Vec3 to = from.add(spear.velocity);
@@ -1440,6 +1654,25 @@ public final class PowerSystem {
             long now = bomb.level.getGameTime();
             if (now < bomb.spawnTick) continue;
             clearPlaced(bomb.level, bomb.visualBlocks);
+            ServerPlayer fieldOwner = AnomalySystem.findRealityOwner(bomb.level, bomb.position, bomb.owner);
+            if (fieldOwner != null) {
+                bomb.realityFrozen = true;
+                bomb.realityOwner = fieldOwner.getUUID();
+                bomb.expireTick++;
+                placeSkyBombVisual(bomb, bomb.position);
+                bomb.level.sendParticles(ParticleTypes.WITCH, bomb.position.x, bomb.position.y, bomb.position.z, 14, 0.5, 0.5, 0.5, 0.04);
+                continue;
+            }
+            if (bomb.realityFrozen) {
+                ServerPlayer originalCaster = bomb.level.getServer().getPlayerList().getPlayer(bomb.owner);
+                if (originalCaster != null) {
+                    Vec3 back = originalCaster.getEyePosition().subtract(bomb.position);
+                    if (back.lengthSqr() > 0.001) bomb.velocity = back.normalize().scale(Math.max(1.15, bomb.velocity.length()));
+                } else bomb.velocity = bomb.velocity.scale(-1.0);
+                if (bomb.realityOwner != null) bomb.owner = bomb.realityOwner;
+                bomb.expireTick = now + 55L;
+                bomb.realityFrozen = false;
+            }
             ServerPlayer owner = bomb.level.getServer().getPlayerList().getPlayer(bomb.owner);
             Vec3 from = bomb.position;
             bomb.velocity = bomb.velocity.add(0.0, bomb.ultimate ? -0.025 : -0.055, 0.0);
@@ -1873,11 +2106,35 @@ public final class PowerSystem {
                 double progress = Math.max(0.0, Math.min(1.0, (now - meteor.spawnTick) / duration));
                 double eased = progress * progress;
                 Vec3 target = meteor.impact.add(0.0, 1.0, 0.0);
-                Vec3 position = new Vec3(
+                Vec3 position = meteor.realityFrozen && meteor.frozenPosition != null ? meteor.frozenPosition : new Vec3(
                     meteor.start.x + (target.x - meteor.start.x) * eased,
                     meteor.start.y + (target.y - meteor.start.y) * eased,
                     meteor.start.z + (target.z - meteor.start.z) * eased
                 );
+
+                ServerPlayer realityOwner = AnomalySystem.findRealityOwner(level, position, meteor.owner);
+                if (realityOwner != null) {
+                    meteor.realityFrozen = true;
+                    meteor.realityOwner = realityOwner.getUUID();
+                    meteor.frozenPosition = position;
+                    meteor.spawnTick++;
+                    meteor.impactTick++;
+                    placeMeteorVisual(meteor, position);
+                    level.sendParticles(ParticleTypes.WITCH, position.x, position.y, position.z, 14, 0.7, 0.7, 0.7, 0.05);
+                    continue;
+                }
+                if (meteor.realityFrozen && meteor.frozenPosition != null) {
+                    ServerPlayer originalCaster = level.getServer().getPlayerList().getPlayer(meteor.owner);
+                    meteor.start = meteor.frozenPosition;
+                    meteor.impact = originalCaster == null ? meteor.frozenPosition.add(0.0, -6.0, 0.0) : originalCaster.position();
+                    meteor.owner = meteor.realityOwner == null ? meteor.owner : meteor.realityOwner;
+                    meteor.spawnTick = now;
+                    meteor.impactTick = now + 28L;
+                    meteor.realityFrozen = false;
+                    meteor.frozenPosition = null;
+                    clearMeteorVisual(meteor);
+                    continue;
+                }
 
                 placeMeteorVisual(meteor, position);
                 level.sendParticles(meteor.charged ? ParticleTypes.WITCH : ParticleTypes.FLAME, position.x, position.y, position.z, meteor.charged ? 9 : 6, 0.55, 0.55, 0.55, 0.035);
@@ -1938,6 +2195,60 @@ public final class PowerSystem {
         }
         meteor.visualBlocks.clear();
         meteor.visualCenter = null;
+    }
+
+    /** Güç çarpışmasında kaybeden oyuncunun havada/zeminde devam eden saldırılarını güvenle temizler. */
+    public static void cancelActiveOffense(UUID ownerId) {
+        Iterator<PendingMeteor> meteorIterator = METEORS.iterator();
+        while (meteorIterator.hasNext()) {
+            PendingMeteor meteor = meteorIterator.next();
+            if (!meteor.owner.equals(ownerId)) continue;
+            clearMeteorVisual(meteor);
+            meteorIterator.remove();
+        }
+        Iterator<PendingHellfireOrb> hellIterator = HELLFIRE_ORBS.iterator();
+        while (hellIterator.hasNext()) {
+            PendingHellfireOrb orb = hellIterator.next();
+            if (!orb.owner.equals(ownerId)) continue;
+            clearHellfireVisual(orb);
+            hellIterator.remove();
+        }
+        Iterator<PendingNatureSeed> seedIterator = NATURE_SEEDS.iterator();
+        while (seedIterator.hasNext()) {
+            PendingNatureSeed seed = seedIterator.next();
+            if (!seed.owner.equals(ownerId)) continue;
+            clearPlaced(seed.level, seed.visualBlocks);
+            seedIterator.remove();
+        }
+        Iterator<PendingVineTrap> trapIterator = VINE_TRAPS.iterator();
+        while (trapIterator.hasNext()) {
+            PendingVineTrap trap = trapIterator.next();
+            if (!trap.owner.equals(ownerId)) continue;
+            clearPlaced(trap.level, trap.visualBlocks);
+            trapIterator.remove();
+        }
+        ROOT_WAVES.removeIf(wave -> wave.owner.equals(ownerId));
+        Iterator<PendingFlightSpear> spearIterator = FLIGHT_SPEARS.iterator();
+        while (spearIterator.hasNext()) {
+            PendingFlightSpear spear = spearIterator.next();
+            if (!spear.owner.equals(ownerId)) continue;
+            clearPlaced(spear.level, spear.visualBlocks);
+            spearIterator.remove();
+        }
+        Iterator<PendingSkyBomb> bombIterator = SKY_BOMBS.iterator();
+        while (bombIterator.hasNext()) {
+            PendingSkyBomb bomb = bombIterator.next();
+            if (!bomb.owner.equals(ownerId)) continue;
+            clearPlaced(bomb.level, bomb.visualBlocks);
+            bombIterator.remove();
+        }
+        Iterator<PendingTimeSpear> timeSpearIterator = TIME_SPEARS.iterator();
+        while (timeSpearIterator.hasNext()) {
+            PendingTimeSpear spear = timeSpearIterator.next();
+            if (!spear.owner.equals(ownerId)) continue;
+            clearPlaced(spear.level, spear.visualBlocks);
+            timeSpearIterator.remove();
+        }
     }
 
     public static void clearAllMeteorVisuals() {
@@ -2003,10 +2314,11 @@ public final class PowerSystem {
             target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), 120));
         }
 
-        if (PlayerDataStore.config().meteorBlockDamage()) {
+        boolean duelSafe = owner != null && DuelSystem.isInDuel(owner.getUUID());
+        if (!duelSafe && PlayerDataStore.config().meteorBlockDamage()) {
             carveCrater(level, BlockPos.containing(impact), radius, owner);
         }
-        igniteMeteorGround(level, BlockPos.containing(impact), radius + 2);
+        if (!duelSafe) igniteMeteorGround(level, BlockPos.containing(impact), radius + 2);
     }
 
     private static void igniteMeteorGround(ServerLevel level, BlockPos center, int radius) {
@@ -2069,6 +2381,7 @@ public final class PowerSystem {
     }
 
     private static boolean protectedAlly(ServerPlayer source, LivingEntity target) {
+        if (DuelSystem.protects(source, target)) return true;
         if (source.isAlliedTo(target)) return true;
         return target instanceof TamableAnimal tamable
             && tamable.getOwner() == source;
@@ -2110,13 +2423,15 @@ public final class PowerSystem {
 
     private static final class PendingHellfireOrb {
         private final ServerLevel level;
-        private final UUID owner;
+        private UUID owner;
         private Vec3 position;
-        private final Vec3 velocity;
-        private final long expireTick;
+        private Vec3 velocity;
+        private long expireTick;
         private final int stage;
         private final boolean charged;
         private final boolean comboPrimer;
+        private boolean realityFrozen;
+        private UUID realityOwner;
         private final List<BlockPos> visualBlocks = new ArrayList<>();
 
         private PendingHellfireOrb(
@@ -2144,13 +2459,15 @@ public final class PowerSystem {
 
     private static final class PendingNatureSeed {
         private final ServerLevel level;
-        private final UUID owner;
+        private UUID owner;
         private Vec3 position;
-        private final Vec3 velocity;
-        private final long expireTick;
+        private Vec3 velocity;
+        private long expireTick;
         private final int stage;
         private final boolean charged;
         private final boolean comboForest;
+        private boolean realityFrozen;
+        private UUID realityOwner;
         private final Vec3 comboCenter;
         private final List<PlacedBlock> visualBlocks = new ArrayList<>();
         private PendingNatureSeed(ServerLevel level, UUID owner, Vec3 position, Vec3 velocity, long expireTick, int stage, boolean charged) {
@@ -2189,15 +2506,17 @@ public final class PowerSystem {
 
     private static final class PendingRootWave {
         private final ServerLevel level;
-        private final UUID owner;
-        private final Vec3 start;
-        private final Vec3 direction;
-        private final long startTick;
+        private UUID owner;
+        private Vec3 start;
+        private Vec3 direction;
+        private long startTick;
         private final int maxSteps;
         private final int stage;
         private final boolean charged;
         private int nextStep;
         private final java.util.Set<UUID> hitTargets = new java.util.HashSet<>();
+        private boolean realityFrozen;
+        private UUID realityOwner;
         private PendingRootWave(ServerLevel level, UUID owner, Vec3 start, Vec3 direction, long startTick, int maxSteps, int stage, boolean charged) {
             this.level = level; this.owner = owner; this.start = start; this.direction = direction; this.startTick = startTick; this.maxSteps = maxSteps; this.stage = stage; this.charged = charged;
         }
@@ -2214,16 +2533,19 @@ public final class PowerSystem {
 
     private static final class PendingMeteor {
         private final ServerLevel level;
-        private final UUID owner;
-        private final Vec3 start;
-        private final Vec3 impact;
-        private final long spawnTick;
-        private final long impactTick;
+        private UUID owner;
+        private Vec3 start;
+        private Vec3 impact;
+        private long spawnTick;
+        private long impactTick;
         private final int radius;
         private final float damage;
         private final boolean charged;
         private final List<BlockPos> visualBlocks = new ArrayList<>();
         private BlockPos visualCenter;
+        private boolean realityFrozen;
+        private UUID realityOwner;
+        private Vec3 frozenPosition;
 
         private PendingMeteor(
             ServerLevel level,
@@ -2250,14 +2572,16 @@ public final class PowerSystem {
 
     private static final class PendingFlightSpear {
         private final ServerLevel level;
-        private final UUID owner;
+        private UUID owner;
         private Vec3 position;
-        private final Vec3 velocity;
+        private Vec3 velocity;
         private final long spawnTick;
-        private final long expireTick;
+        private long expireTick;
         private final int stage;
         private final boolean charged;
         private final boolean ultimate;
+        private boolean realityFrozen;
+        private UUID realityOwner;
         private final List<PlacedBlock> visualBlocks = new ArrayList<>();
         private PendingFlightSpear(ServerLevel level, UUID owner, Vec3 position, Vec3 velocity, long spawnTick, long expireTick, int stage, boolean charged, boolean ultimate) {
             this.level = level; this.owner = owner; this.position = position; this.velocity = velocity; this.spawnTick = spawnTick; this.expireTick = expireTick; this.stage = stage; this.charged = charged; this.ultimate = ultimate;
@@ -2266,14 +2590,16 @@ public final class PowerSystem {
 
     private static final class PendingSkyBomb {
         private final ServerLevel level;
-        private final UUID owner;
+        private UUID owner;
         private Vec3 position;
         private Vec3 velocity;
         private final long spawnTick;
-        private final long expireTick;
+        private long expireTick;
         private final int stage;
         private final boolean charged;
         private final boolean ultimate;
+        private boolean realityFrozen;
+        private UUID realityOwner;
         private final List<PlacedBlock> visualBlocks = new ArrayList<>();
         private PendingSkyBomb(ServerLevel level, UUID owner, Vec3 position, Vec3 velocity, long spawnTick, long expireTick, int stage, boolean charged, boolean ultimate) {
             this.level = level; this.owner = owner; this.position = position; this.velocity = velocity; this.spawnTick = spawnTick; this.expireTick = expireTick; this.stage = stage; this.charged = charged; this.ultimate = ultimate;

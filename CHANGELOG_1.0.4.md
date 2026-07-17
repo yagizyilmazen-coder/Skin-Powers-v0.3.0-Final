@@ -8,3 +8,6 @@
 - Warden Antik Şehir şarj yazısı iki küçük satıra indirildi ve sol üst HUD'dan uzaklaştırıldı.
 - Sınıf komutları yalnızca `/skinpower degistir <sinif>` altında gösterilir.
 - Anomali seçim kartı, renk analizi, menü teması ve V/X tuş ayarları eklendi.
+
+## FIX1 — GitHub derleme düzeltmesi
+- `AnomalySystem.java` içindeki `RESPAWN_ANCHOR_DEPLETE` ses kaydı Minecraft 26.1.2 API'sine uygun biçimde `.value()` ile çözüldü.

@@ -26,13 +26,18 @@ public final class SkinPowersMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             PowerSystem.clearAllMeteorVisuals();
             AnomalySystem.clearAll();
+            DuelSystem.clearAll();
+            PowerCollisionSystem.clearAll();
+            WorldEventSystem.clearAll();
             PlayerDataStore.save();
         });
         ServerTickEvents.END_SERVER_TICK.register(PowerSystem::tickServer);
         AttackEntityCallback.EVENT.register(PowerSystem::onAttackEntity);
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(AnomalySystem::allowDamage);
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register(DuelSystem::allowDamage);
         ServerLivingEntityEvents.ALLOW_DEATH.register(AnomalySystem::allowDeath);
+        ServerLivingEntityEvents.ALLOW_DEATH.register(DuelSystem::allowDeath);
 
-        LOGGER.info("Skin Powers 1.0.4 yüklendi.");
+        LOGGER.info("Skin Powers 1.0.5 yüklendi.");
     }
 }
