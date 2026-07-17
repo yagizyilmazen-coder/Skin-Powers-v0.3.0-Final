@@ -93,7 +93,7 @@ public final class AnomalySystem {
         target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, (int) duration, charged ? 3 : 2, false, true, true));
         target.addEffect(new MobEffectInstance(MobEffects.GLOWING, (int) duration, 0, false, false, true));
         level.sendParticles(ParticleTypes.WITCH, target.getX(), target.getY() + 1.0, target.getZ(), charged ? 75 : 45, 0.8, 1.0, 0.8, 0.08);
-        level.playSound(null, target.blockPosition(), SoundEvents.RESPAWN_ANCHOR_DEPLETE, SoundSource.PLAYERS, 1.0F, 0.65F);
+        level.playSound(null, target.blockPosition(), SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.PLAYERS, 1.0F, 0.65F);
         data.setCooldown(2, now, Math.max(260, 420 - stage * 40));
         return true;
     }
