@@ -64,7 +64,7 @@ public final class WorldEventSystem {
             player.sendSystemMessage(Component.literal("Bilinmeyen olay. sculk, meteor, gok, doga, anomali veya rastgele kullan."));
             return false;
         }
-        return start(player.getServer(), type, (ServerLevel) player.level(), player.position(), true);
+        return start(player.level().getServer(), type, (ServerLevel) player.level(), player.position(), true);
     }
 
     public static boolean stop(MinecraftServer server) {
