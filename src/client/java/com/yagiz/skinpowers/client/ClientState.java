@@ -26,6 +26,13 @@ public final class ClientState {
     private static int[] masteryUses = new int[6];
     private static int xpLevel;
     private static String powerName = "-";
+    private static String copiedPowerName = "";
+    private static String copiedPowerDescription = "";
+    private static int anomalyStoreTicks;
+    private static int anomalyChoiceTicks;
+    private static float anomalyStoredDamage;
+    private static int anomalyBonusHealthTicks;
+    private static double anomalyBonusHealth;
     private static boolean receivedState;
     private static int shakeTicks;
     private static float shakeStrength;
@@ -56,6 +63,13 @@ public final class ClientState {
             masteryUses = normalizeMastery(state.masteryUses);
             xpLevel = Math.max(0, state.xpLevel);
             powerName = state.powerName == null ? PowerCatalog.powerName(powerClass, selectedPower) : state.powerName;
+            copiedPowerName = state.copiedPowerName == null ? "" : state.copiedPowerName;
+            copiedPowerDescription = state.copiedPowerDescription == null ? "" : state.copiedPowerDescription;
+            anomalyStoreTicks = Math.max(0, state.anomalyStoreTicks);
+            anomalyChoiceTicks = Math.max(0, state.anomalyChoiceTicks);
+            anomalyStoredDamage = Math.max(0.0F, state.anomalyStoredDamage);
+            anomalyBonusHealthTicks = Math.max(0, state.anomalyBonusHealthTicks);
+            anomalyBonusHealth = Math.max(0.0D, state.anomalyBonusHealth);
             receivedState = true;
         } catch (RuntimeException ignored) {
             // Bozuk/uyumsuz paket istemciyi düşürmesin.
@@ -82,6 +96,9 @@ public final class ClientState {
         if (ancientChargeTicks > 0) ancientChargeTicks--;
         if (ancientExhaustionTicks > 0) ancientExhaustionTicks--;
         if (comboTicks > 0) comboTicks--;
+        if (anomalyStoreTicks > 0) anomalyStoreTicks--;
+        if (anomalyChoiceTicks > 0) anomalyChoiceTicks--;
+        if (anomalyBonusHealthTicks > 0) anomalyBonusHealthTicks--;
         if (comboTicks <= 0) { comboName = ""; comboNextPowerName = ""; }
         if (ancientChargeTicks <= 0) ancientChargeAvailable = false;
         if (shakeTicks > 0) {
@@ -110,6 +127,13 @@ public final class ClientState {
         masteryUses = new int[6];
         xpLevel = 0;
         powerName = "-";
+        copiedPowerName = "";
+        copiedPowerDescription = "";
+        anomalyStoreTicks = 0;
+        anomalyChoiceTicks = 0;
+        anomalyStoredDamage = 0.0F;
+        anomalyBonusHealthTicks = 0;
+        anomalyBonusHealth = 0.0D;
         receivedState = false;
         shakeTicks = 0;
         shakeStrength = 0.0F;
@@ -133,6 +157,13 @@ public final class ClientState {
     public static String comboNextPowerName() { return comboNextPowerName; }
     public static int xpLevel() { return xpLevel; }
     public static String powerName() { return powerName; }
+    public static String copiedPowerName() { return copiedPowerName; }
+    public static String copiedPowerDescription() { return copiedPowerDescription; }
+    public static int anomalyStoreTicks() { return anomalyStoreTicks; }
+    public static int anomalyChoiceTicks() { return anomalyChoiceTicks; }
+    public static float anomalyStoredDamage() { return anomalyStoredDamage; }
+    public static int anomalyBonusHealthTicks() { return anomalyBonusHealthTicks; }
+    public static double anomalyBonusHealth() { return anomalyBonusHealth; }
     public static boolean receivedState() { return receivedState; }
     public static int shakeTicks() { return shakeTicks; }
     public static float shakeStrength() { return shakeStrength; }
@@ -165,5 +196,12 @@ public final class ClientState {
         private int[] masteryUses;
         private int xpLevel;
         private String powerName;
+        private String copiedPowerName;
+        private String copiedPowerDescription;
+        private int anomalyStoreTicks;
+        private int anomalyChoiceTicks;
+        private float anomalyStoredDamage;
+        private int anomalyBonusHealthTicks;
+        private double anomalyBonusHealth;
     }
 }

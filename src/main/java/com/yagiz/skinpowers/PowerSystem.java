@@ -109,6 +109,7 @@ public final class PowerSystem {
         tickTimePrisons();
         tickTimeFields();
         tickTimeShapes();
+        AnomalySystem.tickServer(server);
         AncientChargeSystem.tick(server);
 
         long gameTime = server.overworld().getGameTime();
@@ -130,7 +131,10 @@ public final class PowerSystem {
             case FLIGHT -> tickFlight(player, data, level, now);
             case FIRE -> tickFire(player, data, level, now);
             case NATURE -> tickNature(player, data, level, now);
-            case TIME -> tickTime(player, data, level, now);
+            case ANOMALY -> {
+                AnomalySystem.tickPlayer(player, data, level, now);
+                tickBorrowedClassEffects(player, data, level, now);
+            }
             default -> { }
         }
 
@@ -240,6 +244,23 @@ public final class PowerSystem {
             if (preventedFire) creditMastery(player, data, 1, now, 200L);
         }
 
+        tickActiveFireRing(player, data, level, now);
+    }
+
+    /** Kopyalanmış süreli güçlerin Anomali sınıfında da tam süre çalışmasını sağlar. */
+    private static void tickBorrowedClassEffects(ServerPlayer player, PlayerPowerData data, ServerLevel level, long now) {
+        if (data.wardenHuntUntil() != 0L || data.awakeningUntil() != 0L) {
+            tickWarden(player, data, level, now);
+        }
+        if (data.temporaryElytraUntil() != 0L) {
+            tickFlight(player, data, level, now);
+        }
+        if (data.fireRingUntil() != 0L) {
+            tickActiveFireRing(player, data, level, now);
+        }
+    }
+
+    private static void tickActiveFireRing(ServerPlayer player, PlayerPowerData data, ServerLevel level, long now) {
         if (data.fireRingUntil() > now) {
             int stage = data.masteryStage(3);
             boolean boosted = data.chargedFireRing();
@@ -340,6 +361,7 @@ public final class PowerSystem {
             boolean comboUsed = useComboFinisher(player, data, power, now, charged);
             if (comboUsed) {
                 recordMasteryUse(player, data, power);
+                AnomalySystem.recordPowerUse(player, data.powerClass(), power);
                 if (charged) {
                     data.consumeAncientChargeForCombo(now, PowerCatalog.comboStarterPower(data.powerClass()), power);
                     AncientChargeSystem.emitChargedBurst((ServerLevel) player.level(), player.position().add(0.0, 1.0, 0.0), data.powerClass(), 1.5);
@@ -364,13 +386,14 @@ public final class PowerSystem {
             case FLIGHT -> useFlight(player, data, power, now, normalCharged);
             case FIRE -> useFire(player, data, power, now, normalCharged, comboStarter);
             case NATURE -> useNature(player, data, power, now, normalCharged, comboStarter);
-            case TIME -> useTime(player, data, power, now, normalCharged, comboStarter);
+            case ANOMALY -> AnomalySystem.use(player, data, power, now, normalCharged);
             default -> false;
         };
 
         if (used) {
             if (comboStarter) beginImmediateComboIfNeeded(player, data, power, now);
             recordMasteryUse(player, data, power);
+            AnomalySystem.recordPowerUse(player, data.powerClass(), power);
             if (normalCharged) AncientChargeSystem.consume(player, data, power, now);
             PlayerDataStore.markDirty();
             ServerNetworking.sync(player);
@@ -397,12 +420,8 @@ public final class PowerSystem {
             player.sendSystemMessage(Component.literal("Ateş sınıfındaki güçler R ile veya otomatik olarak çalışır."));
         } else if (data.powerClass() == PowerClass.NATURE) {
             player.sendSystemMessage(Component.literal("Doğa sınıfındaki güçler R ile veya otomatik olarak çalışır."));
-        } else if (data.powerClass() == PowerClass.TIME && data.unlockedLevel() >= 1) {
-            data.togglePassive();
-            data.setCooldown(1, now, 40);
-            recordMasteryUse(player, data, 1);
-            changed = true;
-            player.sendSystemMessage(Component.literal("Zaman Sezgisi: " + (data.passiveEnabled() ? "AÇIK" : "KAPALI")));
+        } else if (data.powerClass() == PowerClass.ANOMALY) {
+            player.sendSystemMessage(Component.literal("Anomali: güçleri R ile kullan. Hasar seçimi hazırken V kalbe, X hedefe dönüştürür."));
         }
         if (changed) {
             PlayerDataStore.markDirty();
@@ -411,6 +430,10 @@ public final class PowerSystem {
     }
 
     public static void toggleComboMode(ServerPlayer player, PlayerPowerData data) {
+        if (data.powerClass() == PowerClass.ANOMALY) {
+            player.sendSystemMessage(Component.literal("Anomali güçleri kombo yerine ? ile hamle kopyalar."));
+            return;
+        }
         boolean enabled = data.toggleComboMode();
         PlayerDataStore.markDirty();
         player.sendSystemMessage(Component.literal("Kombo Modu: " + (enabled ? "AÇIK" : "KAPALI")));
@@ -683,7 +706,7 @@ public final class PowerSystem {
                 player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 50 + stage * 10, charged ? 2 : 1, false, true, true));
                 player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 80 + stage * 10, charged ? 2 : 1, false, true, true));
                 level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.1F, charged ? 0.72F : 1.25F);
-                if (charged) AncientChargeSystem.emitChargedBurst(level, player.position().add(0.0, 1.0, 0.0), PowerClass.TIME, 1.35);
+                if (charged) AncientChargeSystem.emitChargedBurst(level, player.position().add(0.0, 1.0, 0.0), PowerClass.ANOMALY, 1.35);
                 data.setCooldown(3, now, Math.max(300, 520 - stage * 55));
                 return true;
             }
@@ -766,15 +789,46 @@ public final class PowerSystem {
                 player.sendSystemMessage(Component.literal("GÖKSEL BOMBARDIMAN!"));
                 yield true;
             }
-            case TIME -> {
-                Vec3 center = comboTarget(data, findGroundPoint((ServerLevel) player.level(), player.position().add(horizontalDirection(player.getLookAngle()).scale(8.0))));
-                createTimeField(player, center, stage + 2, charged);
-                data.setCooldown(5, now, Math.max(760, 1060 - stage * 75));
-                player.sendSystemMessage(Component.literal("SONSUZ MAHKÛMİYET!"));
-                yield true;
-            }
+            case ANOMALY -> false;
             default -> false;
         };
+    }
+
+    static boolean executeCopiedPower(ServerPlayer player, PlayerPowerData data, PowerClass copiedClass, int copiedPower, long now, boolean charged) {
+        if (!AnomalySystem.isCopyable(copiedClass, copiedPower)) return false;
+        return switch (copiedClass) {
+            case WARDEN -> copiedPower == 6
+                ? AncientChargeSystem.beginCopiedBeam(player, now)
+                : useWarden(player, data, copiedPower, now, charged);
+            case FLIGHT -> useFlight(player, data, copiedPower, now, charged);
+            case FIRE -> useFire(player, data, copiedPower, now, charged, false);
+            case NATURE -> useNature(player, data, copiedPower, now, charged, false);
+            default -> false;
+        };
+    }
+
+    static void clearBorrowedClassEffects(ServerPlayer player, PlayerPowerData data) {
+        if (data.temporaryElytraUntil() != 0L) removeTemporaryElytra(player, data);
+        data.setWardenHuntUntil(0L);
+        data.setAwakeningUntil(0L);
+        data.setFireRingUntil(0L);
+        data.setNatureTreeUntil(0L);
+        data.setChargedWardenHunt(false);
+        data.setChargedAwakening(false);
+        data.setChargedFireRing(false);
+        data.setVisionEnabled(false);
+    }
+
+    static LivingEntity findTargetForExternalPower(ServerPlayer player, double range) {
+        return findLookTarget(player, range);
+    }
+
+    static boolean isProtectedAlly(ServerPlayer source, LivingEntity target) {
+        return protectedAlly(source, target);
+    }
+
+    static void drawExternalRing(ServerLevel level, Vec3 center, double radius, net.minecraft.core.particles.ParticleOptions particle, int points) {
+        drawRing(level, center, radius, particle, points);
     }
 
     private static Vec3 comboTarget(PlayerPowerData data, Vec3 fallback) {

@@ -48,6 +48,21 @@ public final class PlayerPowerData {
     private boolean chargedTemporaryElytra = false;
     private boolean chargedWardenHunt = false;
 
+    // Anomali sınıfı: tek kullanımlık kopya, hasar deposu ve geçici gerçek kırmızı kalpler.
+    private String copiedPowerClass = "NONE";
+    private int copiedPowerLevel = 0;
+    private long anomalyDamageStoreUntil = 0L;
+    private float anomalyStoredDamage = 0.0F;
+    private long anomalyChoiceUntil = 0L;
+    private double anomalyBonusHealth = 0.0;
+    private long anomalyBonusHealthUntil = 0L;
+    private double anomalyHealthBaseBeforeBonus = -1.0;
+    private long anomalyRealityUntil = 0L;
+    private boolean anomalyRealityReviveAvailable = false;
+    private double anomalyRealityX = 0.0;
+    private double anomalyRealityY = 0.0;
+    private double anomalyRealityZ = 0.0;
+
     public PowerClass powerClass() { return powerClass == null ? PowerClass.NONE : powerClass; }
     public int maxPowerLevel() { return PowerCatalog.maxLevel(powerClass()); }
     public int unlockedLevel() { return Math.max(0, Math.min(maxPowerLevel(), unlockedLevel)); }
@@ -79,6 +94,20 @@ public final class PlayerPowerData {
     public boolean chargedFireRing() { return chargedFireRing; }
     public boolean chargedTemporaryElytra() { return chargedTemporaryElytra; }
     public boolean chargedWardenHunt() { return chargedWardenHunt; }
+    public PowerClass copiedPowerClass() { return PowerClass.safeValueOf(copiedPowerClass); }
+    public int copiedPowerLevel() { return Math.max(0, Math.min(6, copiedPowerLevel)); }
+    public boolean hasCopiedPower() { return copiedPowerClass() != PowerClass.NONE && copiedPowerLevel() > 0; }
+    public long anomalyDamageStoreUntil() { return anomalyDamageStoreUntil; }
+    public float anomalyStoredDamage() { return Math.max(0.0F, anomalyStoredDamage); }
+    public long anomalyChoiceUntil() { return anomalyChoiceUntil; }
+    public double anomalyBonusHealth() { return Math.max(0.0, anomalyBonusHealth); }
+    public long anomalyBonusHealthUntil() { return anomalyBonusHealthUntil; }
+    public double anomalyHealthBaseBeforeBonus() { return anomalyHealthBaseBeforeBonus; }
+    public long anomalyRealityUntil() { return anomalyRealityUntil; }
+    public boolean anomalyRealityReviveAvailable() { return anomalyRealityReviveAvailable; }
+    public double anomalyRealityX() { return anomalyRealityX; }
+    public double anomalyRealityY() { return anomalyRealityY; }
+    public double anomalyRealityZ() { return anomalyRealityZ; }
 
     public void chooseClass(PowerClass value) {
         if (powerClass() != PowerClass.NONE || value == null || value == PowerClass.NONE) return;
@@ -125,6 +154,17 @@ public final class PlayerPowerData {
         chargedFireRing = false;
         chargedTemporaryElytra = false;
         chargedWardenHunt = false;
+        copiedPowerClass = "NONE";
+        copiedPowerLevel = 0;
+        anomalyDamageStoreUntil = 0L;
+        anomalyStoredDamage = 0.0F;
+        anomalyChoiceUntil = 0L;
+        anomalyBonusHealth = 0.0;
+        anomalyBonusHealthUntil = 0L;
+        anomalyHealthBaseBeforeBonus = -1.0;
+        anomalyRealityUntil = 0L;
+        anomalyRealityReviveAvailable = false;
+        anomalyRealityX = anomalyRealityY = anomalyRealityZ = 0.0;
     }
 
     public void unlockNextLevel() {
@@ -356,6 +396,69 @@ public final class PlayerPowerData {
     public void setChargedFireRing(boolean value) { chargedFireRing = value; }
     public void setChargedTemporaryElytra(boolean value) { chargedTemporaryElytra = value; }
     public void setChargedWardenHunt(boolean value) { chargedWardenHunt = value; }
+
+    public void setCopiedPower(PowerClass powerClass, int level) {
+        if (powerClass == null || powerClass == PowerClass.NONE || powerClass == PowerClass.ANOMALY || level <= 0) return;
+        copiedPowerClass = powerClass.name();
+        copiedPowerLevel = Math.max(1, Math.min(PowerCatalog.maxLevel(powerClass), level));
+    }
+
+    public void clearCopiedPower() { copiedPowerClass = "NONE"; copiedPowerLevel = 0; }
+
+    public void beginAnomalyDamageStore(long untilTick) {
+        anomalyDamageStoreUntil = untilTick;
+        anomalyStoredDamage = 0.0F;
+        anomalyChoiceUntil = 0L;
+    }
+
+    public void addAnomalyStoredDamage(float amount) {
+        anomalyStoredDamage = Math.min(200.0F, anomalyStoredDamage + Math.max(0.0F, amount));
+    }
+
+    public void finishAnomalyDamageStore(long choiceUntil) {
+        anomalyDamageStoreUntil = 0L;
+        anomalyChoiceUntil = anomalyStoredDamage > 0.0F ? choiceUntil : 0L;
+    }
+
+    public void clearAnomalyStoredDamage() {
+        anomalyDamageStoreUntil = 0L;
+        anomalyStoredDamage = 0.0F;
+        anomalyChoiceUntil = 0L;
+    }
+
+    public void setAnomalyBonusHealth(double amount, long untilTick, double baseBeforeBonus) {
+        anomalyBonusHealth = Math.max(0.0, Math.min(20.0, amount));
+        anomalyBonusHealthUntil = anomalyBonusHealth > 0.0 ? untilTick : 0L;
+        anomalyHealthBaseBeforeBonus = anomalyBonusHealth > 0.0 ? Math.max(1.0, baseBeforeBonus) : -1.0;
+    }
+
+    public void clearAnomalyBonusHealth() {
+        anomalyBonusHealth = 0.0;
+        anomalyBonusHealthUntil = 0L;
+        anomalyHealthBaseBeforeBonus = -1.0;
+    }
+
+    public void beginAnomalyReality(long untilTick, double x, double y, double z) {
+        anomalyRealityUntil = untilTick;
+        anomalyRealityReviveAvailable = true;
+        anomalyRealityX = x; anomalyRealityY = y; anomalyRealityZ = z;
+    }
+
+    public void consumeAnomalyRealityRevive() { anomalyRealityReviveAvailable = false; }
+    public void clearAnomalyReality() { anomalyRealityUntil = 0L; anomalyRealityReviveAvailable = false; }
+
+    public void clearCooldown(int level, long gameTime) {
+        ensureArrays();
+        cooldownUntil[index(level)] = gameTime;
+    }
+
+    public void reduceAllCooldowns(long gameTime, int ticks) {
+        ensureArrays();
+        int reduction = Math.max(0, ticks);
+        for (int i = 0; i < cooldownUntil.length; i++) {
+            if (cooldownUntil[i] > gameTime) cooldownUntil[i] = Math.max(gameTime, cooldownUntil[i] - reduction);
+        }
+    }
 
     public int[] masteryCopy() {
         ensureArrays();

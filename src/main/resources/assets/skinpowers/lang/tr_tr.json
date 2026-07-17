@@ -14,8 +14,10 @@
   "class.skinpowers.fire": "ATEŞ",
   "class.skinpowers.nature": "DOĞA",
   "modmenu.nameTranslation.skinpowers": "Skin Powers",
-  "modmenu.descriptionTranslation.skinpowers": "Skin renklerinden Warden, Uçuş, Ateş, Doğa ve Zaman güçleri seç.",
-  "modmenu.summaryTranslation.skinpowers": "Skin tabanlı beş güç sınıfı.",
+  "modmenu.descriptionTranslation.skinpowers": "Skin renklerinden Warden, Uçuş, Ateş, Doğa ve Anomali güçleri seç.",
+  "modmenu.summaryTranslation.skinpowers": "Skin tabanlı beş güç sınıfı ve Anomali gerçeklik güçleri.",
   "key.skinpowers.combo": "Kombo Modu",
-  "class.skinpowers.time": "ZAMAN"
+  "class.skinpowers.anomaly": "ANOMALİ",
+  "key.skinpowers.anomaly_health": "Anomali: depolanan hasarı kalbe çevir",
+  "key.skinpowers.anomaly_return": "Anomali: depolanan hasarı geri gönder"
 }

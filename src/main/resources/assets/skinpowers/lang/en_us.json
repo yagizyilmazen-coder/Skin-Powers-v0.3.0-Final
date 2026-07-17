@@ -14,8 +14,10 @@
   "class.skinpowers.fire": "FIRE",
   "class.skinpowers.nature": "NATURE",
   "modmenu.nameTranslation.skinpowers": "Skin Powers",
-  "modmenu.descriptionTranslation.skinpowers": "Choose Warden, Flight, Fire, Nature or Time powers from your skin colors.",
-  "modmenu.summaryTranslation.skinpowers": "Five skin-based power classes.",
+  "modmenu.descriptionTranslation.skinpowers": "Choose Warden, Flight, Fire, Nature or Anomaly powers from your skin colors.",
+  "modmenu.summaryTranslation.skinpowers": "Five skin-based power classes with Anomaly reality powers.",
   "key.skinpowers.combo": "Combo Mode",
-  "class.skinpowers.time": "TIME"
+  "class.skinpowers.anomaly": "ANOMALY",
+  "key.skinpowers.anomaly_health": "Anomaly: convert stored damage to hearts",
+  "key.skinpowers.anomaly_return": "Anomaly: return stored damage"
 }

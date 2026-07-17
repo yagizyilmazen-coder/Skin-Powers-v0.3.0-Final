@@ -18,7 +18,7 @@ public final class ClientUiRules {
 
     /**
      * Gecikmeli animasyonun son öğede bile mutlaka 1.0'a ulaşmasını sağlar.
-     * Eski formül Zaman kartını %89,6'da, Warden VI satırını %93,9'da bırakıyordu.
+     * Eski formül beşinci kartnı %89,6'da, Warden VI satırını %93,9'da bırakıyordu.
      */
     public static float staggeredProgress(float globalProgress, int index, int count, float maximumDelay) {
         float progress = clamp01(globalProgress);

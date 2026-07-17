@@ -1,94 +1,76 @@
-# Skin Powers 1.0.3
+# Skin Powers 1.0.4
 
-Minecraft Java Edition 26.1.2 için Fabric güç modudur. Oyuncunun gerçek skin piksellerini analiz eder, en güçlü ve ikinci en yakın sınıf önerisini gösterir; oyuncu yalnızca en yüksek puanlı ve ona en yakın ikinci sınıftan birini seçebilir.
+Minecraft Java Edition 26.1.2 için Fabric güç modu.
 
-## 1.0.3 düzeltmeleri
+## 1.0.4 ana değişiklikleri
 
-- İkinci skin önerisi artık gerçekten seçilebilir.
-- Warden VI açma/seçme düğmesi son animasyon satırında kilitlenmez.
-- O menüsünde Zaman dâhil bütün güç açıklamaları normal ve kompakt ekran düzenlerinde korunur.
-- Zaman sınıfının hasar, alan, süre ve bekleme değerleri güçlendirildi.
+- Zaman sınıfı kaldırıldı ve yerine **Anomali** eklendi.
+- Eski `TIME/ZAMAN` oyuncu kayıtları otomatik olarak Anomaliye taşınır.
+- Warden, Uçuş, Ateş ve Doğa sınıfları korunur.
+- Warden şarj bildirimi küçültüldü ve alt-orta bölüme taşındı.
+- Sınıf değiştirme yalnızca `/skinpower degistir <sinif>` üzerinden yapılır.
 
+## Anomali güçleri
 
-## Sınıflar
+1. **Kırık Adım — 10 XP:** baktığın yöne kırılarak sıçrar, yolundaki düşmanlara hasar verir.
+2. **Tersine Çevir — 20 XP:** hedefin hareketini, mermilerini ve saldırısının bir bölümünü tersine çevirir.
+3. **? — 30 XP:** 30 blok içindeki rakibin son kopyalanabilir aktif gücünü yakalar. Hamle bir kez kullanılınca tekrar `?` olur.
+4. **Hasar Mevcut Değil — 40 XP:** 5 saniyelik hasarı depolar. Sonra küçük HUD seçimi çıkar:
+   - `V`: hasarın yarısını en fazla 5 yeni kırmızı kalp kapasitesine dönüştürür. Toplam sınır 10 ek kalptir; süre 3 dakikadır. Yeni kalp yuvaları boş gelir ve normal kırmızı kalpler gibi yemek/iyileşme ile dolar.
+   - `X`: depolanan hasarın tamamını nişangâhtaki hedefe geri gönderir.
+5. **Varlıktan Çıkar — 50 XP:** hedefi kısa süre savaştan çıkarır; döndüğünde savunması kırılır.
+6. **404: Gerçeklik Bulunamadı — 70 XP:** geniş gerçeklik alanı açar; düşmanları bozar, mermileri ters çevirir ve oyuncuyu bir kez ölümden döndürür.
 
-- Warden
-- Uçuş
-- Ateş
-- Doğa
-- Zaman
+Anomali güçleri blok yerleştirmez veya dünyayı güç görseli için değiştirmez.
 
-## Kontroller
+## Tuşlar
 
 - `R`: seçili aktif gücü kullan
-- `Y`: uygun yardımcı/pasif özelliği değiştir
-- `Sol/Sağ`: açık güçler arasında geç
-- `O`: güç menüsünü aç/kapat
-- `K`: Kombo Modunu aç/kapat
-- `ESC`: menüyü kapat
-
-## Zaman sınıfı
-
-1. **Zaman Sezgisi — 10 XP:** yakındaki mermileri yavaşlatır.
-2. **Krono Mızrağı — 20 XP:** havada görünür altın-lacivert mızrak fırlatır.
-3. **Geri Sarma — 30 XP:** oyuncuyu yaklaşık beş saniye önceki konum ve canına döndürür.
-4. **Zaman Hapishanesi — 40 XP:** hedefi ekran efekti uygulamadan görünür saat halkaları içinde sabitler.
-5. **Zamanın Sonu — 50 XP:** geniş alandaki hedefleri durdurur ve süre sonunda büyük zaman patlaması oluşturur.
-
-## Skin analizi
-
-- Skin analizi ve skin indirme ayrı iş parçacıklarında çalışır; ilk ekran ağ isteği yüzünden kilitlenmez.
-- Profil dokusu bulunamazsa UUID, ardından oyuncu adı üzerinden Mojang skin adresi yeniden çözülür ve HTTPS ile alınır.
-- Ana katman ve ikinci katmanlar analiz edilir; şeffaf pikseller sayılmaz.
-- Baş/ten bölgesi düşük, gövde ve kıyafet katmanları daha yüksek ağırlık alır.
-- En yüksek ve ikinci en yüksek sonuç ayrı öneri olarak gösterilir ve normal seçimde yalnızca bu iki kart açılır.
-- Skin alınamazsa uydurma yüzdeler gösterilmez; manuel sınıf seçimi açık kalır.
-
-## Antik Şehir Şarjı
-
-Warden'ın 6. gücü 70 XP gerektirir. Hedef oyuncuya veya moba ışın atar; çömelerek kullanılırsa oyuncu üç kalp feda ederek kendini şarj eder.
-
-- Şarj en fazla 20 saniye sürer ve bir güçlendirilmiş aktif güç hakkı verir.
-- Uygun güçlerin bekleme süreleri geçici olarak açılır.
-- Hasar, alan, süre, savurma ve görünür saldırı boyutu güç türüne göre artar. Uçuş, Doğa ve Zaman pasifleri de 20 saniyelik taşıma süresince geçici olarak güçlenir.
-- Şarjlı Meteor Yağmuru tam 20 büyük morumsu meteor üretir.
-- Yoğun parçacık duvarı kaldırılmıştır; ana görünürlük parlama dış çizgisi ve geçici sculk kol modellerinden gelir.
-- Çöküş etkileri 20 saniye tamamlandıktan sonra başlar.
+- `Sol / Sağ Ok`: güç değiştir
+- `O`: güç menüsü
+- `Y`: sınıfa bağlı yardımcı özellik
+- `K`: Warden, Uçuş, Ateş ve Doğa kombo modu
+- `V`: Anomali depolanmış hasarını kalbe çevir
+- `X`: Anomali depolanmış hasarını geri gönder
 
 ## Komutlar
 
-Tek komut kökü `/skinpower` olarak düzenlenmiştir.
+Oyuncunun kendi sınıfını değiştirmesi:
 
 ```text
-/skinpower warden
-/skinpower ucus
-/skinpower ates
-/skinpower doga
-/skinpower zaman
+/skinpower degistir warden
+/skinpower degistir ucus
+/skinpower degistir ates
+/skinpower degistir alev
+/skinpower degistir doga
+/skinpower degistir anomali
 ```
 
-Bu komutlar oyuncunun sınıfını değiştirir; eski sınıfa ait güç seviyeleri ve ustalık ilerlemesi temizlenir. Yetkili test komutları:
+Sınıf adları `/skinpower` kökünde doğrudan görünmez; önce `degistir` seçilmelidir.
+
+Yönetici komutları:
 
 ```text
-/skinpower sarj ver @s 20
-/skinpower sarj temizle @s
-/skinpower reset @s
+/skinpower admin degistir <oyuncu> <sinif>
+/skinpower admin reset <oyuncu>
+/skinpower admin meteor blokhasari <true|false>
+/skinpower admin sarj ver <oyuncu> <saniye>
+/skinpower admin sarj temizle <oyuncu>
 ```
 
-## Gereksinimler
+## GitHub Actions ile JAR
 
-- Minecraft Java Edition 26.1.2
-- Fabric Loader 0.19.3+
-- Fabric API 0.154.2+26.1.2
-- Java 25
-- Mod Menu 18.0.0 isteğe bağlı
+1. ZIP'i **Tümünü Ayıkla** ile açın.
+2. İçindeki dosyaları GitHub Desktop'taki proje ana klasörüne kopyalayın.
+3. Değişiklikleri commit edip **Push origin** yapın.
+4. GitHub'da **Actions → Fabric JAR Derle** işleminin yeşil tamamlanmasını bekleyin.
+5. `skinpowers-1.0.4-jar` artifact'ini indirin.
+6. İçindeki `skinpowers-1.0.4.jar` dosyasını Minecraft `mods` klasörüne koyun.
 
-## GitHub Actions ile derleme
+## Sürüm hedefleri
 
-1. Mevcut GitHub proje klasöründe gizli `.git` klasörünü koruyun.
-2. Eski proje dosyalarını temizleyip bu paketin içeriğini ana klasöre kopyalayın.
-3. `Commit to main` ve `Push origin` yapın.
-4. GitHub `Actions` sekmesinde **Fabric JAR Derle** işinin yeşil tamamlanmasını bekleyin.
-5. `skinpowers-1.0.3-jar` artifact'ini indirip içindeki `skinpowers-1.0.3.jar` dosyasını `mods` klasörüne koyun.
-
-**Made by Yankalan**
+- Minecraft Java Edition `26.1.2`
+- Fabric Loader `0.19.3`
+- Fabric API `0.154.2+26.1.2`
+- Java `25`
+- Gradle `9.5.1`

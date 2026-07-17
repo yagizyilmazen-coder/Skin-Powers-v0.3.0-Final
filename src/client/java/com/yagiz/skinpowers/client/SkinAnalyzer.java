@@ -39,8 +39,9 @@ public final class SkinAnalyzer {
     private static final int[][] NATURE_COLORS = {
         {46, 125, 50}, {76, 148, 63}, {31, 92, 43}, {104, 159, 56}, {91, 67, 39}, {126, 92, 49}, {59, 104, 53}
     };
-    private static final int[][] TIME_COLORS = {
-        {236, 190, 54}, {255, 219, 96}, {24, 42, 92}, {31, 65, 126}, {78, 205, 218}, {224, 235, 246}
+    private static final int[][] ANOMALY_COLORS = {
+        {12, 3, 20}, {52, 12, 82}, {116, 38, 170}, {182, 92, 255},
+        {69, 220, 224}, {234, 75, 99}, {238, 240, 248}
     };
 
     private static final java.util.concurrent.ConcurrentHashMap<UUID, Result> CACHE = new java.util.concurrent.ConcurrentHashMap<>();
@@ -79,7 +80,7 @@ public final class SkinAnalyzer {
                 if (skinUrl == null) return Result.unavailable();
                 HttpRequest request = HttpRequest.newBuilder(URI.create(skinUrl))
                     .timeout(Duration.ofSeconds(10))
-                    .header("User-Agent", "SkinPowers/1.0.3")
+                    .header("User-Agent", "SkinPowers/1.0.4")
                     .GET()
                     .build();
                 HttpResponse<byte[]> response = sendBytesWithRetry(request, 2);
@@ -100,9 +101,11 @@ public final class SkinAnalyzer {
         double weightedCount = 0.0;
         int counted = 0;
         int matched = 0;
-        int goldPixels = 0;
-        int navyPixels = 0;
+        int purplePixels = 0;
+        int darkPixels = 0;
         int cyanPixels = 0;
+        int redGlitchPixels = 0;
+        int whitePixels = 0;
         Map<Integer, Integer> quantized = new HashMap<>();
 
         int width = image.getWidth();
@@ -135,9 +138,11 @@ public final class SkinAnalyzer {
                 double max = Math.max(red, Math.max(green, blue)) / 255.0;
                 double min = Math.min(red, Math.min(green, blue)) / 255.0;
                 double saturation = max <= 0.0001 ? 0.0 : (max - min) / max;
-                if (hue >= 38 && hue <= 62 && saturation > 0.35 && max > 0.45) goldPixels++;
-                if (hue >= 208 && hue <= 245 && max < 0.62 && saturation > 0.25) navyPixels++;
-                if (hue >= 175 && hue <= 205 && saturation > 0.25 && max > 0.45) cyanPixels++;
+                if (hue >= 265 && hue <= 325 && saturation > 0.35 && max > 0.25) purplePixels++;
+                if (max < 0.18) darkPixels++;
+                if (hue >= 172 && hue <= 196 && saturation > 0.35 && max > 0.42) cyanPixels++;
+                if ((hue <= 12 || hue >= 348) && saturation > 0.55 && max > 0.55) redGlitchPixels++;
+                if (max > 0.82 && saturation < 0.16) whitePixels++;
 
                 int qr = (red / 24) * 24;
                 int qg = (green / 24) * 24;
@@ -148,9 +153,18 @@ public final class SkinAnalyzer {
 
         if (counted == 0 || weightedCount <= 0.0) return Result.unavailable();
 
-        // Zaman sınıfı tek renkten çok altın + lacivert/camgöbeği birlikteliğiyle öne çıkar.
-        double pairFraction = Math.min(goldPixels, navyPixels + cyanPixels) / (double) counted;
-        totals[4] += pairFraction * weightedCount * 2.6;
+        // Anomali tek bir renkle değil, bozuk palet birlikteliğiyle öne çıkar.
+        // Sadece siyah veya sadece beyaz bir skin bu nedenle Anomali sayılmaz.
+        int chromatic = purplePixels + cyanPixels + redGlitchPixels;
+        int contrast = darkPixels + whitePixels;
+        double pairFraction = Math.min(chromatic, contrast) / (double) counted;
+        int activeGroups = (purplePixels > counted * 0.015 ? 1 : 0)
+            + (cyanPixels > counted * 0.012 ? 1 : 0)
+            + (redGlitchPixels > counted * 0.008 ? 1 : 0)
+            + (darkPixels > counted * 0.025 ? 1 : 0)
+            + (whitePixels > counted * 0.012 ? 1 : 0);
+        double diversityBonus = Math.max(0, activeGroups - 1) * 0.035;
+        totals[4] += (pairFraction * 2.8 + diversityBonus) * weightedCount;
 
         double sum = 0.0;
         for (int i = 0; i < totals.length; i++) {
@@ -166,7 +180,7 @@ public final class SkinAnalyzer {
             .mapToInt(Map.Entry::getKey)
             .toArray();
         if (dominant.length < 5) {
-            int[] filled = {0x233044, 0x8FCBE8, 0xE95818, 0x4F8B3B, 0xD5AF42};
+            int[] filled = {0x233044, 0x8FCBE8, 0xE95818, 0x4F8B3B, 0x742AAA};
             System.arraycopy(dominant, 0, filled, 0, dominant.length);
             dominant = filled;
         }
@@ -187,7 +201,7 @@ public final class SkinAnalyzer {
         double flight = nearestSimilarity(r, g, b, FLIGHT_COLORS, 68.0);
         double fire = nearestSimilarity(r, g, b, FIRE_COLORS, 66.0);
         double nature = nearestSimilarity(r, g, b, NATURE_COLORS, 68.0);
-        double time = nearestSimilarity(r, g, b, TIME_COLORS, 64.0);
+        double anomaly = nearestSimilarity(r, g, b, ANOMALY_COLORS, 54.0) * 0.72;
 
         double max = Math.max(r, Math.max(g, b)) / 255.0;
         double min = Math.min(r, Math.min(g, b)) / 255.0;
@@ -200,10 +214,12 @@ public final class SkinAnalyzer {
         if (saturation > 0.42 && max > 0.30 && (hue <= 35.0 || hue >= 345.0)) fire = Math.max(fire, 0.78);
         if (saturation > 0.28 && max > 0.20 && hue >= 72.0 && hue <= 155.0) nature = Math.max(nature, 0.75);
         if (r > g && g > b && hue >= 22.0 && hue <= 52.0 && max < 0.72 && saturation > 0.22) nature = Math.max(nature, 0.58);
-        if (hue >= 40.0 && hue <= 60.0 && max > 0.55 && saturation > 0.32) time = Math.max(time, 0.76);
-        if (hue >= 212.0 && hue <= 245.0 && max < 0.62) time = Math.max(time, 0.68);
+        if (hue >= 272.0 && hue <= 322.0 && saturation > 0.46 && max > 0.30) anomaly = Math.max(anomaly, 0.72);
+        if (hue >= 174.0 && hue <= 194.0 && saturation > 0.48 && max > 0.48) anomaly = Math.max(anomaly, 0.64);
+        if ((hue <= 10.0 || hue >= 350.0) && saturation > 0.68 && max > 0.62) anomaly = Math.max(anomaly, 0.57);
+        if (max < 0.15 || max > 0.88 && saturation < 0.10) anomaly = Math.min(anomaly, 0.38);
 
-        return new double[]{clamp01(warden), clamp01(flight), clamp01(fire), clamp01(nature), clamp01(time)};
+        return new double[]{clamp01(warden), clamp01(flight), clamp01(fire), clamp01(nature), clamp01(anomaly)};
     }
 
     private static String normalizeSkinUrl(String url) {
@@ -249,7 +265,7 @@ public final class SkinAnalyzer {
         String profileName = extractProfileName(profile);
         if (profileName == null || profileName.isBlank() || !profileName.matches("[A-Za-z0-9_]{1,16}")) return null;
         HttpRequest nameRequest = HttpRequest.newBuilder(URI.create("https://api.mojang.com/users/profiles/minecraft/" + profileName))
-            .timeout(Duration.ofSeconds(8)).header("User-Agent", "SkinPowers/1.0.3").GET().build();
+            .timeout(Duration.ofSeconds(8)).header("User-Agent", "SkinPowers/1.0.4").GET().build();
         HttpResponse<String> nameResponse = sendStringWithRetry(nameRequest, 2);
         if (nameResponse == null || nameResponse.statusCode() < 200 || nameResponse.statusCode() >= 300 || nameResponse.body().isBlank()) return null;
         JsonObject profileJson = JsonParser.parseString(nameResponse.body()).getAsJsonObject();
@@ -263,7 +279,7 @@ public final class SkinAnalyzer {
     private static String findSkinUrlForUuid(UUID profileId, HttpClient client) throws Exception {
         String compactUuid = profileId.toString().replace("-", "");
         HttpRequest request = HttpRequest.newBuilder(URI.create("https://sessionserver.mojang.com/session/minecraft/profile/" + compactUuid + "?unsigned=false"))
-            .timeout(Duration.ofSeconds(8)).header("User-Agent", "SkinPowers/1.0.3").GET().build();
+            .timeout(Duration.ofSeconds(8)).header("User-Agent", "SkinPowers/1.0.4").GET().build();
         HttpResponse<String> response = sendStringWithRetry(request, 2);
         if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) return null;
         JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();

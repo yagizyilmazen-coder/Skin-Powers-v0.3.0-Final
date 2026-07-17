@@ -10,12 +10,12 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 
 public final class SkinSelectionScreen extends Screen {
-    private static final String[] TITLES = {"WARDEN", "UÇUŞ", "ATEŞ", "DOĞA", "ZAMAN"};
-    private static final String[] SUBTITLES = {"Derinliğin gücü", "Gökyüzünün özgürlüğü", "Alevin hâkimiyeti", "Ormanın yaşamı", "Anların hâkimiyeti"};
-    private static final PowerClass[] CLASSES = {PowerClass.WARDEN, PowerClass.FLIGHT, PowerClass.FIRE, PowerClass.NATURE, PowerClass.TIME};
-    private static final int[] TOP_COLORS = {0xFF07111C, 0xFF74BDE8, 0xFF5B0B08, 0xFF102B13, 0xFF09142C};
-    private static final int[] BOTTOM_COLORS = {0xFF16384B, 0xFFEAF8FF, 0xFFFF6B18, 0xFF4C8B3C, 0xFFD6AF42};
-    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFFFFFFF, 0xFFFFC22E, 0xFF74E36D, 0xFFFFD86A};
+    private static final String[] TITLES = {"WARDEN", "UÇUŞ", "ATEŞ", "DOĞA", "ANOMALİ"};
+    private static final String[] SUBTITLES = {"Derinliğin gücü", "Gökyüzünün özgürlüğü", "Alevin hâkimiyeti", "Ormanın yaşamı", "Gerçekliğin hatası"};
+    private static final PowerClass[] CLASSES = {PowerClass.WARDEN, PowerClass.FLIGHT, PowerClass.FIRE, PowerClass.NATURE, PowerClass.ANOMALY};
+    private static final int[] TOP_COLORS = {0xFF07111C, 0xFF74BDE8, 0xFF5B0B08, 0xFF102B13, 0xFF05010B};
+    private static final int[] BOTTOM_COLORS = {0xFF16384B, 0xFFEAF8FF, 0xFFFF6B18, 0xFF4C8B3C, 0xFF291248};
+    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFFFFFFF, 0xFFFFC22E, 0xFF74E36D, 0xFFB65CFF};
 
     private final long openedAt = Util.getMillis();
     private SkinAnalyzer.Result result = SkinAnalyzer.Result.unavailable();
@@ -143,7 +143,7 @@ public final class SkinSelectionScreen extends Screen {
                 String buttonText = selectable ? "SEÇ" : (analysisFinished ? (layout.cardWidth() < 68 ? "KİLİT" : "KİLİTLİ") : "...");
                 selectButton.setMessage(Component.literal(buttonText));
                 // Düğme, kartın son animasyon karesine matematiksel olarak bağlı değildir.
-                // Böylece ikinci öneri Zaman olsa bile tıklanabilir kalır.
+                // Böylece ikinci öneri Anomali olsa bile tıklanabilir kalır.
                 selectButton.active = cardProgress >= 0.85F && selectedIndex < 0 && selectable;
             }
         }
@@ -184,7 +184,7 @@ public final class SkinSelectionScreen extends Screen {
             case 1 -> drawClouds(graphics, x, y, w, artBottom - y, now);
             case 2 -> drawLavaCave(graphics, x, y, w, artBottom - y, now);
             case 3 -> drawForest(graphics, x, y, w, artBottom - y, now);
-            case 4 -> drawTimeTemple(graphics, x, y, w, artBottom - y, now);
+            case 4 -> drawAnomalyGlitch(graphics, x, y, w, artBottom - y, now);
             default -> { }
         }
         graphics.disableScissor();
@@ -207,7 +207,7 @@ public final class SkinSelectionScreen extends Screen {
         if (recommended || secondRecommended) {
             String recommendedText = recommended ? "1. ÖNERİ" : "2. ÖNERİ";
             graphics.fill(x + 5, y + 6, x + 5 + font.width(recommendedText) + 7, y + 19, withAlpha(ACCENTS[index], recommended ? 180 : 125));
-            graphics.text(font, recommendedText, x + 9, y + 8, index == 1 || index == 4 ? 0xFF183348 : 0xFFFFFFFF, true);
+            graphics.text(font, recommendedText, x + 9, y + 8, index == 1 ? 0xFF183348 : 0xFFFFFFFF, true);
         }
     }
 
@@ -393,32 +393,31 @@ public final class SkinSelectionScreen extends Screen {
         g.fill(cx - 2, cy + 7 + bob, cx + 2, cy + 14 + bob, 0xFFB5E56A);
     }
 
-    private void drawTimeTemple(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
-        g.fillGradient(x, y, x + w, y + h, 0xFF071127, 0xFFB78C2E);
-        int floor = y + h - 16;
-        g.fill(x, floor, x + w, y + h, 0xFF111A35);
+    private void drawAnomalyGlitch(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
+        g.fillGradient(x, y, x + w, y + h, 0xFF030108, 0xFF291248);
+        int shift = (int) ((now / 85L) % Math.max(1, w));
+        for (int i = 0; i < 14; i++) {
+            int gy = y + 8 + (i * 17) % Math.max(18, h - 12);
+            int gx = x + ((i * 31 + shift * (i % 3 + 1)) % Math.max(1, w + 24)) - 12;
+            int length = 8 + (i % 4) * 9;
+            int color = switch (i % 3) {
+                case 0 -> 0xAA5CE5E5;
+                case 1 -> 0xAAB65CFF;
+                default -> 0x88E94B63;
+            };
+            g.fill(gx, gy, Math.min(x + w, gx + length), gy + 2, color);
+        }
         int cx = x + w / 2;
-        int cy = y + Math.max(32, h / 2);
-        int radius = Math.max(13, Math.min(27, w / 4));
-        for (int i = 0; i < 32; i++) {
-            double angle = Math.PI * 2.0 * i / 32.0;
-            int px = cx + (int) Math.round(Math.cos(angle) * radius);
-            int py = cy + (int) Math.round(Math.sin(angle) * radius);
-            g.fill(px - 1, py - 1, px + 2, py + 2, i % 4 == 0 ? 0xFFFFE28A : 0xFF5ED9E5);
+        int cy = y + Math.max(30, h / 2);
+        int jitter = (int) Math.round(Math.sin(now / 90.0) * 3.0);
+        g.fill(cx - 18 + jitter, cy - 20, cx + 18 + jitter, cy + 20, 0x66000000);
+        g.outline(cx - 18 - jitter, cy - 20, 36, 40, 0xFFB65CFF);
+        g.outline(cx - 15 + jitter, cy - 17, 30, 34, 0xFF5CE5E5);
+        g.text(font, "?", cx - font.width("?") / 2 + jitter, cy - 5, 0xFFFFFFFF, true);
+        if ((now / 300L) % 3L == 0L) {
+            String error = "404";
+            g.text(font, error, cx - font.width(error) / 2 - jitter, cy + 11, 0xFFE94B63, false);
         }
-        double hand = now / 480.0;
-        int hx = cx + (int) Math.round(Math.cos(hand) * (radius - 4));
-        int hy = cy + (int) Math.round(Math.sin(hand) * (radius - 4));
-        int steps = Math.max(1, radius);
-        for (int i = 0; i <= steps; i++) {
-            double t = i / (double) steps;
-            int px = (int) Math.round(cx + (hx - cx) * t);
-            int py = (int) Math.round(cy + (hy - cy) * t);
-            g.fill(px, py, px + 2, py + 2, 0xFFFFD861);
-        }
-        int spearBob = (int) Math.round(Math.sin(now / 230.0) * 3.0);
-        g.fill(cx - 3, cy - radius - 15 + spearBob, cx + 3, cy - radius + 10 + spearBob, 0xFFFFD861);
-        g.fill(cx - 7, cy - radius - 14 + spearBob, cx + 7, cy - radius - 8 + spearBob, 0xFF4FD6E3);
     }
 
     private CardLayout layout() {

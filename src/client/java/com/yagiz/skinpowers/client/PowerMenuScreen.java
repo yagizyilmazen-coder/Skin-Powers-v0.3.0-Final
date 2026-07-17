@@ -117,7 +117,7 @@ public final class PowerMenuScreen extends Screen {
         String heading = fit(powerClass.displayName() + " GÜÇ AĞACI", headerTextWidth);
         graphics.text(font, heading, headerTextX, 18, 0xFFFFFFFF, true);
         graphics.text(font, fit("Gücünü seç, ustalığını geliştir ve R ile kullan.", headerTextWidth), headerTextX, 35, 0xFFBFD0DA, false);
-        graphics.text(font, fit("Sol/Sağ: güç değiştir   •   K: kombo   •   O / ESC: menü", headerTextWidth), headerTextX, 49, 0xFF8799A5, false);
+        graphics.text(font, fit(powerClass == PowerClass.ANOMALY ? "Sol/Sağ: güç değiştir   •   V/X: hasar seçimi   •   O / ESC: menü" : "Sol/Sağ: güç değiştir   •   K: kombo   •   O / ESC: menü", headerTextWidth), headerTextX, 49, 0xFF8799A5, false);
 
         graphics.fill(xpX, 20, xpX + xpWidth, 45, withAlpha(colors[2], 65));
         graphics.outline(xpX, 20, xpWidth, 25, colors[2]);
@@ -156,11 +156,11 @@ public final class PowerMenuScreen extends Screen {
         int textX = badgeX + badgeSize + 10;
         int textRight = layout.listLeft() + layout.listWidth() - buttonReserve;
         int textWidth = Math.max(42, textRight - textX);
-        String name = fit(PowerCatalog.powerName(powerClass, level), textWidth);
+        String name = fit(displayName(powerClass, level), textWidth);
         int nameY = y + (veryCompact ? Math.max(4, (layout.rowHeight() - 8) / 2) : 6);
         graphics.text(font, name, textX, nameY, unlocked ? 0xFFFFFFFF : 0xFF8B969E, true);
 
-        String description = PowerCatalog.powerDescription(powerClass, level);
+        String description = displayDescription(powerClass, level);
         if (!veryCompact) {
             // Ekran yüksekliği azalsa bile bütün sınıflarda güç açıklaması görünür kalır.
             graphics.text(font, fit(description, textWidth), textX, y + 18, unlocked ? 0xFF91A8B5 : 0xFF8B969E, false);
@@ -211,10 +211,10 @@ public final class PowerMenuScreen extends Screen {
         int stage = ClientState.masteryStage(selected);
         graphics.text(font, "SEÇİLİ GÜÇ", left + 15, top + 17, colors[2], true);
         graphics.text(font, roman(selected), left + 15, top + 38, 0xFFFFFFFF, true);
-        graphics.text(font, PowerCatalog.powerName(powerClass, selected), left + 42, top + 38, 0xFFFFFFFF, true);
+        graphics.text(font, fit(displayName(powerClass, selected), width - 58), left + 42, top + 38, 0xFFFFFFFF, true);
 
         int lineY = top + 62;
-        for (String line : wrap(PowerCatalog.powerDescription(powerClass, selected), width - 30, 4)) {
+        for (String line : wrap(displayDescription(powerClass, selected), width - 30, 4)) {
             graphics.text(font, line, left + 15, lineY, 0xFFC4D1D9, false);
             lineY += 12;
         }
@@ -238,7 +238,7 @@ public final class PowerMenuScreen extends Screen {
 
         int masteryY = top + height - 68;
         int comboY = masteryY - 50;
-        if (comboY > dividerY + 116) {
+        if (powerClass != PowerClass.ANOMALY && comboY > dividerY + 116) {
             graphics.fill(left + 15, comboY - 7, left + width - 15, comboY - 6, withAlpha(colors[2], 90));
             graphics.text(font, "KOMBİNASYON", left + 15, comboY + 2, 0xFFFFD35C, true);
             graphics.text(font, fit(PowerCatalog.comboName(powerClass), width - 30), left + 15, comboY + 15, 0xFFFFFFFF, true);
@@ -263,8 +263,8 @@ public final class PowerMenuScreen extends Screen {
         int selected = ClientState.selectedPower();
         graphics.fill(layout.totalLeft(), y, layout.totalLeft() + layout.totalWidth(), y + 40, 0xC9070B11);
         graphics.outline(layout.totalLeft(), y, layout.totalWidth(), 40, withAlpha(colors[2], 150));
-        String titleLine = PowerCatalog.powerName(powerClass, selected) + "  •  " + controlHint(powerClass, selected) + "  •  K: Kombo " + (ClientState.comboModeEnabled() ? "AÇIK" : "KAPALI");
-        String descriptionLine = PowerCatalog.powerDescription(powerClass, selected);
+        String titleLine = displayName(powerClass, selected) + "  •  " + controlHint(powerClass, selected) + (powerClass == PowerClass.ANOMALY ? "" : "  •  K: Kombo " + (ClientState.comboModeEnabled() ? "AÇIK" : "KAPALI"));
+        String descriptionLine = displayDescription(powerClass, selected);
         graphics.text(font, fit(titleLine, layout.totalWidth() - 20), layout.totalLeft() + 10, y + 7, 0xFFFFFFFF, false);
         graphics.text(font, fit(descriptionLine, layout.totalWidth() - 20), layout.totalLeft() + 10, y + 22, 0xFFB9C8D1, false);
     }
@@ -292,11 +292,12 @@ public final class PowerMenuScreen extends Screen {
             graphics.fill(x + 4, y + 4, x + 18, y + 17, withAlpha(accent, 190));
             graphics.fill(x + 19, y, x + 33, y + 15, withAlpha(accent, 220));
             graphics.fill(x + 12, y - 2, x + 25, y + 11, 0xFF9BE66D);
-        } else if (powerClass == PowerClass.TIME) {
-            graphics.outline(x + 4, y, 28, 28, accent);
-            graphics.fill(x + 17, y + 5, x + 20, y + 16, 0xFFFFE28A);
-            graphics.fill(x + 17, y + 14, x + 27, y + 17, 0xFF5ED9E5);
-            graphics.fill(x + 16, y + 13, x + 21, y + 18, 0xFFFFFFFF);
+        } else if (powerClass == PowerClass.ANOMALY) {
+            graphics.outline(x + 3, y + 1, 29, 27, accent);
+            graphics.fill(x + 7, y + 5, x + 29, y + 8, 0xFF5CE5E5);
+            graphics.fill(x + 10, y + 12, x + 25, y + 16, 0xFFB65CFF);
+            graphics.fill(x + 5, y + 21, x + 31, y + 24, 0xFFE94B63);
+            graphics.text(font, "?", x + 15, y + 10, 0xFFFFFFFF, true);
         }
     }
 
@@ -306,7 +307,8 @@ public final class PowerMenuScreen extends Screen {
         if (powerClass == PowerClass.FLIGHT && level == 5) return "R: Göksel Kıyamet";
         if (powerClass == PowerClass.WARDEN && level == 6) return "R: başka oyuncuya ışın";
         if (powerClass == PowerClass.FIRE && (level == 1 || level == 2)) return "Otomatik";
-        if (powerClass == PowerClass.TIME && level == 1) return "R veya Y: aç/kapat";
+        if (powerClass == PowerClass.ANOMALY && level == 3) return ClientState.copiedPowerName().isBlank() ? "R: hamle bekle" : "R: çalınan hamleyi kullan";
+        if (powerClass == PowerClass.ANOMALY && level == 4) return "R: depola • V: kalp • X: geri gönder";
         return "R: kullan";
     }
 
@@ -326,8 +328,13 @@ public final class PowerMenuScreen extends Screen {
         if (powerClass == PowerClass.NATURE && level == 4 && ClientState.natureTreeTicks() > 0) {
             return String.format(java.util.Locale.ROOT, "Yaşam Ağacı %.1f sn", ClientState.natureTreeTicks() / 20.0);
         }
-        if (powerClass == PowerClass.TIME && level == 1) {
-            return ClientState.passiveEnabled() ? "Zaman Sezgisi açık" : "Zaman Sezgisi kapalı";
+        if (powerClass == PowerClass.ANOMALY && level == 3) {
+            return ClientState.copiedPowerName().isBlank() ? "Hamle bekleniyor" : "Saklı: " + ClientState.copiedPowerName();
+        }
+        if (powerClass == PowerClass.ANOMALY && level == 4) {
+            if (ClientState.anomalyChoiceTicks() > 0) return String.format(java.util.Locale.ROOT, "%.1f hasar: V veya X", ClientState.anomalyStoredDamage());
+            if (ClientState.anomalyStoreTicks() > 0) return String.format(java.util.Locale.ROOT, "Depolama %.1f sn", ClientState.anomalyStoreTicks() / 20.0);
+            if (ClientState.anomalyBonusHealthTicks() > 0) return String.format(java.util.Locale.ROOT, "+%.1f kalp %.0f sn", ClientState.anomalyBonusHealth() / 2.0, ClientState.anomalyBonusHealthTicks() / 20.0);
         }
         return ClientState.cooldownTicks() <= 0 ? "Kullanıma hazır" : "Bekleme süresinde";
     }
@@ -360,14 +367,30 @@ public final class PowerMenuScreen extends Screen {
                 g.fill(x, y, x + 7, y + 4, withAlpha(accent, 55 + (i % 4) * 18));
                 g.fill(x + 3, y - 5, x + 5, y + 8, 0x557A4A25);
             }
-        } else if (powerClass == PowerClass.TIME) {
-            for (int i = 0; i < 18; i++) {
-                int x = (i * 107 + drift / 4) % Math.max(1, width);
+        } else if (powerClass == PowerClass.ANOMALY) {
+            for (int i = 0; i < 22; i++) {
+                int x = (i * 107 + drift / 3) % Math.max(1, width);
                 int y = 72 + (i * 53) % Math.max(90, height - 130);
-                g.outline(x, y, 10, 10, withAlpha(accent, 45 + (i % 4) * 18));
-                g.fill(x + 4, y + 2, x + 6, y + 6, 0x88FFFFFF);
+                int glitch = (i % 3) * 4;
+                g.fill(x - glitch, y, x + 10 + glitch, y + 2, withAlpha(i % 2 == 0 ? 0xFFB65CFF : 0xFF5CE5E5, 55 + (i % 4) * 20));
+                if (i % 5 == 0) g.fill(x + 3, y - 4, x + 6, y + 8, 0x66E94B63);
             }
         }
+    }
+
+
+    private String displayName(PowerClass powerClass, int level) {
+        if (powerClass == PowerClass.ANOMALY && level == 3 && !ClientState.copiedPowerName().isBlank()) {
+            return ClientState.copiedPowerName();
+        }
+        return PowerCatalog.powerName(powerClass, level);
+    }
+
+    private String displayDescription(PowerClass powerClass, int level) {
+        if (powerClass == PowerClass.ANOMALY && level == 3 && !ClientState.copiedPowerDescription().isBlank()) {
+            return ClientState.copiedPowerDescription();
+        }
+        return PowerCatalog.powerDescription(powerClass, level);
     }
 
     private Layout layout() {
@@ -440,7 +463,7 @@ public final class PowerMenuScreen extends Screen {
             case FLIGHT -> new int[]{0xFF2F719D, 0xFFBFE8FF, 0xFFF1FBFF};
             case FIRE -> new int[]{0xFF170201, 0xFF7C1608, 0xFFFFA51F};
             case NATURE -> new int[]{0xFF071008, 0xFF315A2A, 0xFF72D86A};
-            case TIME -> new int[]{0xFF050B1E, 0xFF6E5520, 0xFFFFD76A};
+            case ANOMALY -> new int[]{0xFF05010B, 0xFF261044, 0xFFB65CFF};
             default -> new int[]{0xFF080A0E, 0xFF1D2630, 0xFF93A5B2};
         };
     }

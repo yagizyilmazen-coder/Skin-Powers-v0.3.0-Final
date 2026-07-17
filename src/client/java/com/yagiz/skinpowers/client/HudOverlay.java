@@ -37,13 +37,14 @@ public final class HudOverlay {
             case FLIGHT -> 0xFFEAF8FF;
             case FIRE -> 0xFFFFA826;
             case NATURE -> 0xFF67D96E;
-            case TIME -> 0xFFFFD76A;
+            case ANOMALY -> 0xFFB65CFF;
             default -> 0xFFBFC9D2;
         };
 
         drawPowerPanel(graphics, client, powerClass, x, y, panelWidth, panelHeight, accent);
         int comboHeight = drawComboStatus(graphics, client, x, y + panelHeight + 4, panelWidth, accent);
         drawAncientStatus(graphics, client, screenWidth, screenHeight, x, y, panelWidth, panelHeight + comboHeight + 4);
+        drawAnomalyChoice(graphics, client, screenWidth, screenHeight);
     }
 
     private static void drawPowerPanel(
@@ -83,7 +84,18 @@ public final class HudOverlay {
             case NATURE -> ClientState.natureTreeTicks() > 0
                 ? String.format(java.util.Locale.ROOT, "Yaşam Ağacı: %.1f sn", ClientState.natureTreeTicks() / 20.0)
                 : "Doğanın Canı: AÇIK";
-            case TIME -> "Zaman Sezgisi: " + (ClientState.passiveEnabled() ? "AÇIK" : "KAPALI");
+            case ANOMALY -> {
+                if (ClientState.anomalyChoiceTicks() > 0) {
+                    yield String.format(java.util.Locale.ROOT, "Depolanan: %.1f", ClientState.anomalyStoredDamage());
+                }
+                if (ClientState.anomalyStoreTicks() > 0) {
+                    yield String.format(java.util.Locale.ROOT, "Hasar depolanıyor: %.1f sn", ClientState.anomalyStoreTicks() / 20.0);
+                }
+                if (ClientState.anomalyBonusHealthTicks() > 0 && ClientState.anomalyBonusHealth() > 0.0D) {
+                    yield String.format(java.util.Locale.ROOT, "+%.1f kalp • %.0f sn", ClientState.anomalyBonusHealth() / 2.0D, ClientState.anomalyBonusHealthTicks() / 20.0D);
+                }
+                yield ClientState.copiedPowerName().isBlank() ? "?: Hamle bekleniyor" : "?: " + ClientState.copiedPowerName();
+            }
             default -> "";
         };
         int statusY = Math.min(y + panelHeight - 11, y + 40);
@@ -118,25 +130,55 @@ public final class HudOverlay {
         int hudWidth,
         int hudTotalHeight
     ) {
-        boolean active = ClientState.ancientChargeTicks() > 0 || ClientState.ancientExhaustionTicks() > 0;
-        if (!active) return;
-
-        int width = Math.min(245, Math.max(180, screenWidth - 24));
-        int height = 24;
-        int left = (screenWidth - width) / 2;
-        int top = 7;
-        boolean horizontalOverlap = left < hudX + hudWidth + 6 && left + width > hudX - 6;
-        if (horizontalOverlap) top = hudY + hudTotalHeight + 6;
-        if (top + height > screenHeight - 8) top = Math.max(7, screenHeight - height - 8);
-
         boolean charged = ClientState.ancientChargeTicks() > 0;
-        int accent = charged ? 0xFF65E7E0 : 0xFF9E557D;
-        graphics.fill(left, top, left + width, top + height, charged ? 0xDD12071D : 0xDD190B16);
-        graphics.fill(left, top, left + 5, top + height, charged ? 0xFFB24DFF : 0xFF7C3D65);
-        graphics.outline(left, top, width, height, accent);
-        String message = charged ? "Antik Şehir şarjı • 1 güç hakkı" : "Antik Şehir çöküşü";
-        message = fit(client, message, width - 16);
-        graphics.text(client.font, message, left + (width - client.font.width(message)) / 2, top + 8, charged ? 0xFFE9D8FF : 0xFFE0AFCF, false);
+        boolean exhausted = ClientState.ancientExhaustionTicks() > 0;
+        if (!charged && !exhausted) return;
+
+        if (charged) {
+            int width = Math.min(218, Math.max(176, screenWidth - 20));
+            int height = 28;
+            int left = (screenWidth - width) / 2;
+            int top = Math.max(8, screenHeight - 92);
+            graphics.fill(left, top, left + width, top + height, 0xC8110719);
+            graphics.fill(left, top, left + 3, top + height, 0xFFB24DFF);
+            graphics.outline(left, top, width, height, 0xFF65E7E0);
+            String first = fit(client, "Antik Şehir Seni Şarj etti.", width - 12);
+            String second = fit(client, "Vücudun bunu kaldırabilecek Mi?", width - 12);
+            graphics.text(client.font, first, left + (width - client.font.width(first)) / 2, top + 5, 0xFFE9D8FF, false);
+            graphics.text(client.font, second, left + (width - client.font.width(second)) / 2, top + 15, 0xFFC9EFFF, false);
+            return;
+        }
+
+        int width = 126;
+        int height = 16;
+        int left = screenWidth - width - 7;
+        int top = Math.max(7, screenHeight - 63);
+        graphics.fill(left, top, left + width, top + height, 0xB5190B16);
+        graphics.outline(left, top, width, height, 0xFF9E557D);
+        graphics.text(client.font, "Antik Şehir çöküşü", left + 7, top + 4, 0xFFE0AFCF, false);
+    }
+
+    private static void drawAnomalyChoice(
+        GuiGraphicsExtractor graphics,
+        Minecraft client,
+        int screenWidth,
+        int screenHeight
+    ) {
+        if (ClientState.powerClass() != PowerClass.ANOMALY || ClientState.anomalyChoiceTicks() <= 0) return;
+        String line = String.format(
+            java.util.Locale.ROOT,
+            "Depolanan %.1f   [V] Kalp   [X] Geri gönder",
+            ClientState.anomalyStoredDamage()
+        );
+        int width = Math.min(screenWidth - 16, client.font.width(line) + 18);
+        int height = 18;
+        int left = (screenWidth - width) / 2;
+        int top = Math.max(8, screenHeight - 58);
+        graphics.fill(left, top, left + width, top + height, 0xC3080710);
+        graphics.fill(left, top, left + 3, top + height, 0xFFB65CFF);
+        graphics.outline(left, top, width, height, 0xFF5CE5E5);
+        String fitted = fit(client, line, width - 12);
+        graphics.text(client.font, fitted, left + (width - client.font.width(fitted)) / 2, top + 5, 0xFFF0E8FF, false);
     }
 
     private static void drawShakeOverlay(GuiGraphicsExtractor graphics, int width, int height, ClientConfig config) {

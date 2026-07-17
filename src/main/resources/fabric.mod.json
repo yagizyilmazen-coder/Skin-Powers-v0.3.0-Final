@@ -3,7 +3,7 @@
   "id": "skinpowers",
   "version": "${version}",
   "name": "Skin Powers",
-  "description": "Skin renklerinden Warden, Uçuş, Ateş, Doğa ve Zaman sınıfları öneren; görünür güç modelleri, kombinasyonlar ve Antik Şehir Şarjı içeren Fabric güç modu.",
+  "description": "Skin renklerinden Warden, Uçuş, Ateş, Doğa ve Anomali sınıfları öneren; görünür güçler, güç kopyalama ve Antik Şehir Şarjı içeren Fabric güç modu.",
   "authors": [
     "Yankalan"
   ],

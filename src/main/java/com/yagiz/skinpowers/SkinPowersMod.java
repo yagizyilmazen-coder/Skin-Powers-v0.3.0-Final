@@ -2,6 +2,7 @@ package com.yagiz.skinpowers;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.minecraft.resources.Identifier;
@@ -24,11 +25,14 @@ public final class SkinPowersMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(PlayerDataStore::load);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             PowerSystem.clearAllMeteorVisuals();
+            AnomalySystem.clearAll();
             PlayerDataStore.save();
         });
         ServerTickEvents.END_SERVER_TICK.register(PowerSystem::tickServer);
         AttackEntityCallback.EVENT.register(PowerSystem::onAttackEntity);
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register(AnomalySystem::allowDamage);
+        ServerLivingEntityEvents.ALLOW_DEATH.register(AnomalySystem::allowDeath);
 
-        LOGGER.info("Skin Powers 1.0.3 yüklendi.");
+        LOGGER.info("Skin Powers 1.0.4 yüklendi.");
     }
 }

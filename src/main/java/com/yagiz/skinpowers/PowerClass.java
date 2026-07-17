@@ -6,7 +6,7 @@ public enum PowerClass {
     FLIGHT("Uçuş"),
     FIRE("Ateş"),
     NATURE("Doğa"),
-    TIME("Zaman");
+    ANOMALY("Anomali");
 
     private final String displayName;
 
@@ -20,8 +20,11 @@ public enum PowerClass {
 
     public static PowerClass safeValueOf(String value) {
         if (value == null) return NONE;
+        String normalized = value.toUpperCase(java.util.Locale.ROOT);
+        // 1.0.3 ve önceki kayıtlardaki Zaman sınıfı, 1.0.4'te Anomaliye taşınır.
+        if (normalized.equals("TIME") || normalized.equals("ZAMAN")) return ANOMALY;
         try {
-            return PowerClass.valueOf(value.toUpperCase(java.util.Locale.ROOT));
+            return PowerClass.valueOf(normalized);
         } catch (IllegalArgumentException ignored) {
             return NONE;
         }

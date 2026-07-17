@@ -118,8 +118,8 @@ public final class AncientChargeSystem {
     public static boolean isUsableCharge(PlayerPowerData data, long now, int power) {
         if (!data.ancientChargeReady(now) || power == 6) return false;
         return switch (data.powerClass()) {
-            case FLIGHT, FIRE, NATURE, TIME -> power != 1;
-            case WARDEN -> true;
+            case FLIGHT, FIRE, NATURE -> power != 1;
+            case WARDEN, ANOMALY -> true;
             default -> false;
         };
     }
@@ -157,7 +157,6 @@ public final class AncientChargeSystem {
         level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 0.55, player.getZ(), 6, 0.42, 0.28, 0.42, 0.012);
         level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 0.35, player.getZ(), 4, 0.38, 0.22, 0.38, 0.018);
         drawRing(level, player.position().add(0.0, 0.06, 0.0), 0.86, ParticleTypes.WITCH, 10);
-        player.sendSystemMessage(Component.literal("ANTİK ŞEHİR ŞARJI • " + (duration / 20.0F) + " saniye • 1 güç hakkı"));
         return true;
     }
 
@@ -203,7 +202,15 @@ public final class AncientChargeSystem {
     /** Çömelerek kullanılırsa kalp yerleştirme animasyonu; normal kullanımda hedef olsun veya olmasın ışın mutlaka ateşlenir. */
     public static boolean beginBeam(ServerPlayer caster, PlayerPowerData data, long now) {
         if (caster.isShiftKeyDown()) return beginSelfCharge(caster, data, now);
+        return beginAttackBeam(caster, now);
+    }
 
+    /** Anomali kopyası çömelme durumunu devralmaz; çalınan Warden VI her zaman saldırı ışınıdır. */
+    public static boolean beginCopiedBeam(ServerPlayer caster, long now) {
+        return beginAttackBeam(caster, now);
+    }
+
+    private static boolean beginAttackBeam(ServerPlayer caster, long now) {
         LivingEntity target = findBeamTarget(caster, 22.0);
         Vec3 endpoint = target == null
             ? caster.getEyePosition().add(caster.getLookAngle().normalize().scale(22.0))
@@ -327,7 +334,6 @@ public final class AncientChargeSystem {
             if (grant(caster, MAX_CHARGE_TICKS, false, true)) {
                 pending.level.sendParticles(ParticleTypes.WITCH, caster.getX(), caster.getY() + 0.55, caster.getZ(), 8, 0.45, 0.35, 0.45, 0.022);
                 pending.level.sendParticles(ParticleTypes.SCULK_SOUL, caster.getX(), caster.getY() + 0.45, caster.getZ(), 6, 0.36, 0.30, 0.36, 0.014);
-                caster.sendSystemMessage(Component.literal("Antik Kalp göğsüne yerleşti. Üç kalp feda edildi; 20 saniyelik şarj başladı."));
             } else {
                 caster.heal(SELF_CHARGE_HEALTH_COST);
             }
@@ -484,7 +490,7 @@ public final class AncientChargeSystem {
             case FIRE -> ParticleTypes.FLAME;
             case FLIGHT -> ParticleTypes.CLOUD;
             case NATURE -> ParticleTypes.HAPPY_VILLAGER;
-            case TIME -> ParticleTypes.END_ROD;
+            case ANOMALY -> ParticleTypes.END_ROD;
             default -> ParticleTypes.SCULK_SOUL;
         };
         level.sendParticles(classParticle, back.x, back.y + 0.18, back.z, ready ? 2 : 1, 0.22, 0.30, 0.22, 0.005);
@@ -514,7 +520,7 @@ public final class AncientChargeSystem {
             case FIRE -> ParticleTypes.FLAME;
             case FLIGHT -> ParticleTypes.CLOUD;
             case NATURE -> ParticleTypes.HAPPY_VILLAGER;
-            case TIME -> ParticleTypes.END_ROD;
+            case ANOMALY -> ParticleTypes.END_ROD;
             default -> ParticleTypes.SONIC_BOOM;
         };
         level.sendParticles(original, center.x, center.y, center.z, powerClass == PowerClass.WARDEN ? 2 : 8, spread * 0.58, spread * 0.5, spread * 0.58, 0.04);

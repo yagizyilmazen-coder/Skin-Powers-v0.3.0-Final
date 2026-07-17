@@ -30,6 +30,7 @@ public final class ServerNetworking {
         );
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> sync(handler.player));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> AnomalySystem.handleDisconnect(handler.player));
     }
 
     private static void handle(ServerPlayer player, String rawCommand) {
@@ -68,6 +69,10 @@ public final class ServerNetworking {
             PowerSystem.tryRocketlessLaunch(player, data);
         } else if (command.equals("COMBO_TOGGLE")) {
             PowerSystem.toggleComboMode(player, data);
+        } else if (command.equals("ANOMALY_HEALTH")) {
+            AnomalySystem.chooseStoredDamage(player, data, true);
+        } else if (command.equals("ANOMALY_RETURN")) {
+            AnomalySystem.chooseStoredDamage(player, data, false);
         } else {
             return;
         }
@@ -119,7 +124,14 @@ public final class ServerNetworking {
             data.comboActive(gameTime) ? PowerCatalog.powerName(data.powerClass(), PowerCatalog.comboFinisherPower(data.powerClass())) : "",
             data.masteryCopy(),
             player.experienceLevel,
-            PowerCatalog.powerName(data.powerClass(), data.selectedPower())
+            AnomalySystem.displayPowerName(data, data.selectedPower()),
+            data.hasCopiedPower() ? PowerCatalog.powerName(data.copiedPowerClass(), data.copiedPowerLevel()) : "",
+            data.hasCopiedPower() ? AnomalySystem.displayPowerDescription(data, 3) : "",
+            (int) Math.max(0L, data.anomalyDamageStoreUntil() - gameTime),
+            (int) Math.max(0L, data.anomalyChoiceUntil() - gameTime),
+            data.anomalyStoredDamage(),
+            (int) Math.max(0L, data.anomalyBonusHealthUntil() - gameTime),
+            data.anomalyBonusHealth()
         );
         ServerPlayNetworking.send(player, new ServerStatePayload(GSON.toJson(state)));
     }
@@ -154,6 +166,13 @@ public final class ServerNetworking {
         String comboNextPowerName,
         int[] masteryUses,
         int xpLevel,
-        String powerName
+        String powerName,
+        String copiedPowerName,
+        String copiedPowerDescription,
+        int anomalyStoreTicks,
+        int anomalyChoiceTicks,
+        float anomalyStoredDamage,
+        int anomalyBonusHealthTicks,
+        double anomalyBonusHealth
     ) {}
 }

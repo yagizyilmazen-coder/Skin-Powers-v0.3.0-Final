@@ -3,7 +3,7 @@ package com.yagiz.skinpowers;
 public final class PowerCatalog {
     public static final int[] XP_COSTS = {5, 15, 30, 40, 50};
     public static final int[] NATURE_XP_COSTS = {10, 20, 30, 40, 50};
-    public static final int[] TIME_XP_COSTS = {10, 20, 30, 40, 50};
+    public static final int[] ANOMALY_XP_COSTS = {10, 20, 30, 40, 50, 70};
     public static final int WARDEN_ANCIENT_CHARGE_XP = 70;
 
     private static final String[][] NAMES = {
@@ -12,7 +12,7 @@ public final class PowerCatalog {
         {"Hafif Beden", "Gökyüzü Kanatları", "Gök Mızrağı", "Gökyüzü Bombası", "Göksel Kıyamet", "-"},
         {"Ateş Bağışıklığı", "Alevli Yakın Dövüş", "Ateş Çemberi", "Cehennem Küresi", "Meteor Yağmuru", "-"},
         {"Doğanın Canı", "Dikenli Tohum", "Sarmaşık Kapanı", "Yaşam Ağacı", "Kadim Orman Hükmü", "-"},
-        {"Zaman Sezgisi", "Krono Mızrağı", "Geri Sarma", "Zaman Hapishanesi", "Zamanın Sonu", "-"}
+        {"Kırık Adım", "Tersine Çevir", "?", "Hasar Mevcut Değil", "Varlıktan Çıkar", "404: Gerçeklik Bulunamadı"}
     };
 
     private static final String[][] DESCRIPTIONS = {
@@ -50,19 +50,19 @@ public final class PowerCatalog {
             ""
         },
         {
-            "Yakındaki düşman mermilerini güçlü biçimde yavaşlatır ve düşme hasarını sınırlar.",
-            "Güçlü zaman mızrağı hedefe ve çevresine hasar verir; düşmanların zamanını ağırlaştırır.",
-            "Seni 5-6,5 saniye önceki konumuna ve canına döndürür; kısa süre direnç ve yenilenme verir.",
-            "Uzak hedefi saat halkalarında tamamen sabitler; çıkışta zaman kırılması hasarı verir.",
-            "Çok geniş alandaki düşmanları dondurup süre boyunca aşındırır; sonunda büyük zaman patlaması yapar.",
-            ""
+            "Baktığın yöne kırılarak sıçrar; yolundaki düşmanların içinden geçip hasar verir.",
+            "Nişangâhtaki hedefin hareketini ve saldırı yönünü kısa süre tersine çevirir.",
+            "Yakındaki rakibin son kopyalanabilir gücünü bir kez kullanmak üzere saklar.",
+            "5 saniye boyunca alınan hasarı yok sayıp depolar; sonra V ile kalbe, X ile saldırıya dönüştürür.",
+            "Nişangâhtaki hedefi kısa süre gerçeklikten siler; geri geldiğinde savunması kırılır.",
+            "Geniş bir 404 alanı açar; düşmanları bozar, mermileri ters çevirir ve seni bir kez ölümden döndürür."
         }
     };
 
     private PowerCatalog() {}
 
     public static int maxLevel(PowerClass powerClass) {
-        return powerClass == PowerClass.WARDEN ? 6 : 5;
+        return powerClass == PowerClass.WARDEN || powerClass == PowerClass.ANOMALY ? 6 : 5;
     }
 
     public static String powerName(PowerClass powerClass, int oneBasedLevel) {
@@ -77,18 +77,13 @@ public final class PowerCatalog {
         return DESCRIPTIONS[classIndex][levelIndex];
     }
 
-    public static int xpCostForLevel(int level) {
-        return xpCostForLevel(PowerClass.NONE, level);
-    }
+    public static int xpCostForLevel(int level) { return xpCostForLevel(PowerClass.NONE, level); }
 
     public static int xpCostForLevel(PowerClass powerClass, int level) {
         if (level < 1 || level > maxLevel(powerClass)) return Integer.MAX_VALUE;
         if (powerClass == PowerClass.WARDEN && level == 6) return WARDEN_ANCIENT_CHARGE_XP;
-        int[] costs = switch (powerClass) {
-            case NATURE -> NATURE_XP_COSTS;
-            case TIME -> TIME_XP_COSTS;
-            default -> XP_COSTS;
-        };
+        if (powerClass == PowerClass.ANOMALY) return ANOMALY_XP_COSTS[level - 1];
+        int[] costs = powerClass == PowerClass.NATURE ? NATURE_XP_COSTS : XP_COSTS;
         return costs[level - 1];
     }
 
@@ -98,7 +93,6 @@ public final class PowerCatalog {
             case FLIGHT -> 3;
             case FIRE -> 4;
             case NATURE -> 3;
-            case TIME -> 4;
             default -> 0;
         };
     }
@@ -109,7 +103,6 @@ public final class PowerCatalog {
             case FLIGHT -> 4;
             case FIRE -> 5;
             case NATURE -> 2;
-            case TIME -> 5;
             default -> 0;
         };
     }
@@ -120,25 +113,18 @@ public final class PowerCatalog {
             case FLIGHT -> "Göksel Bombardıman";
             case FIRE -> "Cehennem Felaketi";
             case NATURE -> "Diken Ormanı";
-            case TIME -> "Sonsuz Mahkûmiyet";
             default -> "-";
         };
     }
 
     public static String comboSequence(PowerClass powerClass) {
-        int first = comboStarterPower(powerClass);
-        int second = comboFinisherPower(powerClass);
+        int first = comboStarterPower(powerClass), second = comboFinisherPower(powerClass);
         if (first <= 0 || second <= 0) return "-";
         return powerName(powerClass, first) + " → " + powerName(powerClass, second);
     }
 
-    public static boolean isComboStarter(PowerClass powerClass, int power) {
-        return comboStarterPower(powerClass) == power;
-    }
-
-    public static boolean isComboFinisher(PowerClass powerClass, int power) {
-        return comboFinisherPower(powerClass) == power;
-    }
+    public static boolean isComboStarter(PowerClass powerClass, int power) { return comboStarterPower(powerClass) == power; }
+    public static boolean isComboFinisher(PowerClass powerClass, int power) { return comboFinisherPower(powerClass) == power; }
 
     public static int masteryStage(int uses) {
         if (uses >= 30) return 3;
@@ -159,7 +145,6 @@ public final class PowerCatalog {
     public static int nextMasteryTarget(int uses) {
         if (uses < 5) return 5;
         if (uses < 15) return 15;
-        if (uses < 30) return 30;
         return 30;
     }
 

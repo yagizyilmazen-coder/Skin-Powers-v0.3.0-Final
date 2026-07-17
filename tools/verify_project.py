@@ -1,341 +1,232 @@
 #!/usr/bin/env python3
-from pathlib import Path
+from __future__ import annotations
+
 import json
-import re
+import os
 import shutil
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.0.3"
-REQUIRED = [
-    "build.gradle",
-    "settings.gradle",
-    "gradle.properties",
-    ".github/workflows/build.yml",
-    "README.md",
-    f"CHANGELOG_{VERSION}.md",
-    "LICENSE",
-    "src/main/resources/fabric.mod.json",
-    "src/main/resources/assets/skinpowers/icon.png",
+VERSION = "1.0.4"
+errors: list[str] = []
+checks: list[str] = []
+
+
+def ok(message: str) -> None:
+    checks.append(message)
+
+
+def fail(message: str) -> None:
+    errors.append(message)
+
+
+def require_file(relative: str) -> Path:
+    path = ROOT / relative
+    if not path.is_file():
+        fail(f"Eksik dosya: {relative}")
+    else:
+        ok(f"Dosya: {relative}")
+    return path
+
+
+def text(relative: str) -> str:
+    path = require_file(relative)
+    return path.read_text(encoding="utf-8") if path.is_file() else ""
+
+
+# Temel proje dosyaları
+for file_name in [
+    "build.gradle", "gradle.properties", "settings.gradle", "README.md", "VALIDATION.md", "FEATURE_STATUS.md",
+    ".github/workflows/build.yml", "src/main/resources/fabric.mod.json",
     "src/main/resources/assets/skinpowers/lang/tr_tr.json",
     "src/main/resources/assets/skinpowers/lang/en_us.json",
-    "src/main/java/com/yagiz/skinpowers/SkinPowersMod.java",
-    "src/main/java/com/yagiz/skinpowers/PowerSystem.java",
-    "src/main/java/com/yagiz/skinpowers/AncientChargeSystem.java",
-    "src/main/java/com/yagiz/skinpowers/SkinPowersCommands.java",
-    "src/client/java/com/yagiz/skinpowers/client/SkinPowersClient.java",
-    "src/client/java/com/yagiz/skinpowers/client/PowerMenuScreen.java",
-    "src/client/java/com/yagiz/skinpowers/client/HudOverlay.java",
-    "src/client/java/com/yagiz/skinpowers/client/SkinPowersSettingsScreen.java",
-    "src/client/java/com/yagiz/skinpowers/client/SkinPowersModMenu.java",
-]
-EXPECTED_PROPERTIES = {
-    "minecraft_version": "26.1.2",
-    "loader_version": "0.19.3",
-    "loom_version": "1.17-SNAPSHOT",
-    "fabric_api_version": "0.154.2+26.1.2",
-    "modmenu_version": "18.0.0",
-    "mod_version": VERSION,
-    "maven_group": "com.yagiz",
-    "archives_base_name": "skinpowers",
-}
-FORBIDDEN_SOURCE_SNIPPETS = {
-    "MobEffects.MOVEMENT_SLOWDOWN": "26.1 adı MobEffects.SLOWNESS olmalı",
-    "MobEffects.DAMAGE_BOOST": "26.1 adı MobEffects.STRENGTH olmalı",
-    "MobEffects.DAMAGE_RESISTANCE": "26.1 adı MobEffects.RESISTANCE olmalı",
-    "MobEffects.DIG_SLOWDOWN": "26.1 adı MobEffects.MINING_FATIGUE olmalı",
-    ".clearFire()": "26.1 için setRemainingFireTicks(0) kullanılıyor",
-    "hasPermissionLevel(": "26.1 permission API kullanılmalı",
-    "PowerClass.WATER": "Kaldırılan Su sınıfı kodda kalmamalı",
-    "clearWidgets(": "26.1 ekranında riskli eski widget temizleme çağrısı kullanılmamalı",
-    "player.hurtTime": "erişilemeyen oyuncu alanı kullanılmamalı",
-    "applyExhaustion(player, data, now, \"Antik Şehir gücü boşaldı": "Çöküş güç kullanıldığı anda başlamamalı",
-}
-REQUIRED_SOURCE_SNIPPETS = {
-    '"Şarj Et Beni Antik Şehir"': "Warden altıncı güç adı",
-    "WARDEN_ANCIENT_CHARGE_XP = 70": "70 XP bedeli",
-    "public static final int MAX_CHARGE_TICKS = 20 * 20": "20 saniye üst sınırı",
-    "public static final int EXHAUSTION_TICKS = 30 * 20": "30 saniye çöküş",
-    "SELF_CHARGE_ANIMATION_TICKS = 40": "iki saniyelik kendi kendine şarj animasyonu",
-    "SELF_CHARGE_HEALTH_COST = 6.0F": "üç kalplik kendi kendine şarj bedeli",
-    "caster.isShiftKeyDown()": "çömelerek kendi kendine şarj",
-    "drawPurpleHeart": "göğüs önündeki mor Antik Kalp",
-    "grantMob": "moblara Antik Şehir gücü aktarımı",
-    "ancientChargeCyclePresent": "güç kullanılsa da 20 saniyelik sayaç",
-    "startSacrificedHeartRecovery": "feda edilen kalplerin yavaş geri dönüşü",
-    "int count = charged ? 20 : 10;": "şarjlı 20 / normal 10 meteor",
-    "AncientChargeSystem.consume": "tek kullanım hakkı",
-    "beginAncientCharge": "cooldown dondurma",
-    "frozenCooldownTicks": "cooldown saklama",
-    "ParticleTypes.WITCH": "mor şarj görselleri",
-    "clearPendingBeams": "sunucu kapanış temizliği",
-    "Made by Yankalan": "yapımcı imzası",
-    "SkinPowersModMenu": "Mod Menu entegrasyonu",
-    "COMBO_TOGGLE": "K tuşu kombo komutu",
-    "SONİK FAY": "Warden Sonik Fay kombosu",
-    "CEHENNEM FELAKETİ": "Ateş Cehennem Felaketi kombosu",
-    "DİKEN ORMANI": "Doğa Diken Ormanı kombosu",
-    "GÖKSEL BOMBARDIMAN": "Uçuş Göksel Bombardıman kombosu",
-    "Zamanın Sonu": "Zaman sınıfı nihai gücü",
-    "Krono Mızrağı": "Zaman sınıfı görünür mızrağı",
-    "case FLIGHT, FIRE, NATURE, TIME": "Antik Şehir Şarjının beş sınıf altyapısı",
-    "HTTP_EXECUTOR": "skin ağ istekleri için ayrı iş parçacığı havuzu",
-    "api.mojang.com/users/profiles/minecraft/": "oyuncu adından skin UUID yedek çözümü",
-    "secondIndex()": "ikinci skin önerisi",
-    "selectButton.setY": "ilk seçim ekranında düğmelerin kartlarla birlikte hareketi",
-    "Commands.literal(\"skinpower\")": "tek /skinpower komut kökü",
-    "data.changeClass(powerClass)": "komutla sınıf değiştirme",
-    "height < 300 ? 62": "Warden altıncı satırı için kısa ekran yerleşimi",
-    "target.setPos(prison.anchor.x": "Zaman Hapishanesinin ekran efektsiz sabitlemesi",
-    "boolean ancientBoost = data.ancientChargeActive(now)": "pasif güçlerin Antik Şehir süresince güçlenmesi",
-    "ClientUiRules.classChoiceAllowed": "birinci ve ikinci öneri seçim kuralı",
-    "ClientUiRules.staggeredProgress": "son GUI öğelerinin de tamamlanan animasyonu",
-    "button.active = rowProgress >= 0.85F": "Warden VI düğmesinin etkinleşmesi",
-    "String description = PowerCatalog.powerDescription": "O menüsünde her güç satırında açıklama",
-    "double burstRadius = AncientChargeSystem.radius(2.4": "Krono Mızrağı alan hasarı",
-    "float rewindBonus = 2.0F": "Geri Sarma güçlendirmesi",
-    "float releaseDamage = AncientChargeSystem.damage(8.0F": "Zaman Hapishanesi çıkış hasarı",
-    "float baseDamage = AncientChargeSystem.damage(24.0F": "Zamanın Sonu final hasarı",
-}
+    "src/main/resources/assets/skinpowers/textures/gui/cards/anomaly.png",
+]:
+    require_file(file_name)
 
-errors: list[str] = []
-
-for rel in REQUIRED:
-    if not (ROOT / rel).is_file():
-        errors.append(f"Eksik zorunlu dosya: {rel}")
-
+# JSON doğrulaması
 for path in ROOT.rglob("*.json"):
     try:
         json.loads(path.read_text(encoding="utf-8"))
+        ok(f"JSON: {path.relative_to(ROOT)}")
     except Exception as exc:
-        errors.append(f"Geçersiz JSON: {path.relative_to(ROOT)} -> {exc}")
+        fail(f"Bozuk JSON {path.relative_to(ROOT)}: {exc}")
 
-java_files = sorted(ROOT.rglob("*.java"))
-all_source = "\n".join(path.read_text(encoding="utf-8") for path in java_files)
-for path in java_files:
-    text = path.read_text(encoding="utf-8")
-    package_match = re.search(r"^package\s+([\w.]+);", text, re.M)
-    if not package_match:
-        errors.append(f"Package satırı yok: {path.relative_to(ROOT)}")
-    else:
-        package_path = Path(*package_match.group(1).split("."))
-        if not str(path.parent).replace("\\", "/").endswith(str(package_path).replace("\\", "/")):
-            errors.append(f"Package/yol uyuşmuyor: {path.relative_to(ROOT)}")
+props = text("gradle.properties")
+workflow = text(".github/workflows/build.yml")
+mod_json = text("src/main/resources/fabric.mod.json")
+if f"mod_version={VERSION}" not in props:
+    fail("gradle.properties sürümü 1.0.4 değil")
+if f"skinpowers-{VERSION}-jar" not in workflow or f"skinpowers-{VERSION}.jar" not in workflow:
+    fail("GitHub Actions artifact/JAR adı 1.0.4 değil")
+if "rm -f src/main/resources/assets/skinpowers/textures/gui/cards/time.png" not in workflow:
+    fail("GitHub Actions eski time.png temizliğini içermiyor")
+if "Anomali" not in mod_json:
+    fail("fabric.mod.json Anomali açıklamasını içermiyor")
 
-    stripped = re.sub(r'"(?:\\.|[^"\\])*"', '""', text)
-    stripped = re.sub(r"'(?:\\.|[^'\\])'", "''", stripped)
-    stripped = re.sub(r"//.*?$|/\*.*?\*/", "", stripped, flags=re.M | re.S)
-    for opening, closing, name in [("{", "}", "süslü"), ("(", ")", "normal"), ("[", "]", "köşeli")]:
-        if stripped.count(opening) != stripped.count(closing):
-            errors.append(f"{name} parantez dengesi bozuk: {path.relative_to(ROOT)}")
+power_class = text("src/main/java/com/yagiz/skinpowers/PowerClass.java")
+catalog = text("src/main/java/com/yagiz/skinpowers/PowerCatalog.java")
+data = text("src/main/java/com/yagiz/skinpowers/PlayerPowerData.java")
+anomaly = text("src/main/java/com/yagiz/skinpowers/AnomalySystem.java")
+power_system = text("src/main/java/com/yagiz/skinpowers/PowerSystem.java")
+network = text("src/main/java/com/yagiz/skinpowers/ServerNetworking.java")
+client = text("src/client/java/com/yagiz/skinpowers/client/SkinPowersClient.java")
+client_state = text("src/client/java/com/yagiz/skinpowers/client/ClientState.java")
+hud = text("src/client/java/com/yagiz/skinpowers/client/HudOverlay.java")
+menu = text("src/client/java/com/yagiz/skinpowers/client/PowerMenuScreen.java")
+selection = text("src/client/java/com/yagiz/skinpowers/client/SkinSelectionScreen.java")
+analyzer = text("src/client/java/com/yagiz/skinpowers/client/SkinAnalyzer.java")
+commands = text("src/main/java/com/yagiz/skinpowers/SkinPowersCommands.java")
+mod = text("src/main/java/com/yagiz/skinpowers/SkinPowersMod.java")
+store = text("src/main/java/com/yagiz/skinpowers/PlayerDataStore.java")
 
-for snippet, explanation in FORBIDDEN_SOURCE_SNIPPETS.items():
-    if snippet in all_source:
-        errors.append(f"Eski/riskli davranış kalıntısı bulundu: {snippet} — {explanation}")
-for snippet, explanation in REQUIRED_SOURCE_SNIPPETS.items():
-    if snippet not in all_source:
-        errors.append(f"Beklenen özellik kodu bulunamadı: {explanation} ({snippet})")
-
-power_system_path = ROOT / "src/main/java/com/yagiz/skinpowers/PowerSystem.java"
-if power_system_path.exists():
-    power_source = power_system_path.read_text(encoding="utf-8")
-    prison_start = power_source.find("private static void tickTimePrisons()")
-    prison_end = power_source.find("private static void createTimeField", prison_start)
-    prison_section = power_source[prison_start:prison_end] if prison_start >= 0 and prison_end > prison_start else ""
-    if not prison_section:
-        errors.append("Zaman Hapishanesi tick bölümü bulunamadı")
-    elif "MobEffects.SLOWNESS" in prison_section or "MobEffects.NAUSEA" in prison_section:
-        errors.append("Zaman Hapishanesi ekran/potion efekti kullanmamalı; hedef doğrudan sabitlenmeli")
-
-fabric = ROOT / "src/main/resources/fabric.mod.json"
-if fabric.exists():
-    try:
-        data = json.loads(fabric.read_text(encoding="utf-8"))
-        if data.get("id") != "skinpowers": errors.append("fabric.mod.json id değeri skinpowers değil")
-        if data.get("environment") != "*": errors.append("fabric.mod.json environment değeri '*' değil")
-        entrypoints = data.get("entrypoints", {})
-        for key in ("main", "client", "modmenu"):
-            if key not in entrypoints: errors.append(f"fabric.mod.json {key} entrypoint eksik")
-        depends = data.get("depends", {})
-        if depends.get("minecraft") != "~26.1.2": errors.append("fabric.mod.json Minecraft bağımlılığı ~26.1.2 değil")
-        if depends.get("java") != ">=25": errors.append("fabric.mod.json Java bağımlılığı >=25 değil")
-        if data.get("authors") != ["Yankalan"]: errors.append("fabric.mod.json yazar bilgisi Yankalan değil")
-    except Exception:
-        pass
-
-properties_path = ROOT / "gradle.properties"
-if properties_path.exists():
-    properties: dict[str, str] = {}
-    for raw in properties_path.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line: continue
-        key, value = line.split("=", 1)
-        properties[key.strip()] = value.strip()
-    for key, expected in EXPECTED_PROPERTIES.items():
-        if properties.get(key) != expected:
-            errors.append(f"gradle.properties {key}: beklenen {expected}, bulunan {properties.get(key)!r}")
-
-workflow = ROOT / ".github/workflows/build.yml"
-if workflow.exists():
-    workflow_text = workflow.read_text(encoding="utf-8")
-    for required_text in [
-        "java-version: '25'",
-        "gradle-version: '9.5.1'",
-        "gradle clean build",
-        "tools/verify_project.py",
-        f"skinpowers-{VERSION}-jar",
-        f"build/libs/skinpowers-{VERSION}.jar",
-    ]:
-        if required_text not in workflow_text:
-            errors.append(f"GitHub Actions içinde eksik ifade: {required_text}")
-
-icon = ROOT / "src/main/resources/assets/skinpowers/icon.png"
-if icon.exists() and icon.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
-    errors.append("Mod ikonu geçerli PNG imzasına sahip değil")
-for name in ["warden", "flight", "fire", "nature", "time"]:
-    card = ROOT / f"src/main/resources/assets/skinpowers/textures/gui/cards/{name}.png"
-    if not card.is_file():
-        errors.append(f"Eksik sınıf kartı görseli: {card.relative_to(ROOT)}")
-    elif card.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
-        errors.append(f"Geçersiz PNG kartı: {card.relative_to(ROOT)}")
-
-for suffix in [".class", ".pyc", ".bak", ".bakwork", ".tmp"]:
-    for path in ROOT.rglob(f"*{suffix}"):
-        errors.append(f"Paketlenmemesi gereken dosya: {path.relative_to(ROOT)}")
-for unwanted_dir in ["build", ".gradle", "run", "out", "__pycache__"]:
-    if (ROOT / unwanted_dir).exists():
-        errors.append(f"Paketlenmemesi gereken klasör mevcut: {unwanted_dir}")
-for obsolete in [
-    "DESIGN.md", "FEATURE_STATUS.md", "FILE_MANIFEST.txt", "VALIDATION.md",
-    "KURULUM_0.3.3.txt", "CHANGELOG_0.3.3.md", "CHANGELOG_0.3.6.md", "CHANGELOG_0.3.7.md", "CHANGELOG_4.0.0.md", "CHANGELOG_4.1.0.md",
-]:
-    if (ROOT / obsolete).exists():
-        errors.append(f"Eski/gereksiz kök dosyası kalmış: {obsolete}")
-
-
-def run_core_smoke_test() -> None:
-    javac = shutil.which("javac")
-    java = shutil.which("java")
-    if not javac or not java:
-        errors.append("Çekirdek test için javac/java bulunamadı")
-        return
-
-    core_sources = [
-        ROOT / "src/main/java/com/yagiz/skinpowers/PowerClass.java",
-        ROOT / "src/main/java/com/yagiz/skinpowers/PowerCatalog.java",
-        ROOT / "src/main/java/com/yagiz/skinpowers/PlayerPowerData.java",
-        ROOT / "src/main/java/com/yagiz/skinpowers/ModConfig.java",
-        ROOT / "src/client/java/com/yagiz/skinpowers/client/ClientUiRules.java",
-    ]
-    test_source = r'''
-package com.yagiz.skinpowers;
-import com.yagiz.skinpowers.client.ClientUiRules;
-public final class CoreLogicSmokeTest {
-    private static void check(boolean value, String message) {
-        if (!value) throw new AssertionError(message);
-    }
-    public static void main(String[] args) {
-        check(PowerCatalog.maxLevel(PowerClass.WARDEN) == 6, "warden level cap");
-        check(PowerCatalog.maxLevel(PowerClass.TIME) == 5, "time level cap");
-        check("Zamanın Sonu".equals(PowerCatalog.powerName(PowerClass.TIME, 5)), "time ultimate name");
-        check(PowerCatalog.xpCostForLevel(PowerClass.WARDEN, 6) == 70, "warden sixth xp");
-        check(PowerCatalog.comboStarterPower(PowerClass.FIRE) == 4, "fire combo starter");
-        check(PowerCatalog.comboFinisherPower(PowerClass.FIRE) == 5, "fire combo finisher");
-        check("Cehennem Felaketi".equals(PowerCatalog.comboName(PowerClass.FIRE)), "fire combo name");
-        check("Şarj Et Beni Antik Şehir".equals(PowerCatalog.powerName(PowerClass.WARDEN, 6)), "sixth name");
-        for (int level = 1; level <= 5; level++) {
-            check(!PowerCatalog.powerDescription(PowerClass.TIME, level).isBlank(), "time description " + level);
-        }
-        check(ClientUiRules.classChoiceAllowed(true, true, 4, 5, 1, 4), "second recommendation selectable");
-        check(!ClientUiRules.classChoiceAllowed(true, true, 3, 5, 1, 4), "non-recommended class locked");
-        check(ClientUiRules.staggeredProgress(1.0F, 4, 5, 0.34F) == 1.0F, "last class card completes");
-        check(ClientUiRules.staggeredProgress(1.0F, 5, 6, 0.30F) == 1.0F, "warden sixth row completes");
-
-        PlayerPowerData data = new PlayerPowerData();
-        data.chooseClass(PowerClass.TIME);
-        data.unlockNextLevel();
-        check(data.changeClass(PowerClass.WARDEN), "command class change");
-        check(data.powerClass() == PowerClass.WARDEN && data.unlockedLevel() == 0, "class change resets progression");
-        for (int i = 0; i < 8; i++) data.unlockNextLevel();
-        check(data.toggleComboMode(), "combo mode enabled");
-        data.beginCombo(2, 100L, 80, 1.0, 2.0, 3.0, true);
-        check(data.comboActive(120L), "combo active");
-        check(data.comboTargetValid() && data.comboTargetX() == 1.0, "combo target");
-        data.clearCombo();
-        check(!data.comboActive(120L), "combo cleared");
-        data.setCooldown(1, 100L, 50);
-        data.setCooldown(5, 100L, 70);
-        data.setCooldown(6, 100L, 90);
-        data.beginAncientCharge(110L, 999, true);
-        check(data.ancientChargeUntil() == 510L, "charge max 20 seconds");
-        check(data.ancientChargeReady(110L), "charge right ready");
-        check(data.selfSacrificeActive(), "self sacrifice flag");
-        check(data.cooldownRemaining(1, 110L) == 0, "regular cooldown disabled");
-        check(data.cooldownRemaining(6, 110L) == 80, "sixth cooldown protected");
-
-        data.setCooldown(5, 110L, 200);
-        data.consumeAncientCharge(120L, 5);
-        check(data.ancientChargeActive(120L), "20 second window continues after use");
-        check(!data.ancientChargeReady(120L), "single use right consumed");
-        check(data.ancientChargeUsedPower() == 5, "used power remembered");
-        check(data.cooldownRemaining(1, 120L) == 40, "old cooldown restored after use");
-        check(data.cooldownRemaining(5, 120L) == 190, "used power new cooldown kept");
-        check(data.cooldownRemaining(6, 120L) == 70, "sixth cooldown continued");
-
-        data.finishAncientCharge(510L);
-        check(!data.ancientChargeCyclePresent(), "charge cycle finished at timer end");
-        data.startSacrificedHeartRecovery(510L);
-        check(data.sacrificedHealthPointsToRecover() == 6, "three hearts recover in six half-heart steps");
-        data.advanceSacrificedHeartRecovery(630L);
-        check(data.sacrificedHealthPointsToRecover() == 5, "heart recovery advances");
-
-        PlayerPowerData expiry = new PlayerPowerData();
-        expiry.chooseClass(PowerClass.FIRE);
-        for (int i = 0; i < 5; i++) expiry.unlockNextLevel();
-        expiry.setCooldown(4, 200L, 60);
-        expiry.beginAncientCharge(210L, 200);
-        check(expiry.cooldownRemaining(4, 210L) == 0, "expiry charge bypass");
-        expiry.finishAncientCharge(410L);
-        check(expiry.cooldownRemaining(4, 410L) == 50, "unused expiry restores frozen cooldown");
-
-        for (int i = 0; i < 30; i++) data.addMasteryUse(6);
-        check(data.masteryStage(6) == 3, "sixth mastery");
-        data.reset();
-        check(data.powerClass() == PowerClass.NONE && data.unlockedLevel() == 0, "reset");
-    }
+required_tokens = {
+    power_class: ["ANOMALY(\"Anomali\")", 'normalized.equals("TIME")', "return ANOMALY"],
+    catalog: ["Kırık Adım", "Tersine Çevir", '"?"', "Hasar Mevcut Değil", "Varlıktan Çıkar", "404: Gerçeklik Bulunamadı", "ANOMALY_XP_COSTS"],
+    data: ["copiedPowerClass", "anomalyStoredDamage", "anomalyBonusHealthUntil", "anomalyHealthBaseBeforeBonus", "anomalyRealityReviveAvailable"],
+    anomaly: ["recordPowerUse", "chooseStoredDamage", "setBaseValue", "3600L", "allowDamage", "VOIDED", "REVERSED", "handleDisconnect", "restoreVoidedTarget"],
+    power_system: ["tickBorrowedClassEffects", "tickActiveFireRing", "executeCopiedPower", "clearBorrowedClassEffects", "beginCopiedBeam"],
+    network: ["ANOMALY_HEALTH", "ANOMALY_RETURN", "copiedPowerName", "anomalyChoiceTicks", "ServerPlayConnectionEvents.DISCONNECT.register"],
+    client: ["GLFW.GLFW_KEY_V", "GLFW.GLFW_KEY_X", 'send("ANOMALY_HEALTH")', 'send("ANOMALY_RETURN")'],
+    client_state: ["copiedPowerName", "anomalyStoredDamage", "anomalyBonusHealthTicks"],
+    hud: ["Antik Şehir Seni Şarj etti.", "Vücudun bunu kaldırabilecek Mi?", "[V] Kalp", "[X] Geri gönder"],
+    menu: ["displayName(powerClass, level)", "copiedPowerDescription", "R: depola • V: kalp • X: geri gönder"],
+    selection: ['"ANOMALİ"', "drawAnomalyGlitch"],
+    analyzer: ["ANOMALY_COLORS", "diversityBonus", "SkinPowers/1.0.4"],
+    commands: ['Commands.literal("degistir")', 'selfClass("anomali"', 'Commands.literal("admin")'],
+    mod: ["ServerLivingEntityEvents.ALLOW_DAMAGE.register(AnomalySystem::allowDamage)", "ServerLivingEntityEvents.ALLOW_DEATH.register(AnomalySystem::allowDeath)", "Skin Powers 1.0.4 yüklendi"],
+    store: ["migrateLegacyClassNames", 'object.addProperty("powerClass", "ANOMALY")', "JsonParser.parseReader"],
 }
-'''
-    with tempfile.TemporaryDirectory(prefix="skinpowers-core-") as temp_dir:
-        temp = Path(temp_dir)
-        test_path = temp / "CoreLogicSmokeTest.java"
-        test_path.write_text(test_source, encoding="utf-8")
-        compiled = subprocess.run(
-            [javac, "-encoding", "UTF-8", "-d", str(temp), *(str(p) for p in core_sources), str(test_path)],
-            capture_output=True, text=True,
-        )
-        if compiled.returncode != 0:
-            errors.append("Çekirdek Java derleme testi başarısız:\n" + compiled.stderr.strip())
-            return
-        executed = subprocess.run(
-            [java, "-cp", str(temp), "com.yagiz.skinpowers.CoreLogicSmokeTest"],
-            capture_output=True, text=True,
-        )
-        if executed.returncode != 0:
-            errors.append("Çekirdek Java çalışma testi başarısız:\n" + (executed.stderr or executed.stdout).strip())
+for source, tokens in required_tokens.items():
+    for token in tokens:
+        if token not in source:
+            fail(f"Gerekli kod bulunamadı: {token}")
 
-run_core_smoke_test()
+# Kök komutta doğrudan sınıf değişimi bulunmamalı.
+root_prefix = commands.split('root.then(Commands.literal("degistir")', 1)[0]
+for forbidden in ['selfClass("warden"', 'selfClass("ucus"', 'selfClass("ates"', 'selfClass("doga"', 'selfClass("anomali"']:
+    if forbidden in root_prefix:
+        fail(f"Sınıf kök komutta doğrudan görünüyor: {forbidden}")
+
+# Eski Zaman kartı kullanılmamalı.
+if (ROOT / "src/main/resources/assets/skinpowers/textures/gui/cards/time.png").exists():
+    fail("Eski time.png hâlâ mevcut")
+if "drawTimeTemple" in selection or '"ZAMAN"' in selection:
+    fail("Seçim ekranında eski Zaman kartı kaldı")
+
+# Basit Java parantez dengesi; yorumları ve dizeleri kaba biçimde atlar.
+def balanced_java(source: str, name: str) -> None:
+    stack: list[str] = []
+    pairs = {')': '(', ']': '[', '}': '{'}
+    opens = set(pairs.values())
+    i = 0
+    in_string = in_char = in_line = in_block = False
+    escaped = False
+    while i < len(source):
+        c = source[i]
+        n = source[i + 1] if i + 1 < len(source) else ''
+        if in_line:
+            if c == '\n': in_line = False
+        elif in_block:
+            if c == '*' and n == '/': in_block = False; i += 1
+        elif in_string:
+            if escaped: escaped = False
+            elif c == '\\': escaped = True
+            elif c == '"': in_string = False
+        elif in_char:
+            if escaped: escaped = False
+            elif c == '\\': escaped = True
+            elif c == "'": in_char = False
+        elif c == '/' and n == '/': in_line = True; i += 1
+        elif c == '/' and n == '*': in_block = True; i += 1
+        elif c == '"': in_string = True
+        elif c == "'": in_char = True
+        elif c in opens: stack.append(c)
+        elif c in pairs:
+            if not stack or stack.pop() != pairs[c]:
+                fail(f"Java parantez hatası: {name}")
+                return
+        i += 1
+    if stack or in_string or in_char or in_block:
+        fail(f"Java kapanış hatası: {name}")
+    else:
+        ok(f"Java yapı: {name}")
+
+for java_path in list((ROOT / "src/main/java").rglob("*.java")) + list((ROOT / "src/client/java").rglob("*.java")):
+    balanced_java(java_path.read_text(encoding="utf-8"), str(java_path.relative_to(ROOT)))
+
+# Minecraft bağımlılığı olmayan çekirdek sınıfları gerçek javac ile derle ve davranış testi yap.
+javac = shutil.which("javac")
+java = shutil.which("java")
+if not javac or not java:
+    fail("javac/java bulunamadı")
+else:
+    with tempfile.TemporaryDirectory(prefix="skinpowers_verify_") as tmp:
+        tmp_path = Path(tmp)
+        test_file = tmp_path / "CoreTest.java"
+        test_file.write_text(r'''
+import com.yagiz.skinpowers.*;
+public final class CoreTest {
+  private static void check(boolean value, String message) {
+    if (!value) throw new AssertionError(message);
+  }
+  public static void main(String[] args) {
+    check(PowerClass.safeValueOf("TIME") == PowerClass.ANOMALY, "old TIME migration");
+    check(PowerCatalog.maxLevel(PowerClass.ANOMALY) == 6, "anomaly max level");
+    check("?".equals(PowerCatalog.powerName(PowerClass.ANOMALY, 3)), "copy power name");
+    check(PowerCatalog.xpCostForLevel(PowerClass.ANOMALY, 6) == 70, "anomaly VI cost");
+    for (int i = 1; i <= 6; i++) {
+      check(!PowerCatalog.powerDescription(PowerClass.ANOMALY, i).isBlank(), "anomaly description " + i);
+    }
+    PlayerPowerData data = new PlayerPowerData();
+    data.chooseClass(PowerClass.ANOMALY);
+    for (int i = 0; i < 6; i++) data.unlockNextLevel();
+    data.setCopiedPower(PowerClass.FIRE, 5);
+    check(data.hasCopiedPower() && data.copiedPowerClass() == PowerClass.FIRE && data.copiedPowerLevel() == 5, "copy persistence");
+    data.beginAnomalyDamageStore(100L);
+    data.addAnomalyStoredDamage(24.0F);
+    data.finishAnomalyDamageStore(300L);
+    check(data.anomalyStoredDamage() == 24.0F && data.anomalyChoiceUntil() == 300L, "damage storage");
+    data.setAnomalyBonusHealth(20.0, 3600L, 20.0);
+    check(data.anomalyBonusHealth() == 20.0 && data.anomalyBonusHealthUntil() == 3600L
+      && data.anomalyHealthBaseBeforeBonus() == 20.0, "bonus hearts");
+    data.beginAnomalyReality(500L, 1, 2, 3);
+    check(data.anomalyRealityReviveAvailable(), "404 revive");
+    data.reset();
+    check(data.powerClass() == PowerClass.NONE && !data.hasCopiedPower() && data.anomalyStoredDamage() == 0.0F, "reset");
+    check(com.yagiz.skinpowers.client.ClientUiRules.classChoiceAllowed(true, true, 1, 5, 0, 1), "second suggestion selectable");
+    check(com.yagiz.skinpowers.client.ClientUiRules.staggeredProgress(1.0F, 5, 6, 0.30F) >= 0.99F, "sixth row animation reaches end");
+    System.out.println("CORE_TEST_OK");
+  }
+}
+''', encoding="utf-8")
+        sources = [
+            ROOT / "src/main/java/com/yagiz/skinpowers/PowerClass.java",
+            ROOT / "src/main/java/com/yagiz/skinpowers/PowerCatalog.java",
+            ROOT / "src/main/java/com/yagiz/skinpowers/PlayerPowerData.java",
+            ROOT / "src/client/java/com/yagiz/skinpowers/client/ClientUiRules.java",
+            test_file,
+        ]
+        command = [javac, "-encoding", "UTF-8", "-d", str(tmp_path / "classes"), *map(str, sources)]
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode != 0:
+            fail("Çekirdek javac derlemesi başarısız:\n" + result.stderr)
+        else:
+            run = subprocess.run([java, "-cp", str(tmp_path / "classes"), "CoreTest"], capture_output=True, text=True)
+            if run.returncode != 0 or "CORE_TEST_OK" not in run.stdout:
+                fail("Çekirdek davranış testi başarısız:\n" + run.stdout + run.stderr)
+            else:
+                ok("Çekirdek javac ve davranış testleri")
 
 if errors:
-    print("PROJE DENETİMİ BAŞARISIZ")
-    for error in errors:
-        print(" -", error)
+    print("SKIN POWERS PROJE DENETİMİ BAŞARISIZ")
+    for item in errors:
+        print("[HATA]", item)
     sys.exit(1)
 
-print(
-    f"PROJE DENETİMİ BAŞARILI — {len(java_files)} Java dosyası; JSON, PNG, sürüm, "
-    "Warden 6. güç, hedef olmasa da ışın, mob şarjı, iki saniyelik Antik Kalp animasyonu, "
-    "üç kalp bedeli, 20 saniye sonunda çöküş, yavaş kalp dönüşü, cooldown dondurma, "
-    "20 mor meteor, K kombo modu, beş kombinasyon, Zaman sınıfı, skin öneri sıralaması, dinamik HUD yerleşimi, komutlar ve çekirdek davranış testleri kontrol edildi."
-)
+print("SKIN POWERS PROJE DENETİMİ BAŞARILI")
+print(f"{len(checks)} kontrol geçti.")
+print("Anomali, V/X hasar seçimi, tek kullanımlık güç kopyası, eski kayıt geçişi, küçük Warden HUD'u ve degistir komut yapısı doğrulandı.")

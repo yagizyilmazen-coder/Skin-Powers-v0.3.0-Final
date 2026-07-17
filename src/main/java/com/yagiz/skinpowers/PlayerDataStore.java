@@ -2,7 +2,10 @@ package com.yagiz.skinpowers;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
 
@@ -29,12 +32,15 @@ public final class PlayerDataStore {
         dataDirectory = server.getWorldPath(LevelResource.ROOT).resolve("skinpowers");
         PLAYERS.clear();
         config = new ModConfig();
+        boolean migratedPlayers = false;
         try {
             Files.createDirectories(dataDirectory);
             Path playersFile = dataDirectory.resolve("players.json");
             if (Files.isRegularFile(playersFile)) {
                 try (Reader reader = Files.newBufferedReader(playersFile)) {
-                    StoreFile store = GSON.fromJson(reader, StoreFile.class);
+                    JsonElement root = JsonParser.parseReader(reader);
+                    migratedPlayers = migrateLegacyClassNames(root);
+                    StoreFile store = GSON.fromJson(root, StoreFile.class);
                     if (store != null && store.players != null) {
                         for (Map.Entry<String, PlayerPowerData> entry : store.players.entrySet()) {
                             try {
@@ -53,7 +59,11 @@ public final class PlayerDataStore {
                     if (loaded != null) config = loaded;
                 }
             }
-            dirty = false;
+            dirty = migratedPlayers;
+            if (migratedPlayers) {
+                SkinPowersMod.LOGGER.info("Skin Powers: eski Zaman kayıtları Anomaliye taşındı.");
+                save();
+            }
             SkinPowersMod.LOGGER.info("Skin Powers: {} oyuncu kaydı yüklendi.", PLAYERS.size());
         } catch (IOException | JsonParseException exception) {
             SkinPowersMod.LOGGER.error("Skin Powers kayıtları okunamadı; boş kayıtla devam ediliyor.", exception);
@@ -94,6 +104,29 @@ public final class PlayerDataStore {
         } catch (IOException exception) {
             SkinPowersMod.LOGGER.error("Skin Powers kayıtları yazılamadı.", exception);
         }
+    }
+
+
+    /** 1.0.3 ve önceki oyuncu kayıtlarındaki kaldırılmış Zaman sınıfını veri kaybetmeden taşır. */
+    private static boolean migrateLegacyClassNames(JsonElement element) {
+        if (element == null || element.isJsonNull()) return false;
+        boolean changed = false;
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) changed |= migrateLegacyClassNames(child);
+            return changed;
+        }
+        if (!element.isJsonObject()) return false;
+        JsonObject object = element.getAsJsonObject();
+        JsonElement classValue = object.get("powerClass");
+        if (classValue != null && classValue.isJsonPrimitive() && classValue.getAsJsonPrimitive().isString()) {
+            String value = classValue.getAsString();
+            if (value.equalsIgnoreCase("TIME") || value.equalsIgnoreCase("ZAMAN")) {
+                object.addProperty("powerClass", "ANOMALY");
+                changed = true;
+            }
+        }
+        for (var entry : object.entrySet()) changed |= migrateLegacyClassNames(entry.getValue());
+        return changed;
     }
 
     private static void atomicWrite(Path target, Object value) throws IOException {
