@@ -19,6 +19,7 @@ public final class HudOverlay {
         ClientConfig config = ClientConfig.get();
 
         drawShakeOverlay(graphics, screenWidth, screenHeight, config);
+        drawCastOverlay(graphics, screenWidth, screenHeight, config);
 
         if (powerClass == PowerClass.WARDEN && ClientState.wardenHuntTicks() > 0) {
             graphics.fill(0, 0, screenWidth, 4, 0xAA35D7D0);
@@ -29,12 +30,12 @@ public final class HudOverlay {
 
         float scale = config.hudScalePercent() / 100.0F;
         int panelWidth = Math.max(146, Math.round(228 * scale));
-        int panelHeight = Math.max(47, Math.round(64 * scale));
+        int panelHeight = config.compactHud() ? Math.max(42, Math.round(54 * scale)) : Math.max(47, Math.round(64 * scale));
         int x = config.hudRight() ? screenWidth - panelWidth - 6 : 6;
-        int y = 6;
+        int y = 6 + config.hudVerticalOffset();
         int accent = switch (powerClass) {
             case WARDEN -> 0xFF35D7D0;
-            case FLIGHT -> 0xFFEAF8FF;
+            case FLIGHT -> 0xFFB65CFF;
             case FIRE -> 0xFFFFA826;
             case NATURE -> 0xFF67D96E;
             case ANOMALY -> 0xFFB65CFF;
@@ -42,8 +43,9 @@ public final class HudOverlay {
         };
 
         drawPowerPanel(graphics, client, powerClass, x, y, panelWidth, panelHeight, accent);
-        int comboHeight = drawComboStatus(graphics, client, x, y + panelHeight + 4, panelWidth, accent);
-        drawAncientStatus(graphics, client, screenWidth, screenHeight, x, y, panelWidth, panelHeight + comboHeight + 4);
+        int awakeningHeight = drawAwakeningStatus(graphics, client, x, y + panelHeight + 4, panelWidth, accent, config);
+        int comboHeight = drawComboStatus(graphics, client, x, y + panelHeight + awakeningHeight + 4, panelWidth, accent);
+        drawAncientStatus(graphics, client, screenWidth, screenHeight, x, y, panelWidth, panelHeight + awakeningHeight + comboHeight + 4);
         drawAnomalyChoice(graphics, client, screenWidth, screenHeight);
     }
 
@@ -74,9 +76,11 @@ public final class HudOverlay {
         graphics.text(client.font, ready, x + 9, y + 29, cooldown <= 0 ? 0xFF8CFFB0 : 0xFFFFD27A, true);
 
         String status = switch (powerClass) {
-            case FLIGHT -> ClientState.temporaryElytraTicks() > 0
-                ? String.format(java.util.Locale.ROOT, "Elytra: %.1f sn", ClientState.temporaryElytraTicks() / 20.0)
-                : "Yavaş Düşüş: " + (ClientState.passiveEnabled() ? "AÇIK" : "KAPALI");
+            case FLIGHT -> ClientState.dragonFormTicks() > 0
+                ? String.format(java.util.Locale.ROOT, "Ejderha Hükümdarı: %.1f sn", ClientState.dragonFormTicks() / 20.0)
+                : (ClientState.dragonScalesTicks() > 0
+                    ? String.format(java.util.Locale.ROOT, "Kadim Pullar: %.1f sn", ClientState.dragonScalesTicks() / 20.0)
+                    : "Ejderha Kanı: AÇIK");
             case WARDEN -> ClientState.wardenHuntTicks() > 0
                 ? String.format(java.util.Locale.ROOT, "Sculk Avı: %.1f sn", ClientState.wardenHuntTicks() / 20.0)
                 : "Sculk Avı: R ile kullan";
@@ -100,6 +104,33 @@ public final class HudOverlay {
         };
         int statusY = Math.min(y + panelHeight - 11, y + 40);
         graphics.text(client.font, fit(client, status, panelWidth - 18), x + 9, statusY, 0xFFB8C8D3, false);
+    }
+
+    private static int drawAwakeningStatus(GuiGraphicsExtractor graphics, Minecraft client, int x, int y, int width, int accent, ClientConfig config) {
+        if (!config.showAwakeningBar()) return 0;
+        int height = ClientState.classAwakeningTicks() > 0 ? 27 : 18;
+        graphics.fill(x, y, x + width, y + height, 0xC5080710);
+        graphics.outline(x, y, width, height, ClientState.duelActive() ? 0xFFFFD35C : accent);
+        int barLeft = x + 7;
+        int barRight = x + width - 7;
+        int barTop = y + 7;
+        int barBottom = barTop + 5;
+        graphics.fill(barLeft, barTop, barRight, barBottom, 0xFF191824);
+        float ratio;
+        String label;
+        if (ClientState.classAwakeningTicks() > 0) {
+            ratio = Math.max(0.0F, Math.min(1.0F, ClientState.classAwakeningTicks() / 480.0F));
+            label = String.format(java.util.Locale.ROOT, "UYANIŞ AKTİF • %.1f sn", ClientState.classAwakeningTicks() / 20.0);
+        } else {
+            ratio = ClientState.awakeningEnergy() / 100.0F;
+            label = ClientState.awakeningEnergy() >= 20.0F
+                ? String.format(java.util.Locale.ROOT, "G: UYANIŞ • %%%.0f", ClientState.awakeningEnergy())
+                : String.format(java.util.Locale.ROOT, "UYANIŞ • %%%.0f", ClientState.awakeningEnergy());
+        }
+        int fill = Math.round((barRight - barLeft) * ratio);
+        if (fill > 0) graphics.fill(barLeft, barTop, barLeft + fill, barBottom, accent);
+        graphics.text(client.font, fit(client, label, width - 14), x + 7, y + (height > 20 ? 16 : 5), 0xFFF2E9FF, false);
+        return height + 4;
     }
 
     /** @return HUD'un kapladığı ek yükseklik. */
@@ -135,8 +166,9 @@ public final class HudOverlay {
         if (!charged && !exhausted) return;
 
         if (charged) {
-            int width = Math.min(218, Math.max(176, screenWidth - 20));
-            int height = 28;
+            float nScale = ClientConfig.get().notificationScalePercent() / 100.0F;
+            int width = Math.min(screenWidth - 20, Math.max(150, Math.round(218 * nScale)));
+            int height = Math.max(24, Math.round(28 * nScale));
             int left = (screenWidth - width) / 2;
             int top = Math.max(8, screenHeight - 92);
             graphics.fill(left, top, left + width, top + height, 0xC8110719);
@@ -170,8 +202,9 @@ public final class HudOverlay {
             "Depolanan %.1f   [V] Kalp   [X] Geri gönder",
             ClientState.anomalyStoredDamage()
         );
-        int width = Math.min(screenWidth - 16, client.font.width(line) + 18);
-        int height = 18;
+        float nScale = ClientConfig.get().notificationScalePercent() / 100.0F;
+        int width = Math.min(screenWidth - 16, Math.max(150, Math.round((client.font.width(line) + 18) * nScale)));
+        int height = Math.max(16, Math.round(18 * nScale));
         int left = (screenWidth - width) / 2;
         int top = Math.max(8, screenHeight - 58);
         graphics.fill(left, top, left + width, top + height, 0xC3080710);
@@ -179,6 +212,28 @@ public final class HudOverlay {
         graphics.outline(left, top, width, height, 0xFF5CE5E5);
         String fitted = fit(client, line, width - 12);
         graphics.text(client.font, fitted, left + (width - client.font.width(fitted)) / 2, top + 5, 0xFFF0E8FF, false);
+    }
+
+    private static void drawCastOverlay(GuiGraphicsExtractor graphics, int width, int height, ClientConfig config) {
+        if (ClientState.castPulseTicks() <= 0 || config.glowPercent() <= 0 || config.performanceMode()) return;
+        PowerClass powerClass = ClientState.castPulseClass();
+        int rgb = switch (powerClass) {
+            case WARDEN -> 0x0035D7D0;
+            case FLIGHT -> 0x00B65CFF;
+            case FIRE -> 0x00FF8A18;
+            case NATURE -> 0x0067D96E;
+            case ANOMALY -> 0x005CE5E5;
+            default -> 0x00FFFFFF;
+        };
+        float fade = Math.min(1.0F, ClientState.castPulseTicks() / 8.0F);
+        int maxAlpha = config.photosensitiveMode() ? 28 : 72;
+        int alpha = Math.max(8, Math.min(maxAlpha, Math.round(ClientState.castPulseStrength() * fade * maxAlpha * config.glowPercent() / 100.0F)));
+        int edge = config.reducedFirstPersonEffects() ? 2 : 4;
+        int color = (alpha << 24) | rgb;
+        graphics.fill(0, 0, width, edge, color);
+        graphics.fill(0, height - edge, width, height, color);
+        graphics.fill(0, edge, edge, height - edge, color);
+        graphics.fill(width - edge, edge, width, height - edge, color);
     }
 
     private static void drawShakeOverlay(GuiGraphicsExtractor graphics, int width, int height, ClientConfig config) {

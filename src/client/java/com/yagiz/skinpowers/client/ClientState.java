@@ -33,9 +33,17 @@ public final class ClientState {
     private static float anomalyStoredDamage;
     private static int anomalyBonusHealthTicks;
     private static double anomalyBonusHealth;
+    private static int dragonScalesTicks;
+    private static int dragonFormTicks;
+    private static float awakeningEnergy;
+    private static int classAwakeningTicks;
+    private static boolean duelActive;
     private static boolean receivedState;
     private static int shakeTicks;
     private static float shakeStrength;
+    private static int castPulseTicks;
+    private static float castPulseStrength;
+    private static String castPulseClass = "NONE";
 
     private ClientState() {}
 
@@ -70,6 +78,11 @@ public final class ClientState {
             anomalyStoredDamage = Math.max(0.0F, state.anomalyStoredDamage);
             anomalyBonusHealthTicks = Math.max(0, state.anomalyBonusHealthTicks);
             anomalyBonusHealth = Math.max(0.0D, state.anomalyBonusHealth);
+            dragonScalesTicks = Math.max(0, state.dragonScalesTicks);
+            dragonFormTicks = Math.max(0, state.dragonFormTicks);
+            awakeningEnergy = Math.max(0.0F, Math.min(100.0F, state.awakeningEnergy));
+            classAwakeningTicks = Math.max(0, state.classAwakeningTicks);
+            duelActive = state.duelActive;
             receivedState = true;
         } catch (RuntimeException ignored) {
             // Bozuk/uyumsuz paket istemciyi düşürmesin.
@@ -88,6 +101,12 @@ public final class ClientState {
         shakeStrength = Math.min(2.4F, Math.max(strength, shakeStrength * 0.88F + strength * 0.22F));
     }
 
+    public static void startCastPulse(String powerClassName, float strength, int durationTicks) {
+        castPulseClass = powerClassName == null ? "NONE" : powerClassName;
+        castPulseStrength = Math.max(0.1F, Math.min(2.0F, strength));
+        castPulseTicks = Math.max(castPulseTicks, Math.max(1, durationTicks));
+    }
+
     public static void clientTick() {
         if (cooldownTicks > 0) cooldownTicks--;
         if (temporaryElytraTicks > 0) temporaryElytraTicks--;
@@ -99,8 +118,15 @@ public final class ClientState {
         if (anomalyStoreTicks > 0) anomalyStoreTicks--;
         if (anomalyChoiceTicks > 0) anomalyChoiceTicks--;
         if (anomalyBonusHealthTicks > 0) anomalyBonusHealthTicks--;
+        if (dragonScalesTicks > 0) dragonScalesTicks--;
+        if (dragonFormTicks > 0) dragonFormTicks--;
+        if (classAwakeningTicks > 0) classAwakeningTicks--;
         if (comboTicks <= 0) { comboName = ""; comboNextPowerName = ""; }
         if (ancientChargeTicks <= 0) ancientChargeAvailable = false;
+        if (castPulseTicks > 0) {
+            castPulseTicks--;
+            if (castPulseTicks == 0) { castPulseStrength = 0.0F; castPulseClass = "NONE"; }
+        }
         if (shakeTicks > 0) {
             shakeTicks--;
             if (shakeTicks == 0) shakeStrength = 0.0F;
@@ -134,9 +160,17 @@ public final class ClientState {
         anomalyStoredDamage = 0.0F;
         anomalyBonusHealthTicks = 0;
         anomalyBonusHealth = 0.0D;
+        dragonScalesTicks = 0;
+        dragonFormTicks = 0;
+        awakeningEnergy = 0.0F;
+        classAwakeningTicks = 0;
+        duelActive = false;
         receivedState = false;
         shakeTicks = 0;
         shakeStrength = 0.0F;
+        castPulseTicks = 0;
+        castPulseStrength = 0.0F;
+        castPulseClass = "NONE";
     }
 
     public static PowerClass powerClass() { return powerClass; }
@@ -164,9 +198,17 @@ public final class ClientState {
     public static float anomalyStoredDamage() { return anomalyStoredDamage; }
     public static int anomalyBonusHealthTicks() { return anomalyBonusHealthTicks; }
     public static double anomalyBonusHealth() { return anomalyBonusHealth; }
+    public static int dragonScalesTicks() { return dragonScalesTicks; }
+    public static int dragonFormTicks() { return dragonFormTicks; }
+    public static float awakeningEnergy() { return awakeningEnergy; }
+    public static int classAwakeningTicks() { return classAwakeningTicks; }
+    public static boolean duelActive() { return duelActive; }
     public static boolean receivedState() { return receivedState; }
     public static int shakeTicks() { return shakeTicks; }
     public static float shakeStrength() { return shakeStrength; }
+    public static int castPulseTicks() { return castPulseTicks; }
+    public static float castPulseStrength() { return castPulseStrength; }
+    public static PowerClass castPulseClass() { return PowerClass.safeValueOf(castPulseClass); }
 
     public static int masteryUses(int level) {
         return masteryUses[Math.max(0, Math.min(5, level - 1))];
@@ -203,5 +245,10 @@ public final class ClientState {
         private float anomalyStoredDamage;
         private int anomalyBonusHealthTicks;
         private double anomalyBonusHealth;
+        private int dragonScalesTicks;
+        private int dragonFormTicks;
+        private float awakeningEnergy;
+        private int classAwakeningTicks;
+        private boolean duelActive;
     }
 }

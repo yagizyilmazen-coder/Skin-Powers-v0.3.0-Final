@@ -53,6 +53,9 @@ public final class PowerSystem {
     private static final Map<UUID, Long> NATURE_CRITICAL_COOLDOWN = new HashMap<>();
     private static final Map<UUID, Long> LAST_SKY_IMPACT = new HashMap<>();
     private static final Map<UUID, Vec3> LAST_FLIGHT_POSITION = new HashMap<>();
+    private static final Map<UUID, UUID> DRAGON_CLAW_TARGET = new HashMap<>();
+    private static final Map<UUID, Long> DRAGON_CLAW_UNTIL = new HashMap<>();
+    private static final Map<UUID, Long> DRAGON_SILENCE_UNTIL = new HashMap<>();
     private static final Map<UUID, long[]> LAST_MASTERY_CREDIT = new HashMap<>();
     private static long lastAutosaveTick;
 
@@ -128,6 +131,8 @@ public final class PowerSystem {
 
         ServerLevel level = (ServerLevel) player.level();
         long now = level.getGameTime();
+
+        AwakeningSystem.tickPlayer(player, data, level, now);
 
         switch (data.powerClass()) {
             case WARDEN -> tickWarden(player, data, level, now);
@@ -210,41 +215,75 @@ public final class PowerSystem {
     }
 
     private static void tickFlight(ServerPlayer player, PlayerPowerData data, ServerLevel level, long now) {
-        if (player.getAbilities().mayfly && !player.isCreative() && !player.isSpectator()) {
-            player.getAbilities().mayfly = false;
-            player.getAbilities().flying = false;
-            player.onUpdateAbilities();
+        // Uçuş sınıfının 1.0.6 karşılığı Kadim Ejderhadır. Eski kayıtlar FLIGHT enumunu kullanmaya devam eder.
+        boolean formActive = data.dragonFormUntil() > now;
+        boolean awakeningActive = data.classAwakeningActive(now);
+
+        // Kadim Ejderha pasifi: düşme hasarı yok, ateşe kısmi dayanıklılık.
+        if (data.unlockedLevel() >= 1) {
+            player.fallDistance = 0.0F;
+            player.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 30, 0, false, false, true));
         }
 
-        if (data.unlockedLevel() >= 1 && data.passiveEnabled()) {
-            boolean ancientBoost = data.ancientChargeActive(now);
-            player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 30, ancientBoost ? 1 : 0, false, false, false));
-            if (ancientBoost) player.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, 1, false, false, false));
-            float fallCap = ancientBoost ? 1.0F : 4.0F;
-            if (player.fallDistance > fallCap) player.fallDistance = fallCap;
-        }
-
-        boolean temporaryFlight = data.temporaryElytraUntil() > now;
-        ItemStack chest = player.getItemBySlot(EquipmentSlot.CHEST);
-        if (temporaryFlight) {
-            if (!chest.is(Items.ELYTRA)) {
-                data.setTemporaryElytraUntil(0L);
-                data.setChargedTemporaryElytra(false);
-                player.sendSystemMessage(Component.literal("Süreli Elytra çıkarıldığı için uçuş sona erdi."));
-                PlayerDataStore.markDirty();
-            } else {
-                player.fallDistance = 0.0F;
-                if (player.getDeltaMovement().lengthSqr() > 0.08 && now % 5L == 0L) {
-                    Vec3 back = player.getLookAngle().scale(-0.75);
-                    level.sendParticles(data.chargedTemporaryElytra() ? ParticleTypes.WITCH : ParticleTypes.CLOUD,
-                        player.getX() + back.x, player.getY() + 0.9, player.getZ() + back.z,
-                        data.chargedTemporaryElytra() ? 4 : 2, 0.22, 0.18, 0.22, 0.01);
-                }
+        if (data.dragonScalesUntil() > now) {
+            int stage = data.masteryStage(3);
+            player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, stage >= 2 ? 2 : 1, false, false, true));
+            if (now % 4L == 0L) {
+                level.sendParticles(ParticleTypes.DRAGON_BREATH, player.getX(), player.getY() + 1.0, player.getZ(), 10, 0.75, 0.9, 0.75, 0.015);
             }
-        } else if (data.temporaryElytraUntil() != 0L) {
-            removeTemporaryElytra(player, data);
-            player.sendSystemMessage(Component.literal("Süreli Elytra kayboldu."));
+            for (Projectile projectile : level.getEntitiesOfClass(Projectile.class, player.getBoundingBox().inflate(3.2))) {
+                if (projectile.getOwner() == player) continue;
+                Vec3 velocity = projectile.getDeltaMovement();
+                if (velocity.lengthSqr() < 0.001) continue;
+                projectile.setDeltaMovement(velocity.scale(-1.15).add(0.0, 0.05, 0.0));
+                projectile.setOwner(player);
+            }
+        } else if (data.dragonScalesUntil() != 0L) {
+            data.setDragonScalesUntil(0L);
             PlayerDataStore.markDirty();
+        }
+
+        if (formActive || awakeningActive) {
+            if (!player.isCreative() && !player.isSpectator() && !player.getAbilities().mayfly) {
+                player.getAbilities().mayfly = true;
+                player.onUpdateAbilities();
+            }
+            player.fallDistance = 0.0F;
+            player.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 30, formActive ? 2 : 1, false, false, true));
+            player.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, 1, false, false, true));
+            if (now % 5L == 0L) {
+                Vec3 side = horizontalDirection(player.getLookAngle()).cross(new Vec3(0.0, 1.0, 0.0)).normalize();
+                Vec3 back = player.position().add(player.getLookAngle().scale(-0.8)).add(0.0, 1.1, 0.0);
+                level.sendParticles(ParticleTypes.DRAGON_BREATH, back.x + side.x * 0.7, back.y, back.z + side.z * 0.7, 8, 0.28, 0.42, 0.28, 0.025);
+                level.sendParticles(ParticleTypes.WITCH, back.x - side.x * 0.7, back.y, back.z - side.z * 0.7, 6, 0.24, 0.38, 0.24, 0.02);
+            }
+        } else {
+            if (data.dragonFormUntil() != 0L) {
+                data.setDragonFormUntil(0L);
+                level.sendParticles(ParticleTypes.DRAGON_BREATH, player.getX(), player.getY() + 1.0, player.getZ(), 55, 0.9, 1.0, 0.9, 0.045);
+                PlayerDataStore.markDirty();
+            }
+            if (!player.isCreative() && !player.isSpectator() && player.getAbilities().mayfly) {
+                player.getAbilities().mayfly = false;
+                player.getAbilities().flying = false;
+                player.onUpdateAbilities();
+            }
+        }
+
+        UUID grabbed = DRAGON_CLAW_TARGET.get(player.getUUID());
+        long grabUntil = DRAGON_CLAW_UNTIL.getOrDefault(player.getUUID(), 0L);
+        if (grabbed != null && grabUntil > now) {
+            Entity entity = level.getEntity(grabbed);
+            if (entity instanceof LivingEntity target && target.isAlive()) {
+                Vec3 anchor = player.position().add(player.getLookAngle().normalize().scale(2.2)).add(0.0, 1.0, 0.0);
+                target.setPos(anchor.x, anchor.y, anchor.z);
+                target.setDeltaMovement(Vec3.ZERO);
+                level.sendParticles(ParticleTypes.WITCH, target.getX(), target.getY() + 0.8, target.getZ(), 5, 0.35, 0.5, 0.35, 0.015);
+            } else {
+                clearDragonClaw(player.getUUID());
+            }
+        } else if (grabbed != null) {
+            clearDragonClaw(player.getUUID());
         }
     }
 
@@ -264,7 +303,7 @@ public final class PowerSystem {
         if (data.wardenHuntUntil() != 0L || data.awakeningUntil() != 0L) {
             tickWarden(player, data, level, now);
         }
-        if (data.temporaryElytraUntil() != 0L) {
+        if (data.temporaryElytraUntil() != 0L || data.dragonScalesUntil() != 0L || data.dragonFormUntil() != 0L) {
             tickFlight(player, data, level, now);
         }
         if (data.fireRingUntil() != 0L) {
@@ -318,6 +357,8 @@ public final class PowerSystem {
         }
         if (data.natureTreeUntil() != 0L && data.natureTreeUntil() <= now) {
             data.setNatureTreeUntil(0L);
+        data.setDragonScalesUntil(0L);
+        data.setDragonFormUntil(0L);
             PlayerDataStore.markDirty();
         }
     }
@@ -353,6 +394,10 @@ public final class PowerSystem {
 
         long now = player.level().getGameTime();
         data.comboActive(now); // Süresi dolmuş kombo penceresini temizle.
+        if (isDragonSilenced(player, now)) {
+            player.sendSystemMessage(Component.literal("Kadim Kükreme gücünü kısa süreliğine susturdu."));
+            return;
+        }
         if (power == 6 && data.ancientChargeActive(now)) {
             player.sendSystemMessage(Component.literal("Antik Şehir Şarjı taşırken 6. güç kullanılamaz."));
             return;
@@ -369,7 +414,7 @@ public final class PowerSystem {
             && power == PowerCatalog.comboFinisherPower(data.powerClass());
         boolean charged = AncientChargeSystem.isUsableCharge(data, now, power);
 
-        if (expectedFinisher && data.powerClass() != PowerClass.FLIGHT) {
+        if (expectedFinisher) {
             boolean comboUsed = useComboFinisher(player, data, power, now, charged);
             if (comboUsed) {
                 recordMasteryUse(player, data, power);
@@ -403,6 +448,7 @@ public final class PowerSystem {
         };
 
         if (used) {
+            ServerNetworking.sendCastAnimation((ServerLevel) player.level(), player.position().add(0.0, 1.0, 0.0), data.powerClass(), power);
             if (comboStarter) beginImmediateComboIfNeeded(player, data, power, now);
             PowerCollisionSystem.registerCast(player, data, power, now, normalCharged);
             recordMasteryUse(player, data, power);
@@ -445,7 +491,7 @@ public final class PowerSystem {
                     }
                 }
                 drawRing(level, player.position(), radius, charged ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, charged ? 104 : 76);
-                level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ATTACK_IMPACT, SoundSource.PLAYERS, 1.5F, 0.72F);
+                level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.5F, 0.72F);
                 yield true;
             }
             case "sonic" -> {
@@ -468,6 +514,12 @@ public final class PowerSystem {
                 launchSkyCataclysm(player, stage, charged);
                 yield true;
             }
+            case "dragon_dash" -> { cooldownSlot = 1; yield useFlight(player, data, 1, now, charged); }
+            case "dragon_breath" -> { cooldownSlot = 2; yield useFlight(player, data, 2, now, charged); }
+            case "dragon_scales" -> { cooldownSlot = 3; yield useFlight(player, data, 3, now, charged); }
+            case "dragon_claw" -> { cooldownSlot = 4; yield useFlight(player, data, 4, now, charged); }
+            case "dragon_roar" -> { cooldownSlot = 5; yield useFlight(player, data, 5, now, charged); }
+            case "dragon_form" -> { cooldownSlot = 6; yield useFlight(player, data, 6, now, charged); }
             case "fire_ring" -> {
                 cooldownSlot = 3;
                 yield useFire(player, data, 3, now, charged, false);
@@ -525,6 +577,7 @@ public final class PowerSystem {
         };
 
         if (!used) return false;
+        ServerNetworking.sendCastAnimation(level, player.position().add(0.0, 1.0, 0.0), data.powerClass(), Math.max(1, cooldownSlot));
         if (cooldownSlot > 0) data.clearCooldown(cooldownSlot, now);
         PlayerDataStore.markDirty();
         ServerNetworking.sync(player);
@@ -534,17 +587,8 @@ public final class PowerSystem {
     public static void toggleSelectedFeature(ServerPlayer player, PlayerPowerData data) {
         boolean changed = false;
         long now = player.level().getGameTime();
-        if (data.powerClass() == PowerClass.FLIGHT && data.unlockedLevel() >= 1) {
-            int remaining = data.cooldownRemaining(1, now);
-            if (remaining > 0) {
-                player.sendSystemMessage(Component.literal("Yavaş Düşüş " + formatSeconds(remaining) + " saniye sonra değiştirilebilir."));
-                return;
-            }
-            data.togglePassive();
-            data.setCooldown(1, now, 40);
-            recordMasteryUse(player, data, 1);
-            changed = true;
-            player.sendSystemMessage(Component.literal("Yavaş Düşüş: " + (data.passiveEnabled() ? "AÇIK" : "KAPALI")));
+        if (data.powerClass() == PowerClass.FLIGHT) {
+            player.sendSystemMessage(Component.literal("Kadim Ejderha güçlerini R ile kullan; düşme ve ateş direnci pasifi sürekli aktiftir."));
         } else if (data.powerClass() == PowerClass.WARDEN && data.unlockedLevel() >= 4) {
             player.sendSystemMessage(Component.literal("Sculk Avı aç/kapat değildir; 4. gücü seçip R ile kullan."));
         } else if (data.powerClass() == PowerClass.FIRE) {
@@ -573,17 +617,16 @@ public final class PowerSystem {
 
     public static void tryRocketlessLaunch(ServerPlayer player, PlayerPowerData data) {
         long now = player.level().getGameTime();
-        if (data.powerClass() != PowerClass.FLIGHT || data.unlockedLevel() < 2
-            || data.temporaryElytraUntil() <= now || !player.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA)) return;
+        if (data.powerClass() != PowerClass.FLIGHT || data.unlockedLevel() < 1) return;
         long last = LAST_SKY_IMPACT.getOrDefault(player.getUUID(), Long.MIN_VALUE / 2);
-        if (now - last < 30L) return;
-        Vec3 look = player.getLookAngle();
-        player.setDeltaMovement(look.x * 1.25, 1.15, look.z * 1.25);
+        if (now - last < 24L) return;
+        Vec3 look = player.getLookAngle().normalize();
+        player.setDeltaMovement(look.scale(data.dragonFormUntil() > now ? 1.65 : 1.18).add(0.0, 0.28, 0.0));
         player.hurtMarked = true;
         player.fallDistance = 0.0F;
         LAST_SKY_IMPACT.put(player.getUUID(), now);
         ServerLevel level = (ServerLevel) player.level();
-        level.sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY(), player.getZ(), 18, 0.45, 0.20, 0.45, 0.07);
+        level.sendParticles(ParticleTypes.DRAGON_BREATH, player.getX(), player.getY() + 0.7, player.getZ(), 22, 0.48, 0.35, 0.48, 0.06);
     }
 
     private static void removeTemporaryElytra(ServerPlayer player, PlayerPowerData data) {
@@ -622,7 +665,7 @@ public final class PowerSystem {
                     }
                 }
                 drawRing(level, player.position(), radius, charged ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, charged ? 96 : 68);
-                level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ATTACK_IMPACT, SoundSource.PLAYERS, 1.5F, 0.72F);
+                level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.5F, 0.72F);
                 data.setCooldown(2, now, Math.max(360, 600 - stage * 60));
                 return true;
             }
@@ -665,42 +708,138 @@ public final class PowerSystem {
     private static boolean useFlight(ServerPlayer player, PlayerPowerData data, int power, long now, boolean charged) {
         ServerLevel level = (ServerLevel) player.level();
         int stage = data.masteryStage(power);
+        boolean formBoost = data.dragonFormUntil() > now || data.classAwakeningActive(now);
         switch (power) {
             case 1 -> {
-                data.togglePassive();
-                data.setCooldown(1, now, 40);
-                player.sendSystemMessage(Component.literal("Hafif Beden: " + (data.passiveEnabled() ? "AÇIK" : "KAPALI")));
+                double distance = (formBoost ? 15.0 : 12.0) + stage;
+                Vec3 direction = player.getLookAngle().normalize();
+                Vec3 start = player.position();
+                Vec3 best = start;
+                for (double step = 0.75; step <= distance; step += 0.75) {
+                    Vec3 candidate = start.add(direction.scale(step));
+                    if (!level.noCollision(player, player.getBoundingBox().move(candidate.subtract(start)))) break;
+                    best = candidate;
+                }
+                Vec3 delta = best.subtract(start);
+                int trailSteps = Math.max(2, (int) Math.ceil(delta.length() * 2.0));
+                for (int i = 1; i <= trailSteps; i++) {
+                    Vec3 point = start.add(delta.scale(i / (double) trailSteps)).add(0.0, 0.9, 0.0);
+                    level.sendParticles(i % 2 == 0 ? ParticleTypes.DRAGON_BREATH : ParticleTypes.WITCH, point.x, point.y, point.z, 3, 0.22, 0.35, 0.22, 0.01);
+                }
+                for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().expandTowards(delta).inflate(1.3))) {
+                    if (target == player || protectedAlly(player, target)) continue;
+                    target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(7.0F + stage * 1.5F, charged || formBoost));
+                    Vec3 push = direction.scale(0.9 + stage * 0.12);
+                    target.push(push.x, 0.25, push.z);
+                }
+                player.setPos(best.x, best.y, best.z);
+                player.setDeltaMovement(direction.scale(0.58).add(0.0, Math.max(0.0, direction.y * 0.35), 0.0));
+                player.hurtMarked = true;
+                player.fallDistance = 0.0F;
+                level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0F, 1.25F);
+                ServerNetworking.sendScreenShake(level, player.position(), 22.0, 0.65F, 7);
+                data.setCooldown(1, now, Math.max(75, 130 - stage * 12));
                 return true;
             }
             case 2 -> {
-                ItemStack chest = player.getItemBySlot(EquipmentSlot.CHEST);
-                if (!chest.isEmpty()) {
-                    player.sendSystemMessage(Component.literal("Gökyüzü Kanatları için göğüs zırhı yuvasını boşaltmalısın."));
-                    return false;
+                Vec3 origin = player.getEyePosition();
+                Vec3 look = player.getLookAngle().normalize();
+                double range = formBoost ? 18.0 : 14.0;
+                for (int i = 1; i <= (int) (range * 2.0); i++) {
+                    double d = i * 0.5;
+                    Vec3 point = origin.add(look.scale(d));
+                    double spread = 0.12 + d * 0.055;
+                    level.sendParticles(ParticleTypes.DRAGON_BREATH, point.x, point.y, point.z, formBoost ? 7 : 4, spread, spread, spread, 0.015);
+                    if (i % 3 == 0) level.sendParticles(ParticleTypes.WITCH, point.x, point.y, point.z, 2, spread * 0.6, spread * 0.6, spread * 0.6, 0.01);
                 }
-                int duration = AncientChargeSystem.duration(460 + stage * 110, charged);
-                player.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.ELYTRA));
-                data.setTemporaryElytraUntil(now + duration);
-                data.setChargedTemporaryElytra(charged);
-                data.setCooldown(2, now, Math.max(620, 920 - stage * 90));
-                player.setDeltaMovement(player.getLookAngle().scale(charged ? 1.45 : 1.05).add(0.0, charged ? 1.10 : 0.82, 0.0));
-                player.hurtMarked = true;
-                if (charged) AncientChargeSystem.emitChargedBurst(level, player.position().add(0.0, 1.0, 0.0), PowerClass.FLIGHT, 1.45);
+                AABB coneBox = player.getBoundingBox().expandTowards(look.scale(range)).inflate(range * 0.45);
+                for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, coneBox)) {
+                    if (target == player || protectedAlly(player, target)) continue;
+                    Vec3 to = target.getEyePosition().subtract(origin);
+                    double dist = to.length();
+                    if (dist <= 0.01 || dist > range || look.dot(to.normalize()) < 0.72) continue;
+                    target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(8.0F + stage * 1.8F, charged || formBoost));
+                    target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 80 + stage * 15, 1, false, true, true));
+                }
+                level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ROAR, SoundSource.PLAYERS, 1.25F, 1.35F);
+                data.setCooldown(2, now, Math.max(150, 250 - stage * 24));
                 return true;
             }
             case 3 -> {
-                launchFlightSpear(player, stage, charged, false);
-                data.setCooldown(3, now, Math.max(100, 170 - stage * 15));
+                int duration = AncientChargeSystem.duration(130 + stage * 25, charged || formBoost);
+                data.setDragonScalesUntil(now + duration);
+                level.sendParticles(ParticleTypes.DRAGON_BREATH, player.getX(), player.getY() + 1.0, player.getZ(), 58, 0.95, 1.05, 0.95, 0.045);
+                level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 1.15F, 0.72F);
+                data.setCooldown(3, now, Math.max(360, 560 - stage * 45));
                 return true;
             }
             case 4 -> {
-                launchSkyBomb(player, stage, charged, false, null);
-                data.setCooldown(4, now, Math.max(260, 390 - stage * 35));
+                UUID existing = DRAGON_CLAW_TARGET.get(player.getUUID());
+                long until = DRAGON_CLAW_UNTIL.getOrDefault(player.getUUID(), 0L);
+                if (existing != null && until > now) {
+                    Entity entity = level.getEntity(existing);
+                    if (entity instanceof LivingEntity target && target.isAlive()) {
+                        Vec3 throwDirection = player.getLookAngle().normalize();
+                        target.setDeltaMovement(throwDirection.scale(formBoost ? 2.2 : 1.65).add(0.0, 0.55, 0.0));
+                        target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(8.0F + stage * 1.4F, charged || formBoost));
+                        target.hurtMarked = true;
+                        level.sendParticles(ParticleTypes.DRAGON_BREATH, target.getX(), target.getY() + 0.8, target.getZ(), 42, 0.55, 0.7, 0.55, 0.055);
+                    }
+                    clearDragonClaw(player.getUUID());
+                    data.setCooldown(4, now, Math.max(300, 430 - stage * 35));
+                    return true;
+                }
+                LivingEntity target = findLookTarget(player, formBoost ? 24.0 : 18.0);
+                if (target == null || protectedAlly(player, target)) {
+                    player.sendSystemMessage(Component.literal("Avcı Pençesi için hedef bulunamadı."));
+                    return false;
+                }
+                DRAGON_CLAW_TARGET.put(player.getUUID(), target.getUUID());
+                DRAGON_CLAW_UNTIL.put(player.getUUID(), now + (formBoost ? 110L : 80L));
+                target.setDeltaMovement(Vec3.ZERO);
+                level.sendParticles(ParticleTypes.WITCH, target.getX(), target.getY() + 1.0, target.getZ(), 54, 0.7, 0.9, 0.7, 0.06);
+                player.sendSystemMessage(Component.literal("Hedef yakalandı. Avcı Pençesini tekrar kullanarak fırlat."));
                 return true;
             }
             case 5 -> {
-                launchSkyCataclysm(player, stage, charged);
-                data.setCooldown(5, now, Math.max(900, 1250 - stage * 90));
+                double radius = formBoost ? 16.0 : 12.0;
+                for (LivingEntity target : nearbyLiving(player, radius)) {
+                    if (target == player || protectedAlly(player, target)) continue;
+                    target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(6.0F + stage * 1.4F, charged || formBoost));
+                    Vec3 push = target.position().subtract(player.position());
+                    if (push.lengthSqr() > 0.0001) {
+                        push = push.normalize().scale(formBoost ? 1.75 : 1.25);
+                        target.push(push.x, 0.42, push.z);
+                    }
+                    if (target instanceof ServerPlayer targetPlayer) {
+                        DRAGON_SILENCE_UNTIL.put(targetPlayer.getUUID(), now + (formBoost ? 100L : 70L));
+                    }
+                }
+                for (Projectile projectile : level.getEntitiesOfClass(Projectile.class, player.getBoundingBox().inflate(radius))) {
+                    if (projectile.getOwner() == player) continue;
+                    Vec3 away = projectile.position().subtract(player.position());
+                    if (away.lengthSqr() > 0.0001) projectile.setDeltaMovement(away.normalize().scale(1.35));
+                    projectile.setOwner(player);
+                }
+                drawRing(level, player.position(), radius, ParticleTypes.DRAGON_BREATH, formBoost ? 110 : 78);
+                level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ROAR, SoundSource.PLAYERS, 1.8F, 0.68F);
+                ServerNetworking.sendScreenShake(level, player.position(), 38.0, formBoost ? 1.8F : 1.25F, 18);
+                data.setCooldown(5, now, Math.max(520, 760 - stage * 55));
+                return true;
+            }
+            case 6 -> {
+                int duration = AncientChargeSystem.duration(280 + stage * 35, charged);
+                data.setDragonFormUntil(now + duration);
+                if (!player.isCreative() && !player.isSpectator()) {
+                    player.getAbilities().mayfly = true;
+                    player.onUpdateAbilities();
+                }
+                player.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration, 2, false, true, true));
+                level.sendParticles(ParticleTypes.DRAGON_BREATH, player.getX(), player.getY() + 1.0, player.getZ(), 120, 1.35, 1.25, 1.35, 0.075);
+                level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 65, 1.1, 1.0, 1.1, 0.055);
+                level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_ROAR, SoundSource.PLAYERS, 2.0F, 0.55F);
+                ServerNetworking.sendScreenShake(level, player.position(), 42.0, 1.9F, 22);
+                data.setCooldown(6, now, Math.max(1450, 2050 - stage * 150));
                 return true;
             }
             default -> { return false; }
@@ -874,8 +1013,8 @@ public final class PowerSystem {
         if (data.powerClass() == PowerClass.WARDEN && power == 2) {
             data.beginCombo(2, now, 80);
             announceComboReady(player, data);
-        } else if (data.powerClass() == PowerClass.FLIGHT && power == 3) {
-            data.beginCombo(3, now, 80);
+        } else if (data.powerClass() == PowerClass.FLIGHT && power == 2) {
+            data.beginCombo(2, now, 80);
             announceComboReady(player, data);
         }
         // Ateş işareti küre çarpınca, Doğa işareti kapanın gerçek merkezinde başlatılır.
@@ -914,11 +1053,13 @@ public final class PowerSystem {
                 yield true;
             }
             case FLIGHT -> {
-                Vec3 center = findGroundPoint((ServerLevel) player.level(), player.position().add(horizontalDirection(player.getLookAngle()).scale(10.0)));
-                launchSkyBomb(player, stage, charged, true, center);
-                data.setCooldown(4, now, Math.max(300, 440 - stage * 30));
-                player.sendSystemMessage(Component.literal("GÖKSEL BOMBARDIMAN!"));
-                yield true;
+                boolean used = useFlight(player, data, 5, now, true);
+                if (used) {
+                    useFlight(player, data, 2, now, true);
+                    data.setCooldown(5, now, Math.max(620, 860 - stage * 45));
+                    player.sendSystemMessage(Component.literal("MOR EJDERHA FIRTINASI!"));
+                }
+                yield used;
             }
             case ANOMALY -> false;
             default -> false;
@@ -944,6 +1085,13 @@ public final class PowerSystem {
         data.setAwakeningUntil(0L);
         data.setFireRingUntil(0L);
         data.setNatureTreeUntil(0L);
+        data.setDragonScalesUntil(0L);
+        data.setDragonFormUntil(0L);
+        if (!player.isCreative() && !player.isSpectator() && player.getAbilities().mayfly) {
+            player.getAbilities().mayfly = false;
+            player.getAbilities().flying = false;
+            player.onUpdateAbilities();
+        }
         data.setChargedWardenHunt(false);
         data.setChargedAwakening(false);
         data.setChargedFireRing(false);
@@ -1046,7 +1194,7 @@ public final class PowerSystem {
         }
         seed.level.sendParticles(seed.charged ? ParticleTypes.WITCH : ParticleTypes.COMPOSTER,
             center.x, center.y + 0.7, center.z, seed.charged ? 180 : 105, radius * 0.72, 1.4, radius * 0.72, 0.09);
-        seed.level.playSound(null, baseCenter, SoundEvents.WARDEN_ATTACK_IMPACT, SoundSource.PLAYERS, 1.4F, 0.72F);
+        seed.level.playSound(null, baseCenter, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.4F, 0.72F);
         ServerNetworking.sendScreenShake(seed.level, center, seed.charged ? 34.0 : 24.0, seed.charged ? 1.45F : 1.0F, seed.charged ? 20 : 14);
     }
 
@@ -1430,6 +1578,8 @@ public final class PowerSystem {
                 if (owner != null) {
                     PlayerPowerData data = PlayerDataStore.get(owner.getUUID());
                     data.setNatureTreeUntil(0L);
+        data.setDragonScalesUntil(0L);
+        data.setDragonFormUntil(0L);
                     PlayerDataStore.markDirty();
                 }
                 iterator.remove();
@@ -2279,6 +2429,9 @@ public final class PowerSystem {
         TIME_SHAPES.clear();
         TIME_HISTORY.clear();
         LAST_FLIGHT_POSITION.clear();
+        DRAGON_CLAW_TARGET.clear();
+        DRAGON_CLAW_UNTIL.clear();
+        DRAGON_SILENCE_UNTIL.clear();
         AncientChargeSystem.clearPendingBeams();
     }
 
@@ -2416,7 +2569,21 @@ public final class PowerSystem {
         PlayerDataStore.markDirty();
     }
 
-    private static String formatSeconds(int ticks) {
+    private static boolean isDragonSilenced(ServerPlayer player, long now) {
+        long until = DRAGON_SILENCE_UNTIL.getOrDefault(player.getUUID(), 0L);
+        if (until <= now) {
+            DRAGON_SILENCE_UNTIL.remove(player.getUUID());
+            return false;
+        }
+        return true;
+    }
+
+    private static void clearDragonClaw(UUID playerId) {
+        DRAGON_CLAW_TARGET.remove(playerId);
+        DRAGON_CLAW_UNTIL.remove(playerId);
+    }
+
+    public static String formatSeconds(int ticks) {
         return String.format(java.util.Locale.ROOT, "%.1f", ticks / 20.0);
     }
 

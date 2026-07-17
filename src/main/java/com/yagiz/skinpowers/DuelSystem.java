@@ -115,6 +115,8 @@ public final class DuelSystem {
         player.fallDistance = 0.0F;
         PlayerPowerData data = PlayerDataStore.get(player.getUUID());
         data.resetAllCooldowns(now);
+        data.setAwakeningEnergy(0.0F);
+        data.finishClassAwakening();
         AncientChargeSystem.clearSilently(player);
         ServerNetworking.sync(player);
     }
@@ -245,6 +247,15 @@ public final class DuelSystem {
         player.hurtMarked = true;
         PlayerPowerData data = PlayerDataStore.get(player.getUUID());
         data.resetAllCooldowns(level.getGameTime());
+        data.setAwakeningEnergy(0.0F);
+        data.finishClassAwakening();
+        data.setDragonFormUntil(0L);
+        data.setDragonScalesUntil(0L);
+        if (!player.isCreative() && !player.isSpectator() && player.getAbilities().mayfly) {
+            player.getAbilities().mayfly = false;
+            player.getAbilities().flying = false;
+            player.onUpdateAbilities();
+        }
         ServerNetworking.sync(player);
     }
 

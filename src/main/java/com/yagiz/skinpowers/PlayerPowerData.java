@@ -20,6 +20,12 @@ public final class PlayerPowerData {
     private long wardenHuntUntil = 0L;
     private long natureTreeUntil = 0L;
 
+    // 1.0.6: Kadim Ejderha ve tüm sınıfların enerjiye bağlı Uyanış Formu.
+    private long dragonScalesUntil = 0L;
+    private long dragonFormUntil = 0L;
+    private float awakeningEnergy = 0.0F;
+    private long classAwakeningUntil = 0L;
+
     // 4.1 Kombo modu ve kısa süreli kombinasyon penceresi.
     private boolean comboModeEnabled = false;
     private int comboStarterPower = 0;
@@ -76,6 +82,11 @@ public final class PlayerPowerData {
     public long temporaryElytraUntil() { return temporaryElytraUntil; }
     public long wardenHuntUntil() { return wardenHuntUntil; }
     public long natureTreeUntil() { return natureTreeUntil; }
+    public long dragonScalesUntil() { return dragonScalesUntil; }
+    public long dragonFormUntil() { return dragonFormUntil; }
+    public float awakeningEnergy() { return Math.max(0.0F, Math.min(100.0F, awakeningEnergy)); }
+    public long classAwakeningUntil() { return classAwakeningUntil; }
+    public boolean classAwakeningActive(long gameTime) { return classAwakeningUntil > gameTime; }
     public boolean comboModeEnabled() { return comboModeEnabled; }
     public int comboStarterPower() { return comboStarterPower; }
     public long comboExpiresAt() { return comboExpiresAt; }
@@ -142,6 +153,10 @@ public final class PlayerPowerData {
         temporaryElytraUntil = 0L;
         wardenHuntUntil = 0L;
         natureTreeUntil = 0L;
+        dragonScalesUntil = 0L;
+        dragonFormUntil = 0L;
+        awakeningEnergy = 0.0F;
+        classAwakeningUntil = 0L;
         comboModeEnabled = false;
         clearCombo();
         ancientChargeStartedAt = 0L;
@@ -395,6 +410,24 @@ public final class PlayerPowerData {
     public void setTemporaryElytraUntil(long value) { temporaryElytraUntil = value; }
     public void setWardenHuntUntil(long value) { wardenHuntUntil = value; }
     public void setNatureTreeUntil(long value) { natureTreeUntil = value; }
+    public void setDragonScalesUntil(long value) { dragonScalesUntil = Math.max(0L, value); }
+    public void setDragonFormUntil(long value) { dragonFormUntil = Math.max(0L, value); }
+    public void setClassAwakeningUntil(long value) { classAwakeningUntil = Math.max(0L, value); }
+    public void setAwakeningEnergy(float value) { awakeningEnergy = Math.max(0.0F, Math.min(100.0F, value)); }
+    public void addAwakeningEnergy(float value) {
+        if (classAwakeningUntil > 0L || value <= 0.0F) return;
+        awakeningEnergy = Math.max(0.0F, Math.min(100.0F, awakeningEnergy + value));
+    }
+    /** Çubuktaki enerjinin tamamını süreye dönüştürür. %100 = 24 saniye. */
+    public int beginClassAwakening(long gameTime) {
+        float energy = awakeningEnergy();
+        if (energy < 20.0F || classAwakeningActive(gameTime)) return 0;
+        int durationTicks = Math.max(96, Math.round(energy * 4.8F));
+        awakeningEnergy = 0.0F;
+        classAwakeningUntil = gameTime + durationTicks;
+        return durationTicks;
+    }
+    public void finishClassAwakening() { classAwakeningUntil = 0L; }
     public void setChargedAwakening(boolean value) { chargedAwakening = value; }
     public void setChargedFireRing(boolean value) { chargedFireRing = value; }
     public void setChargedTemporaryElytra(boolean value) { chargedTemporaryElytra = value; }

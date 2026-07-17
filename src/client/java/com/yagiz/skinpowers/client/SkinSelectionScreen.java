@@ -10,12 +10,12 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 
 public final class SkinSelectionScreen extends Screen {
-    private static final String[] TITLES = {"WARDEN", "UÇUŞ", "ATEŞ", "DOĞA", "ANOMALİ"};
-    private static final String[] SUBTITLES = {"Derinliğin gücü", "Gökyüzünün özgürlüğü", "Alevin hâkimiyeti", "Ormanın yaşamı", "Gerçekliğin hatası"};
+    private static final String[] TITLES = {"WARDEN", "KADİM EJDERHA", "ATEŞ", "DOĞA", "ANOMALİ"};
+    private static final String[] SUBTITLES = {"Derinliğin gücü", "Mor kıyametin kanatları", "Alevin hâkimiyeti", "Ormanın yaşamı", "Gerçekliğin hatası"};
     private static final PowerClass[] CLASSES = {PowerClass.WARDEN, PowerClass.FLIGHT, PowerClass.FIRE, PowerClass.NATURE, PowerClass.ANOMALY};
-    private static final int[] TOP_COLORS = {0xFF07111C, 0xFF74BDE8, 0xFF5B0B08, 0xFF102B13, 0xFF05010B};
-    private static final int[] BOTTOM_COLORS = {0xFF16384B, 0xFFEAF8FF, 0xFFFF6B18, 0xFF4C8B3C, 0xFF291248};
-    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFFFFFFF, 0xFFFFC22E, 0xFF74E36D, 0xFFB65CFF};
+    private static final int[] TOP_COLORS = {0xFF07111C, 0xFF08020F, 0xFF5B0B08, 0xFF102B13, 0xFF05010B};
+    private static final int[] BOTTOM_COLORS = {0xFF16384B, 0xFF451070, 0xFFFF6B18, 0xFF4C8B3C, 0xFF291248};
+    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFCE72FF, 0xFFFFC22E, 0xFF74E36D, 0xFFB65CFF};
 
     private final long openedAt = Util.getMillis();
     private SkinAnalyzer.Result result = SkinAnalyzer.Result.unavailable();
@@ -181,7 +181,7 @@ public final class SkinSelectionScreen extends Screen {
         graphics.enableScissor(x + 2, y + 2, x + w - 2, artBottom);
         switch (index) {
             case 0 -> drawAncientCity(graphics, x, y, w, artBottom - y, now);
-            case 1 -> drawClouds(graphics, x, y, w, artBottom - y, now);
+            case 1 -> drawDragonStorm(graphics, x, y, w, artBottom - y, now);
             case 2 -> drawLavaCave(graphics, x, y, w, artBottom - y, now);
             case 3 -> drawForest(graphics, x, y, w, artBottom - y, now);
             case 4 -> drawAnomalyGlitch(graphics, x, y, w, artBottom - y, now);
@@ -207,7 +207,7 @@ public final class SkinSelectionScreen extends Screen {
         if (recommended || secondRecommended) {
             String recommendedText = recommended ? "1. ÖNERİ" : "2. ÖNERİ";
             graphics.fill(x + 5, y + 6, x + 5 + font.width(recommendedText) + 7, y + 19, withAlpha(ACCENTS[index], recommended ? 180 : 125));
-            graphics.text(font, recommendedText, x + 9, y + 8, index == 1 ? 0xFF183348 : 0xFFFFFFFF, true);
+            graphics.text(font, recommendedText, x + 9, y + 8, 0xFFFFFFFF, true);
         }
     }
 
@@ -320,28 +320,56 @@ public final class SkinSelectionScreen extends Screen {
         g.fill(cx + 3, top + 12, cx + 7, top + 16, 0xFFE7FFFF);
     }
 
-    private void drawClouds(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
-        int drift = (int) ((now / 45L) % Math.max(1, w));
-        for (int i = -1; i < 4; i++) {
-            int cx = x + ((i * 43 + drift) % (w + 50)) - 25;
-            int cy = y + 20 + (i & 1) * 27;
-            g.fill(cx, cy, cx + 38, cy + 9, 0xBFFFFFFF);
-            g.fill(cx + 9, cy - 7, cx + 27, cy + 11, 0xD8FFFFFF);
+    private void drawDragonStorm(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
+        g.fillGradient(x, y, x + w, y + h, 0xFF05010B, 0xFF411063);
+        int drift = ClientConfig.get().animatedBackgrounds() ? (int) ((now / 34L) % Math.max(1, w + 60)) : 0;
+        // Mor fırtına bulutları ve uzaktaki dağlar.
+        for (int i = -1; i < 5; i++) {
+            int cx = x + ((i * 47 + drift) % (w + 70)) - 35;
+            int cy = y + 13 + (i & 1) * 18;
+            g.fill(cx, cy, cx + 43, cy + 8, 0x493D175A);
+            g.fill(cx + 9, cy - 6, cx + 31, cy + 10, 0x603F1B60);
+        }
+        int ground = y + h - 15;
+        g.fill(x, ground, x + w, y + h, 0xFF09050F);
+        for (int i = 0; i < 5; i++) {
+            int mx = x + i * Math.max(12, w / 4) - 6;
+            int mh = 12 + (i % 3) * 8;
+            g.fill(mx, ground - mh, mx + Math.max(16, w / 3), ground, i % 2 == 0 ? 0xFF140A20 : 0xFF21102E);
         }
 
-        // Kartın merkezinde belirgin Elytra kanatları.
         int cx = x + w / 2;
-        int cy = y + h / 2 + 7;
-        int flap = (int) Math.round(Math.sin(now / 230.0) * 3.0);
-        g.fill(cx - 4, cy - 20, cx + 4, cy + 20, 0xFF3E596A);
-        g.fill(cx - 29, cy - 20 + flap, cx - 5, cy - 12 + flap, 0xFF6E8594);
-        g.fill(cx + 5, cy - 20 + flap, cx + 29, cy - 12 + flap, 0xFF6E8594);
-        g.fill(cx - 25, cy - 11 + flap, cx - 5, cy + 1 + flap, 0xFF8CA2AE);
-        g.fill(cx + 5, cy - 11 + flap, cx + 25, cy + 1 + flap, 0xFF8CA2AE);
-        g.fill(cx - 19, cy, cx - 5, cy + 14, 0xFFB9CBD4);
-        g.fill(cx + 5, cy, cx + 19, cy + 14, 0xFFB9CBD4);
-        g.outline(cx - 29, cy - 20 + flap, 24, 34, 0xDFFFFFFF);
-        g.outline(cx + 5, cy - 20 + flap, 24, 34, 0xDFFFFFFF);
+        int cy = y + Math.max(37, h / 2 + 2);
+        int flap = ClientConfig.get().menuAnimations() ? (int) Math.round(Math.sin(now / 210.0) * 4.0) : 0;
+        int pulse = 150 + (int) ((Math.sin(now / 170.0) + 1.0) * 45.0);
+
+        // Büyük ejderha gölgesi, boynuzlar, baş ve kuyruk.
+        g.fill(cx - 7, cy - 23, cx + 7, cy + 20, 0xE90B0611);
+        g.fill(cx - 13, cy - 25, cx - 4, cy - 18, 0xFF170721);
+        g.fill(cx + 4, cy - 25, cx + 13, cy - 18, 0xFF170721);
+        g.fill(cx - 4, cy + 16, cx + 4, cy + 34, 0xD713071D);
+
+        // Katmanlı mor enerji kanatları.
+        g.fill(cx - 38, cy - 18 + flap, cx - 7, cy - 10 + flap, 0xC14B1370);
+        g.fill(cx + 7, cy - 18 + flap, cx + 38, cy - 10 + flap, 0xC14B1370);
+        g.fill(cx - 32, cy - 9 + flap, cx - 7, cy + 3 + flap, 0xD16B1A98);
+        g.fill(cx + 7, cy - 9 + flap, cx + 32, cy + 3 + flap, 0xD16B1A98);
+        g.fill(cx - 24, cy + 2 + flap, cx - 7, cy + 16 + flap, 0xE68D37C1);
+        g.fill(cx + 7, cy + 2 + flap, cx + 24, cy + 16 + flap, 0xE68D37C1);
+        g.outline(cx - 38, cy - 18 + flap, 31, 34, withAlpha(0xFFDCA1FF, pulse));
+        g.outline(cx + 7, cy - 18 + flap, 31, 34, withAlpha(0xFFDCA1FF, pulse));
+
+        // Parlayan gözler ve göğüs çekirdeği.
+        g.fill(cx - 6, cy - 18, cx - 2, cy - 14, 0xFFFFFFFF);
+        g.fill(cx + 2, cy - 18, cx + 6, cy - 14, 0xFFFFFFFF);
+        g.fill(cx - 3, cy - 4, cx + 3, cy + 4, withAlpha(0xFFE9B6FF, pulse));
+
+        // İnce mor yıldırım çizgileri; foto-hassasiyet modunda sabit ve daha soluk.
+        if (!ClientConfig.get().photosensitiveMode()) {
+            int bolt = (int) ((now / 120L) % Math.max(1, w));
+            g.fill(x + bolt, y + 6, x + bolt + 2, y + 21, 0x8FDFA6FF);
+            g.fill(x + bolt - 5, y + 20, x + bolt + 2, y + 23, 0x7FC56CFF);
+        }
     }
 
     private void drawLavaCave(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {

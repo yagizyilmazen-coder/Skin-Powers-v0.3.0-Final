@@ -3,7 +3,7 @@ package com.yagiz.skinpowers;
 public enum PowerClass {
     NONE("Sınıf seçilmedi"),
     WARDEN("Warden"),
-    FLIGHT("Uçuş"),
+    FLIGHT("Kadim Ejderha"),
     FIRE("Ateş"),
     NATURE("Doğa"),
     ANOMALY("Anomali");
@@ -23,6 +23,7 @@ public enum PowerClass {
         String normalized = value.toUpperCase(java.util.Locale.ROOT);
         // 1.0.3 ve önceki kayıtlardaki Zaman sınıfı, 1.0.4'te Anomaliye taşınır.
         if (normalized.equals("TIME") || normalized.equals("ZAMAN")) return ANOMALY;
+        if (normalized.equals("DRAGON") || normalized.equals("EJDERHA") || normalized.equals("KADIM_EJDERHA")) return FLIGHT;
         try {
             return PowerClass.valueOf(normalized);
         } catch (IllegalArgumentException ignored) {

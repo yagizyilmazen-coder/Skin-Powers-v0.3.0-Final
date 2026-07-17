@@ -3,13 +3,14 @@ package com.yagiz.skinpowers;
 public final class PowerCatalog {
     public static final int[] XP_COSTS = {5, 15, 30, 40, 50};
     public static final int[] NATURE_XP_COSTS = {10, 20, 30, 40, 50};
+    public static final int[] DRAGON_XP_COSTS = {10, 20, 30, 40, 55, 70};
     public static final int[] ANOMALY_XP_COSTS = {10, 20, 30, 40, 50, 70};
     public static final int WARDEN_ANCIENT_CHARGE_XP = 70;
 
     private static final String[][] NAMES = {
         {"-", "-", "-", "-", "-", "-"},
         {"Warden Zırhı", "Yer Sarsıntısı", "Sonik Patlama", "Sculk Avı", "Warden Uyanışı", "Şarj Et Beni Antik Şehir"},
-        {"Hafif Beden", "Gökyüzü Kanatları", "Gök Mızrağı", "Gökyüzü Bombası", "Göksel Kıyamet", "-"},
+        {"Ejderha Atılışı", "Ejderha Nefesi", "Kadim Pullar", "Avcı Pençesi", "Kadim Kükreme", "Ejderha Hükümdarı"},
         {"Ateş Bağışıklığı", "Alevli Yakın Dövüş", "Ateş Çemberi", "Cehennem Küresi", "Meteor Yağmuru", "-"},
         {"Doğanın Canı", "Dikenli Tohum", "Sarmaşık Kapanı", "Yaşam Ağacı", "Kadim Orman Hükmü", "-"},
         {"Kırık Adım", "Tersine Çevir", "?", "Hasar Mevcut Değil", "Varlıktan Çıkar", "404: Gerçeklik Bulunamadı"}
@@ -26,12 +27,12 @@ public final class PowerCatalog {
             "Dört sculk kolu hedefe Antik Şehir enerjisi aktarır; çömelerek kendine uygulayabilirsin."
         },
         {
-            "Düşme hasarını azaltır; çömelirken yavaş düşersin.",
-            "Göğüs yuvasına süreli Elytra takar ve havada hızlanmanı sağlar.",
-            "Havada net görünen uzun bir rüzgâr mızrağı fırlatır.",
-            "Kavisle düşen görünür gökyüzü çekirdeği geniş hava patlaması oluşturur.",
-            "Altı büyük hava mızrağını hedef alana indirip dev basınç kubbesi oluşturur.",
-            ""
+            "Yerde veya havada 12-15 blok ileri atılır; yolundakileri mor kanat enerjisiyle savurur.",
+            "Geniş bir konide blok yakmayan mor ejderha enerjisi üfler ve hedefleri zayıflatır.",
+            "Kadim mor pullar hasarı azaltır, savrulmayı önler ve yakındaki mermileri geri sektirir.",
+            "Hedefi mor enerji pençesiyle yakalar; ikinci kullanımda baktığın yöne fırlatır.",
+            "Geniş kükreme dalgası düşmanları savurur, mermileri bozar ve oyuncuların güçlerini kısa süre susturur.",
+            "Mor enerji kanatları açar; uçuş, güç, hız ve güçlendirilmiş Ejderha saldırıları kazandırır."
         },
         {
             "Ateş ve lav hasarına karşı sürekli koruma.",
@@ -62,7 +63,7 @@ public final class PowerCatalog {
     private PowerCatalog() {}
 
     public static int maxLevel(PowerClass powerClass) {
-        return powerClass == PowerClass.WARDEN || powerClass == PowerClass.ANOMALY ? 6 : 5;
+        return powerClass == PowerClass.WARDEN || powerClass == PowerClass.FLIGHT || powerClass == PowerClass.ANOMALY ? 6 : 5;
     }
 
     public static String powerName(PowerClass powerClass, int oneBasedLevel) {
@@ -83,6 +84,7 @@ public final class PowerCatalog {
         if (level < 1 || level > maxLevel(powerClass)) return Integer.MAX_VALUE;
         if (powerClass == PowerClass.WARDEN && level == 6) return WARDEN_ANCIENT_CHARGE_XP;
         if (powerClass == PowerClass.ANOMALY) return ANOMALY_XP_COSTS[level - 1];
+        if (powerClass == PowerClass.FLIGHT) return DRAGON_XP_COSTS[level - 1];
         int[] costs = powerClass == PowerClass.NATURE ? NATURE_XP_COSTS : XP_COSTS;
         return costs[level - 1];
     }
@@ -90,7 +92,7 @@ public final class PowerCatalog {
     public static int comboStarterPower(PowerClass powerClass) {
         return switch (powerClass) {
             case WARDEN -> 2;
-            case FLIGHT -> 3;
+            case FLIGHT -> 2;
             case FIRE -> 4;
             case NATURE -> 3;
             default -> 0;
@@ -100,7 +102,7 @@ public final class PowerCatalog {
     public static int comboFinisherPower(PowerClass powerClass) {
         return switch (powerClass) {
             case WARDEN -> 3;
-            case FLIGHT -> 4;
+            case FLIGHT -> 5;
             case FIRE -> 5;
             case NATURE -> 2;
             default -> 0;
@@ -110,7 +112,7 @@ public final class PowerCatalog {
     public static String comboName(PowerClass powerClass) {
         return switch (powerClass) {
             case WARDEN -> "Sonik Fay";
-            case FLIGHT -> "Göksel Bombardıman";
+            case FLIGHT -> "Mor Ejderha Fırtınası";
             case FIRE -> "Cehennem Felaketi";
             case NATURE -> "Diken Ormanı";
             default -> "-";

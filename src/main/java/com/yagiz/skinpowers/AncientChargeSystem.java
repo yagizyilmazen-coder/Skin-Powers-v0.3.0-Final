@@ -118,7 +118,8 @@ public final class AncientChargeSystem {
     public static boolean isUsableCharge(PlayerPowerData data, long now, int power) {
         if (!data.ancientChargeReady(now) || power == 6) return false;
         return switch (data.powerClass()) {
-            case FLIGHT, FIRE, NATURE -> power != 1;
+            case FLIGHT -> true;
+            case FIRE, NATURE -> power != 1;
             case WARDEN, ANOMALY -> true;
             default -> false;
         };
@@ -488,7 +489,7 @@ public final class AncientChargeSystem {
         }
         ParticleOptions classParticle = switch (PlayerDataStore.get(player.getUUID()).powerClass()) {
             case FIRE -> ParticleTypes.FLAME;
-            case FLIGHT -> ParticleTypes.CLOUD;
+            case FLIGHT -> ParticleTypes.DRAGON_BREATH;
             case NATURE -> ParticleTypes.HAPPY_VILLAGER;
             case ANOMALY -> ParticleTypes.END_ROD;
             default -> ParticleTypes.SCULK_SOUL;
@@ -518,7 +519,7 @@ public final class AncientChargeSystem {
         drawRing(level, center, Math.max(0.8, spread * 0.78), ParticleTypes.WITCH, 20);
         ParticleOptions original = switch (powerClass) {
             case FIRE -> ParticleTypes.FLAME;
-            case FLIGHT -> ParticleTypes.CLOUD;
+            case FLIGHT -> ParticleTypes.DRAGON_BREATH;
             case NATURE -> ParticleTypes.HAPPY_VILLAGER;
             case ANOMALY -> ParticleTypes.END_ROD;
             default -> ParticleTypes.SONIC_BOOM;

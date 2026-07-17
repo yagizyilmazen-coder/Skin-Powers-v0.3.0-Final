@@ -1,7 +1,7 @@
 {
   "key.category.skinpowers.controls": "Skin Powers",
   "key.skinpowers.active": "Aktif gücü kullan",
-  "key.skinpowers.toggle": "Yavaş Düşüş/yardımcı özelliği kullan",
+  "key.skinpowers.toggle": "Sınıfa özel yardımcı özelliği kullan",
   "key.skinpowers.previous": "Önceki güç",
   "key.skinpowers.next": "Sonraki güç",
   "key.skinpowers.menu": "Güç menüsünü aç",
@@ -10,14 +10,15 @@
   "screen.skinpowers.skip": "Taramayı Geç",
   "screen.skinpowers.select": "SEÇ",
   "class.skinpowers.warden": "WARDEN",
-  "class.skinpowers.flight": "UÇUŞ",
+  "class.skinpowers.flight": "KADİM EJDERHA",
   "class.skinpowers.fire": "ATEŞ",
   "class.skinpowers.nature": "DOĞA",
   "modmenu.nameTranslation.skinpowers": "Skin Powers",
-  "modmenu.descriptionTranslation.skinpowers": "Skin renklerinden Warden, Uçuş, Ateş, Doğa ve Anomali güçleri seç.",
+  "modmenu.descriptionTranslation.skinpowers": "Skin renklerinden Warden, Kadim Ejderha, Ateş, Doğa ve Anomali güçleri seç.",
   "modmenu.summaryTranslation.skinpowers": "Skin tabanlı beş güç sınıfı ve Anomali gerçeklik güçleri.",
   "key.skinpowers.combo": "Kombo Modu",
   "class.skinpowers.anomaly": "ANOMALİ",
   "key.skinpowers.anomaly_health": "Anomali: depolanan hasarı kalbe çevir",
-  "key.skinpowers.anomaly_return": "Anomali: depolanan hasarı geri gönder"
+  "key.skinpowers.anomaly_return": "Anomali: depolanan hasarı geri gönder",
+  "key.skinpowers.awakening": "Uyanış Formu"
 }

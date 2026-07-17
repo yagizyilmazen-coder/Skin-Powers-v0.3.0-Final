@@ -1,17 +1,17 @@
-# Skin Powers 1.0.5 doğrulama notu
+# Skin Powers 1.0.6 doğrulama notu
 
-## Otomatik geçen kontroller
+Bu paket için aşağıdaki kontroller otomatik yapılır:
 
-- Bütün JSON kaynakları ayrıştırıldı.
-- Ana ve istemci Java kaynaklarının parantez/sınıf yapısı denetlendi.
-- Minecraft bağımlılığı olmayan çekirdek sınıflar gerçek `javac` ile derlendi.
-- Anomali VI, güç açıklamaları, kopya kaydı, hasar deposu, üç dakikalık ek kalpler, Hata Payı süresi ve düello cooldown sıfırlaması test edildi.
-- İkinci skin önerisinin seçilebildiği ve altıncı menü satırı animasyonunun yüzde 100'e ulaştığı test edildi.
-- Eski `TIME/ZAMAN` kayıtlarını `ANOMALY` değerine dönüştüren geçiş kodu kontrol edildi.
-- Güç çarpışması, düello, dünya olayı ve 404 iç saldırı geri çevirme kodlarının gerekli giriş noktaları tarandı.
-- `/skinpower` kökünde doğrudan sınıf seçimi bulunmadığı kontrol edildi.
-- ZIP oluşturulduktan sonra arşiv bütünlüğü ayrıca denetlenecektir.
+- Temel Gradle, Fabric, kaynak ve GitHub Actions dosyalarının varlığı.
+- Bütün JSON dosyalarının ayrıştırılması.
+- Sürüm, artifact ve JAR adlarının 1.0.6 olması.
+- Kadim Ejderha'nın altı adı, açıklaması, komutları ve eski FLIGHT kayıt uyumluluğu.
+- Uyanış enerjisi, yüzdeye bağlı süre, G tuşu, HUD senkronizasyonu ve beş form adı.
+- Düello filtresi, komutları ve Uyanış başlangıç sıfırlaması.
+- Anomali, güç çarpışması, dünya olayı ve trigger sistemlerinin korunması.
+- Sınıf kart PNG dosyalarının varlığı, 288×512 boyutu ve dosya bütünlüğü.
+- Tüm Java dosyalarında kaba sözdizimi/parantez dengesi.
+- Minecraft bağımlılığı olmayan çekirdek sınıfların gerçek `javac` derlemesi ve davranış testi.
+- ZIP arşiv bütünlüğü paket oluşturulduktan sonra ayrıca kontrol edilir.
 
-## Son derleme sınırı
-
-Bu çalışma ortamında Java 25 ile Minecraft/Fabric bağımlılıklarını kullanan tam `gradle clean build` çalıştırılamadı. Tam derleme, paketteki GitHub Actions iş akışında Java 25 ve Gradle 9.5.1 ile yapılır. Kırmızı çarpı oluşursa Actions günlük ZIP'i gerçek derleyici hatasını gösterir.
+Bu çalışma ortamında Java 25, Gradle 9.5.1 ve Minecraft/Fabric bağımlılıkları birlikte bulunmadığından tam `gradle clean build` burada çalıştırılamaz. Son API ve tam derleme kontrolü GitHub Actions sonucudur; bu yüzden hiçbir hata çıkmayacağı kesin olarak garanti edilmez.

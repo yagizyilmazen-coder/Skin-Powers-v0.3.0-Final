@@ -76,6 +76,8 @@ public final class ServerNetworking {
             AnomalySystem.chooseStoredDamage(player, data, true);
         } else if (command.equals("ANOMALY_RETURN")) {
             AnomalySystem.chooseStoredDamage(player, data, false);
+        } else if (command.equals("AWAKEN")) {
+            AwakeningSystem.activate(player, data);
         } else {
             return;
         }
@@ -134,9 +136,25 @@ public final class ServerNetworking {
             (int) Math.max(0L, data.anomalyChoiceUntil() - gameTime),
             data.anomalyStoredDamage(),
             (int) Math.max(0L, data.anomalyBonusHealthUntil() - gameTime),
-            data.anomalyBonusHealth()
+            data.anomalyBonusHealth(),
+            (int) Math.max(0L, data.dragonScalesUntil() - gameTime),
+            (int) Math.max(0L, data.dragonFormUntil() - gameTime),
+            data.awakeningEnergy(),
+            (int) Math.max(0L, data.classAwakeningUntil() - gameTime),
+            DuelSystem.isInDuel(player.getUUID())
         );
         ServerPlayNetworking.send(player, new ServerStatePayload(GSON.toJson(state)));
+    }
+
+    public static void sendCastAnimation(ServerLevel level, Vec3 center, PowerClass powerClass, int power) {
+        double radius = 36.0;
+        double radiusSquared = radius * radius;
+        float strength = Math.max(0.45F, Math.min(1.8F, 0.45F + power * 0.18F));
+        int duration = Math.max(6, Math.min(18, 6 + power * 2));
+        for (ServerPlayer player : level.players()) {
+            if (player.position().distanceToSqr(center) > radiusSquared) continue;
+            ServerPlayNetworking.send(player, new ClientEffectPayload("CAST_" + powerClass.name(), strength, duration));
+        }
     }
 
     public static void sendScreenShake(ServerLevel level, Vec3 center, double radius, float strength, int durationTicks) {
@@ -176,6 +194,11 @@ public final class ServerNetworking {
         int anomalyChoiceTicks,
         float anomalyStoredDamage,
         int anomalyBonusHealthTicks,
-        double anomalyBonusHealth
+        double anomalyBonusHealth,
+        int dragonScalesTicks,
+        int dragonFormTicks,
+        float awakeningEnergy,
+        int classAwakeningTicks,
+        boolean duelActive
     ) {}
 }

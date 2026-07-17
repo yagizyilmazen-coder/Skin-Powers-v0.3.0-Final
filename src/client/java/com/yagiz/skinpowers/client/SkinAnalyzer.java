@@ -31,7 +31,7 @@ public final class SkinAnalyzer {
         {6, 12, 18}, {17, 29, 48}, {31, 26, 67}, {63, 27, 88}, {15, 61, 78}, {25, 126, 132}
     };
     private static final int[][] FLIGHT_COLORS = {
-        {248, 250, 255}, {205, 216, 228}, {157, 207, 235}, {188, 190, 200}, {105, 176, 226}
+        {15, 4, 24}, {48, 8, 72}, {83, 18, 122}, {128, 45, 181}, {190, 91, 244}, {229, 174, 255}
     };
     private static final int[][] FIRE_COLORS = {
         {235, 35, 20}, {246, 96, 13}, {255, 181, 24}, {173, 20, 9}, {249, 221, 54}
@@ -80,7 +80,7 @@ public final class SkinAnalyzer {
                 if (skinUrl == null) return Result.unavailable();
                 HttpRequest request = HttpRequest.newBuilder(URI.create(skinUrl))
                     .timeout(Duration.ofSeconds(10))
-                    .header("User-Agent", "SkinPowers/1.0.5")
+                    .header("User-Agent", "SkinPowers/1.0.6")
                     .GET()
                     .build();
                 HttpResponse<byte[]> response = sendBytesWithRetry(request, 2);
@@ -209,12 +209,12 @@ public final class SkinAnalyzer {
         double hue = hueDegrees(r, g, b);
 
         if (max < 0.34 && (b >= r * 0.82 || hue >= 220.0 && hue <= 310.0)) warden = Math.max(warden, 0.72);
-        if (max > 0.68 && saturation < 0.30) flight = Math.max(flight, 0.72);
-        if (max > 0.68 && hue >= 198.0 && hue <= 230.0 && saturation < 0.55) flight = Math.max(flight, 0.68);
+        if (hue >= 245.0 && hue <= 286.0 && saturation > 0.38 && max > 0.22) flight = Math.max(flight, 0.76);
+        if (hue >= 286.0 && hue <= 306.0 && saturation > 0.34 && max > 0.30) flight = Math.max(flight, 0.66);
         if (saturation > 0.42 && max > 0.30 && (hue <= 35.0 || hue >= 345.0)) fire = Math.max(fire, 0.78);
         if (saturation > 0.28 && max > 0.20 && hue >= 72.0 && hue <= 155.0) nature = Math.max(nature, 0.75);
         if (r > g && g > b && hue >= 22.0 && hue <= 52.0 && max < 0.72 && saturation > 0.22) nature = Math.max(nature, 0.58);
-        if (hue >= 272.0 && hue <= 322.0 && saturation > 0.46 && max > 0.30) anomaly = Math.max(anomaly, 0.72);
+        if (hue >= 305.0 && hue <= 334.0 && saturation > 0.56 && max > 0.38) anomaly = Math.max(anomaly, 0.68);
         if (hue >= 174.0 && hue <= 194.0 && saturation > 0.48 && max > 0.48) anomaly = Math.max(anomaly, 0.64);
         if ((hue <= 10.0 || hue >= 350.0) && saturation > 0.68 && max > 0.62) anomaly = Math.max(anomaly, 0.57);
         if (max < 0.15 || max > 0.88 && saturation < 0.10) anomaly = Math.min(anomaly, 0.38);
@@ -265,7 +265,7 @@ public final class SkinAnalyzer {
         String profileName = extractProfileName(profile);
         if (profileName == null || profileName.isBlank() || !profileName.matches("[A-Za-z0-9_]{1,16}")) return null;
         HttpRequest nameRequest = HttpRequest.newBuilder(URI.create("https://api.mojang.com/users/profiles/minecraft/" + profileName))
-            .timeout(Duration.ofSeconds(8)).header("User-Agent", "SkinPowers/1.0.5").GET().build();
+            .timeout(Duration.ofSeconds(8)).header("User-Agent", "SkinPowers/1.0.6").GET().build();
         HttpResponse<String> nameResponse = sendStringWithRetry(nameRequest, 2);
         if (nameResponse == null || nameResponse.statusCode() < 200 || nameResponse.statusCode() >= 300 || nameResponse.body().isBlank()) return null;
         JsonObject profileJson = JsonParser.parseString(nameResponse.body()).getAsJsonObject();
@@ -279,7 +279,7 @@ public final class SkinAnalyzer {
     private static String findSkinUrlForUuid(UUID profileId, HttpClient client) throws Exception {
         String compactUuid = profileId.toString().replace("-", "");
         HttpRequest request = HttpRequest.newBuilder(URI.create("https://sessionserver.mojang.com/session/minecraft/profile/" + compactUuid + "?unsigned=false"))
-            .timeout(Duration.ofSeconds(8)).header("User-Agent", "SkinPowers/1.0.5").GET().build();
+            .timeout(Duration.ofSeconds(8)).header("User-Agent", "SkinPowers/1.0.6").GET().build();
         HttpResponse<String> response = sendStringWithRetry(request, 2);
         if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) return null;
         JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();

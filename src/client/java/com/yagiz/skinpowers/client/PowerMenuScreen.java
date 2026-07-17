@@ -150,7 +150,7 @@ public final class PowerMenuScreen extends Screen {
         graphics.fill(badgeX, badgeY, badgeX + badgeSize, badgeY + badgeSize, unlocked ? withAlpha(colors[2], selected ? 200 : 95) : 0xFF222A31);
         graphics.outline(badgeX, badgeY, badgeSize, badgeSize, unlocked ? colors[2] : 0xFF59636C);
         String roman = roman(level);
-        graphics.text(font, roman, badgeX + (badgeSize - font.width(roman)) / 2, badgeY + Math.max(4, (badgeSize - 8) / 2), powerClass == PowerClass.FLIGHT && unlocked ? 0xFF173448 : 0xFFFFFFFF, true);
+        graphics.text(font, roman, badgeX + (badgeSize - font.width(roman)) / 2, badgeY + Math.max(4, (badgeSize - 8) / 2), 0xFFFFFFFF, true);
 
         int buttonReserve = layout.listWidth() < 330 ? 96 : 118;
         int textX = badgeX + badgeSize + 10;
@@ -278,11 +278,14 @@ public final class PowerMenuScreen extends Screen {
             graphics.fill(x + 12, y + 7, x + 16, y + 11, 0xFFFFFFFF);
             graphics.fill(x + 20, y + 7, x + 24, y + 11, 0xFFFFFFFF);
         } else if (powerClass == PowerClass.FLIGHT) {
-            graphics.fill(x + 14, y + 4, x + 22, y + 29, accent);
-            graphics.fill(x, y + 5, x + 15, y + 13, withAlpha(accent, 170));
-            graphics.fill(x + 21, y + 5, x + 36, y + 13, withAlpha(accent, 170));
-            graphics.fill(x + 4, y + 13, x + 15, y + 21, withAlpha(accent, 110));
-            graphics.fill(x + 21, y + 13, x + 32, y + 21, withAlpha(accent, 110));
+            graphics.fill(x + 14, y + 7, x + 22, y + 29, 0xFF12051B);
+            graphics.fill(x + 2, y + 4, x + 15, y + 12, withAlpha(accent, 210));
+            graphics.fill(x + 21, y + 4, x + 34, y + 12, withAlpha(accent, 210));
+            graphics.fill(x + 6, y + 12, x + 15, y + 22, withAlpha(0xFFE5B6FF, 170));
+            graphics.fill(x + 21, y + 12, x + 30, y + 22, withAlpha(0xFFE5B6FF, 170));
+            graphics.fill(x + 11, y + 1, x + 15, y + 8, 0xFF5B1A81);
+            graphics.fill(x + 21, y + 1, x + 25, y + 8, 0xFF5B1A81);
+            graphics.fill(x + 16, y + 11, x + 20, y + 15, 0xFFFFFFFF);
         } else if (powerClass == PowerClass.FIRE) {
             graphics.fill(x + 11, y + 12, x + 27, y + 29, accent);
             graphics.fill(x + 15, y + 5, x + 24, y + 18, withAlpha(accent, 210));
@@ -302,9 +305,9 @@ public final class PowerMenuScreen extends Screen {
     }
 
     private String controlHint(PowerClass powerClass, int level) {
-        if (powerClass == PowerClass.FLIGHT && level == 1) return "R veya Y: aç/kapat";
-        if (powerClass == PowerClass.FLIGHT && level == 3) return "R veya çift boşluk";
-        if (powerClass == PowerClass.FLIGHT && level == 5) return "R: Göksel Kıyamet";
+        if (powerClass == PowerClass.FLIGHT && level == 1) return "R: atıl • çift boşluk: hava hamlesi";
+        if (powerClass == PowerClass.FLIGHT && level == 4) return "R: yakala • tekrar R: fırlat";
+        if (powerClass == PowerClass.FLIGHT && level == 6) return "R: Ejderha Hükümdarı";
         if (powerClass == PowerClass.WARDEN && level == 6) return "R: başka oyuncuya ışın";
         if (powerClass == PowerClass.FIRE && (level == 1 || level == 2)) return "Otomatik";
         if (powerClass == PowerClass.ANOMALY && level == 3) return ClientState.copiedPowerName().isBlank() ? "R: hamle bekle" : "R: çalınan hamleyi kullan";
@@ -313,11 +316,11 @@ public final class PowerMenuScreen extends Screen {
     }
 
     private String activeStatus(PowerClass powerClass, int level) {
-        if (powerClass == PowerClass.FLIGHT && level == 1) {
-            return ClientState.passiveEnabled() ? "Yavaş Düşüş açık" : "Yavaş Düşüş kapalı";
+        if (powerClass == PowerClass.FLIGHT && level == 3 && ClientState.dragonScalesTicks() > 0) {
+            return String.format(java.util.Locale.ROOT, "Kadim Pullar %.1f sn", ClientState.dragonScalesTicks() / 20.0);
         }
-        if (powerClass == PowerClass.FLIGHT && level == 2 && ClientState.temporaryElytraTicks() > 0) {
-            return String.format(java.util.Locale.ROOT, "Elytra %.1f sn", ClientState.temporaryElytraTicks() / 20.0);
+        if (powerClass == PowerClass.FLIGHT && level == 6 && ClientState.dragonFormTicks() > 0) {
+            return String.format(java.util.Locale.ROOT, "Ejderha Hükümdarı %.1f sn", ClientState.dragonFormTicks() / 20.0);
         }
         if (powerClass == PowerClass.WARDEN && level == 6) {
             return "20 sn • tek güç • 120 sn bekleme";
@@ -348,11 +351,16 @@ public final class PowerMenuScreen extends Screen {
                 g.fill(x, y, x + 4, y + 11, withAlpha(accent, 55 + (i % 3) * 20));
             }
         } else if (powerClass == PowerClass.FLIGHT) {
+            int motion = ClientConfig.get().animatedBackgrounds() ? drift : 0;
             for (int i = -1; i < 7; i++) {
-                int x = ((i * 145 + drift) % (width + 180)) - 90;
-                int y = 80 + (i % 4) * 78;
-                g.fill(x, y, x + 82, y + 12, 0x30FFFFFF);
-                g.fill(x + 20, y - 8, x + 58, y + 14, 0x24FFFFFF);
+                int x = ((i * 145 + motion) % (width + 180)) - 90;
+                int y = 78 + (i % 4) * 72;
+                g.fill(x, y, x + 88, y + 11, 0x284D176B);
+                g.fill(x + 18, y - 8, x + 61, y + 13, 0x22351452);
+                if (i % 2 == 0 && !ClientConfig.get().photosensitiveMode()) {
+                    g.fill(x + 44, y + 12, x + 46, y + 32, 0x55DCA1FF);
+                    g.fill(x + 38, y + 30, x + 46, y + 33, 0x44B65CFF);
+                }
             }
         } else if (powerClass == PowerClass.WARDEN) {
             for (int i = 0; i < 18; i++) {
@@ -460,7 +468,7 @@ public final class PowerMenuScreen extends Screen {
     private static int[] theme(PowerClass powerClass) {
         return switch (powerClass) {
             case WARDEN -> new int[]{0xFF010409, 0xFF0A2430, 0xFF35D7D0};
-            case FLIGHT -> new int[]{0xFF2F719D, 0xFFBFE8FF, 0xFFF1FBFF};
+            case FLIGHT -> new int[]{0xFF05010B, 0xFF351052, 0xFFCE72FF};
             case FIRE -> new int[]{0xFF170201, 0xFF7C1608, 0xFFFFA51F};
             case NATURE -> new int[]{0xFF071008, 0xFF315A2A, 0xFF72D86A};
             case ANOMALY -> new int[]{0xFF05010B, 0xFF261044, 0xFFB65CFF};

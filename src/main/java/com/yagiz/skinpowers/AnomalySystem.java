@@ -313,7 +313,7 @@ public final class AnomalySystem {
     public static boolean isCopyable(PowerClass powerClass, int power) {
         return switch (powerClass) {
             case WARDEN -> power >= 1 && power <= 6;
-            case FLIGHT -> power >= 2 && power <= 5;
+            case FLIGHT -> power >= 1 && power <= 6;
             case FIRE -> power >= 3 && power <= 5;
             case NATURE -> power >= 2 && power <= 5;
             default -> false;

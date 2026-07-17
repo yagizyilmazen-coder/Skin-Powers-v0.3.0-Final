@@ -1,26 +1,18 @@
-# Skin Powers 1.0.5 özellik durumu
+# Skin Powers 1.0.6 özellik durumu
 
-## Hazır
+## Hazır sistemler
+- Warden, Kadim Ejderha, Ateş, Doğa ve Anomali sınıfları.
+- Skin renk analizi ve yalnızca ilk iki öneriyi seçme kuralı.
+- Altı seviyeye kadar sınıf güçleri, XP, ustalık ve cooldown kayıtları.
+- Kadim Ejderha'nın altı gücü ve mor temalı pasifi.
+- Beş sınıf için enerjiye bağlı Uyanış Formları.
+- Animasyonlu sınıf kartları, sınıf temalı menüler ve istemci efektleri.
+- Ayrıntılı Mod Menu istemci ayarları.
+- Güvenli düellolar, güç çarpışmaları, dünya olayları ve trigger komutları.
+- Anomali `?`, Hasar Mevcut Değil, V/X seçimi ve 404 sistemi.
+- Eski `TIME/ZAMAN` kayıtlarının Anomaliye, eski `FLIGHT` kayıtlarının Kadim Ejderhaya uyumlu yüklenmesi.
 
-- Warden, Uçuş, Ateş, Doğa ve Anomali sınıfları korunmuştur.
-- Kırık Adım koşu yönünü kullanır, daha uzağa gider, eğimli zeminde güvenli konum arar ve çıkış momentumunu korur.
-- Hasar Mevcut Değil; mob, oyuncu, mermi, patlama, ateş ve mod güçlerinin normal hasarını depolar.
-- 404 alanı yakın/ışın hasarını saldırana geri yollar; gerçek Minecraft mermilerini dondurup sahibine geri gönderir.
-- Meteor, Cehennem Küresi, Doğa Tohumu, Kök Dalgası, Uçuş Mızrağı ve Gök Bombası 404 alanında durur ve kapanışta eski saldırgana yönelir.
-- Güç çarpışmaları büyük güçleri kısa bir zaman penceresinde karşılaştırır; eşitse iki devam eden saldırıyı, değilse zayıf olanı temizler.
-- Güvenli düello isteği, kabul, reddetme ve teslim olma komutları vardır.
-- Düelloda dış hasar engellenir; gerçek ölüm/eşya kaybı olmaz ve süre sonunda oyuncular başlangıç konumuna döner.
-- Beş blok-kırmayan dünya olayı vardır ve yönetici komutuyla başlatılabilir.
-- Warden titreşim algısı ve Anomali Hata Payı dâhil sınıf pasifleri uygulanmıştır.
-- Warden şarj bildirimi iki küçük satırdır ve sol üst HUD'dan uzaktadır.
-- Komut biçimi `/skinpower degistir <sinif>` şeklindedir.
-- Eski TIME/ZAMAN oyuncu kayıtları Anomaliye taşınır.
-
-## Gerçek oyun içinde özellikle sınanması gerekenler
-
-- İki oyuncunun aynı anda seviye 3–6 güç kullanarak güç çarpışması oluşturması.
-- Düelloda ölümün iptal edilmesi, eşya düşmemesi ve dışarıdaki oyuncuların zarar verememesi.
-- 404 alanında vanilla Warden yakın saldırısı/sonik saldırısı ile bütün hareketli mod saldırılarının geri dönüşü.
-- Dünya olaylarının Overworld, Nether ve çok oyunculu sunucudaki etkileri.
-- V/X tuşlarının oyuncunun özel tuş ayarlarıyla çakışıp çakışmadığı.
-- Farklı GUI ölçeklerinde HUD yerleşimi.
+## Teknik not
+- Kod içindeki `FLIGHT` enum adı eski dünya kayıtlarını kırmamak için korunur; oyuncuya gösterilen ad Kadim Ejderha'dır.
+- Mod Menu görüntü ayarları istemciye özeldir. Sunucu tarafı meteor blok hasarı yönetici komutuyla kontrol edilir.
+- Gerçek son Minecraft/Fabric derlemesi GitHub Actions'ta Java 25 ve Gradle 9.5.1 ile yapılır.

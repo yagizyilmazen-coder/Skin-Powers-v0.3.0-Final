@@ -1,58 +1,71 @@
-# Skin Powers 1.0.5
+# Skin Powers 1.0.6
 
-Minecraft Java Edition 26.1.2 için Fabric güç modu.
+Skin Powers, oyuncunun Minecraft skinindeki renkleri analiz ederek uygun güç sınıfları öneren Fabric modudur. İlk seçimde bütün sınıflar görünür; gerçek skin analizi başarılıysa yalnızca en yüksek ve ikinci en yüksek öneri seçilebilir.
 
-## 1.0.5 ana değişiklikleri
+## 1.0.6 ana değişiklikleri
 
-- **Kırık Adım** koşarken çalışır, daha uzağa gider ve eğimli zeminde güvenli iniş noktası arar.
-- **Hasar Mevcut Değil** mob, oyuncu, mermi, patlama ve mod güçlerinden gelen hasarı depolar.
-- **404**; Warden saldırıları dâhil alan içindeki hasarı saldırana geri yollar. Minecraft mermileri ile Meteor, Cehennem Küresi, Doğa Tohumu, Kök Dalgası, Uçuş Mızrağı ve Gök Bombası havada durur; alan kapanınca saldırıyı yapan kişiye geri döner.
-- Büyük güçler yakın zamanda ve yakın mesafede kullanılırsa **güç çarpışması** oluşur. Zayıf saldırının devam eden parçaları temizlenir.
-- Güvenli **sınıf düelloları** eklendi. Düelloda gerçek ölüm ve eşya kaybı olmaz; dışarıdaki oyuncular ve moblar karışamaz.
-- Beş **dünya olayı** eklendi: Sculk Uyanışı, Meteor Fırtınası, Gökyüzü Yarığı, Kadim Çiçeklenme ve Gerçeklik Çatlağı.
-- Küçük sınıf pasifleri tamamlandı. Warden hareket titreşimlerini hisseder; Uçuş yavaş düşer; Ateş yanmaz; Doğa doğal zeminde toparlanır; Anomali on dakikada bir ölümcül sonucu reddedebilir.
-- Eski `TIME/ZAMAN` oyuncu kayıtları Anomaliye taşınmaya devam eder.
-- Sınıf değiştirme yalnızca `/skinpower degistir <sinif>` üzerinden yapılır.
+- Eski **Uçuş/Kuş sınıfı**, kayıtlar bozulmadan **Kadim Ejderha** sınıfına dönüştürüldü.
+- Beş sınıf için hasar alıp verdikçe dolan **Uyanış çubuğu** eklendi. `G` ile etkinleşir; çubuk ne kadar doluysa form o kadar uzun sürer. Sabit üç dakikalık bekleme yoktur.
+- Başlangıç sınıf kartları, sınıf renkleri, arka planları ve giriş animasyonları yenilendi.
+- Güç kullanımlarına hazırlık/çarpışma hissi veren sınıfa özel parçacıklar, ekran kenarı parlaması ve ayarlanabilir sarsıntılar eklendi.
+- Mod Menu ayar ekranı HUD, Animasyon ve Erişilebilirlik sekmelerine ayrıldı.
+- Düello sistemi korunup Uyanış sistemiyle uyumlu hâle getirildi.
+- Anomali, güç çarpışmaları, dünya olayları ve trigger saldırıları korunmuştur.
 
-## Anomali güçleri
+## Güç sınıfları
 
-1. **Kırık Adım — 10 XP:** baktığın yöne kırılarak sıçrar, yolundaki düşmanlara hasar verir.
-2. **Tersine Çevir — 20 XP:** hedefin hareketini, mermilerini ve saldırısının bir bölümünü tersine çevirir.
-3. **? — 30 XP:** 30 blok içindeki rakibin son kopyalanabilir aktif gücünü yakalar. Hamle bir kez kullanılınca tekrar `?` olur.
-4. **Hasar Mevcut Değil — 40 XP:** 5 saniyelik hasarı depolar. Sonra küçük HUD seçimi çıkar:
-   - `V`: hasarın yarısını en fazla 5 yeni kırmızı kalp kapasitesine dönüştürür. Toplam sınır 10 ek kalptir; süre 3 dakikadır. Yeni kalp yuvaları boş gelir ve normal kırmızı kalpler gibi yemek/iyileşme ile dolar.
-   - `X`: depolanan hasarın tamamını nişangâhtaki hedefe geri gönderir.
-5. **Varlıktan Çıkar — 50 XP:** hedefi kısa süre savaştan çıkarır; döndüğünde savunması kırılır.
-6. **404: Gerçeklik Bulunamadı — 70 XP:** geniş gerçeklik alanı açar; düşmanları bozar, mermileri ters çevirir ve oyuncuyu bir kez ölümden döndürür.
+### Warden
+Warden Zırhı, Yer Sarsıntısı, Sonik Patlama, Sculk Avı, Warden Uyanışı ve Antik Şehir Şarjı.
 
-Anomali güçleri blok yerleştirmez veya dünyayı güç görseli için değiştirmez.
+**Sınıf Uyanışı:** Antik Şehir Uyanışı
 
-## Tuşlar
+### Kadim Ejderha
 
-- `R`: seçili aktif gücü kullan
-- `Sol / Sağ Ok`: güç değiştir
-- `O`: güç menüsü
-- `Y`: sınıfa bağlı yardımcı özellik
-- `K`: Warden, Uçuş, Ateş ve Doğa kombo modu
-- `V`: Anomali depolanmış hasarını kalbe çevir
-- `X`: Anomali depolanmış hasarını geri gönder
+1. **Ejderha Atılışı:** Yerde veya havada uzun mor atılış; yolundakilere hasar ve savurma.
+2. **Ejderha Nefesi:** Blok yakmayan geniş mor enerji konisi.
+3. **Kadim Pullar:** Hasar azaltma ve yakındaki mermileri geri sektirme.
+4. **Avcı Pençesi:** Hedefi yakalama; ikinci kullanımda baktığın yöne fırlatma.
+5. **Kadim Kükreme:** Alan hasarı, savurma, mermi bozma ve kısa güç susturma.
+6. **Ejderha Hükümdarı:** Mor enerji kanatları, serbest uçuş, güç ve hız.
 
-## Komutlar
+**Pasif:** Düşme hasarını engeller ve ateşe dayanıklılık verir.  
+**Sınıf Uyanışı:** Mor Kıyamet
 
-Oyuncunun kendi sınıfını değiştirmesi:
+Eski kayıtlardaki `FLIGHT` değeri korunur; oyuncunun XP, seviyesi ve ustalığı silinmez. Komut adı artık `ejderha`dır.
 
-```text
-/skinpower degistir warden
-/skinpower degistir ucus
-/skinpower degistir ates
-/skinpower degistir alev
-/skinpower degistir doga
-/skinpower degistir anomali
-```
+### Ateş
+Ateş bağışıklığı, alevli yakın dövüş, Ateş Çemberi, Cehennem Küresi ve Meteor Yağmuru.
 
-Sınıf adları `/skinpower` kökünde doğrudan görünmez; önce `degistir` seçilmelidir.
+**Sınıf Uyanışı:** Cehennem Çekirdeği
 
-Düello komutları:
+### Doğa
+Doğanın Canı, Dikenli Tohum, Sarmaşık Kapanı, Yaşam Ağacı ve Kadim Orman Hükmü.
+
+**Sınıf Uyanışı:** Kadim Orman
+
+### Anomali
+Kırık Adım, Tersine Çevir, `?`, Hasar Mevcut Değil, Varlıktan Çıkar ve 404: Gerçeklik Bulunamadı.
+
+- `?`, yakındaki rakibin son uygun aktif gücünü tek kullanımlık olarak saklar.
+- Hasar Mevcut Değil aktifken alınan hasar moblar, oyuncular ve uygun çevresel kaynaklardan depolanır.
+- `V`, depolanan hasarın yarısını üç dakikalık gerçek kırmızı maksimum kalplere çevirir.
+- `X`, depolanan hasarı baktığın hedefe geri gönderir.
+
+**Sınıf Uyanışı:** Sistem Çökmesi
+
+## Uyanış Formları
+
+Uyanış enerjisi:
+
+- Oyuncu herhangi bir geçerli kaynaktan hasar aldığında dolar.
+- Oyuncu moblara veya başka oyunculara hasar verdiğinde dolar.
+- Tek büyük vuruş çubuğu anında tamamen dolduramaz.
+- Form etkinken yeni enerji birikmez.
+- Çubuk en az `%20` doluyken `G` ile kullanılabilir.
+- `%100` enerji yaklaşık 24 saniyelik forma karşılık gelir; daha az enerji daha kısa süre verir.
+- Sabit tekrar bekleme süresi yoktur. Form bittikten sonra yeniden savaşarak doldurulur.
+
+## Düello
 
 ```text
 /skinpower duello <oyuncu>
@@ -61,50 +74,65 @@ Düello komutları:
 /skinpower duello bitir
 ```
 
-Dünya olayı durumunu görmek:
+Düello başladığında can, açlık ve güç bekleme süreleri hazırlanır; Uyanış çubukları boş başlar ve dövüş sırasında dolar. Üçüncü kişiler düellodakilere zarar veremez, güçler düello dışındaki hedeflere taşmaz, eşyalar düşmez ve bitince oyuncular başlangıç yerlerine döner.
+
+## Tuşlar
+
+- `R`: Seçili aktif gücü kullan
+- `Sol / Sağ Ok`: Güç değiştir
+- `O`: Güç menüsü
+- `Y`: Sınıfa özel yardımcı işlev
+- `K`: Kombo modu
+- `G`: Uyanış Formu
+- `V`: Anomali depolanmış hasarını kalbe dönüştür
+- `X`: Anomali depolanmış hasarını geri gönder
+- `Çift Boşluk`: Kadim Ejderha hava atılışı
+
+## Mod Menu ayarları
+
+### HUD
+HUD ölçeği ve tarafı, dikey konum, bildirim ölçeği, Uyanış çubuğu ve kompakt görünüm.
+
+### Animasyon
+Menü animasyonları, kart hızı, parçacık yoğunluğu, parlama, hareketli arka plan, kart derinliği, skin tarama çizgisi ve ekran sarsıntısı.
+
+### Erişilebilirlik
+Performans modu, birinci şahıs efekt azaltma ve foto-hassasiyet modu.
+
+Ayarlar `config/skinpowers-client.json` dosyasında saklanır.
+
+## Komut örnekleri
 
 ```text
-/skinpower olay
-```
+/skinpower degistir warden
+/skinpower degistir ejderha
+/skinpower degistir ates
+/skinpower degistir doga
+/skinpower degistir anomali
 
-Yönetici komutları:
-
-```text
-/skinpower admin degistir <oyuncu> <sinif>
-/skinpower admin reset <oyuncu>
-/skinpower admin meteor blokhasari <true|false>
-/skinpower admin olay baslat <sculk|meteor|gok|doga|anomali|rastgele>
-/skinpower admin olay durdur
-/skinpower admin sarj ver <oyuncu> <saniye>
-/skinpower admin sarj temizle <oyuncu>
-```
-
-### Yönetici saldırı tetikleme komutu
-
-Sınıfı değiştirmeden ve cooldown beklemeden saldırı test etmek için:
-
-```text
 /skinpower trigger meteor
 /skinpower trigger meteor_charged
-/skinpower trigger sonic
-/skinpower trigger sky_bomb_charged
+/skinpower trigger dragon_breath
+/skinpower trigger dragon_roar
+/skinpower trigger dragon_form
 ```
 
-`_charged` son eki saldırının Antik Şehir ile güçlendirilmiş sürümünü çağırır. `trigger` dalı yalnızca operatör/moderatör yetkisine açıktır.
+Sınıf adları doğrudan `/skinpower warden` biçiminde çalışmaz; önce `degistir` yazılmalıdır. Trigger komutları moderatör/operatör yetkisi gerektirir.
+
+## Gereksinimler
+
+- Minecraft Java Edition 26.1.2
+- Fabric Loader 0.19.3
+- Fabric API 0.154.2+26.1.2
+- Java 25
+- Mod Menu isteğe bağlıdır; ayar ekranını açmayı kolaylaştırır.
 
 ## GitHub Actions ile JAR
 
-1. ZIP'i **Tümünü Ayıkla** ile açın.
-2. İçindeki dosyaları GitHub Desktop'taki proje ana klasörüne kopyalayın.
-3. Değişiklikleri commit edip **Push origin** yapın.
-4. GitHub'da **Actions → Fabric JAR Derle** işleminin yeşil tamamlanmasını bekleyin.
-5. `skinpowers-1.0.5-jar` artifact'ini indirin.
-6. İçindeki `skinpowers-1.0.5.jar` dosyasını Minecraft `mods` klasörüne koyun.
+1. Proje dosyalarını deponun ana dizinine kopyalayın.
+2. GitHub Desktop'ta commit ve `Push origin` yapın.
+3. GitHub'da **Actions → Fabric JAR Derle** çalışmasını açın.
+4. Yeşil tamamlanınca `skinpowers-1.0.6-jar` artifact'ini indirin.
+5. İçindeki `skinpowers-1.0.6.jar` dosyasını Minecraft `mods` klasörüne koyun.
 
-## Sürüm hedefleri
-
-- Minecraft Java Edition `26.1.2`
-- Fabric Loader `0.19.3`
-- Fabric API `0.154.2+26.1.2`
-- Java `25`
-- Gradle `9.5.1`
+Eski Skin Powers JAR'larını aynı anda `mods` klasöründe bırakmayın.
