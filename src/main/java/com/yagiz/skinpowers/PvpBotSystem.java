@@ -43,23 +43,21 @@ public final class PvpBotSystem {
     private PvpBotSystem() {}
 
     public enum BotDifficulty {
-        EASY("Kolay", 0.82, 45L, 0.78F, 32.0F),
-        NORMAL("Normal", 1.0, 32L, 1.0F, 42.0F),
-        HARD("Zor", 1.18, 23L, 1.20F, 56.0F),
-        NIGHTMARE("Kâbus", 1.36, 16L, 1.42F, 72.0F);
+        EASY("Kolay", 52L, 0.68F, 0.45F),
+        NORMAL("Normal", 38L, 0.84F, 0.68F),
+        HARD("Zor", 28L, 0.94F, 0.86F),
+        NIGHTMARE("Kâbus", 22L, 0.98F, 0.96F);
 
         private final String displayName;
-        private final double speed;
         private final long reactionTicks;
-        private final float damageMultiplier;
-        private final float health;
+        private final float aimAccuracy;
+        private final float tacticalChance;
 
-        BotDifficulty(String displayName, double speed, long reactionTicks, float damageMultiplier, float health) {
+        BotDifficulty(String displayName, long reactionTicks, float aimAccuracy, float tacticalChance) {
             this.displayName = displayName;
-            this.speed = speed;
             this.reactionTicks = reactionTicks;
-            this.damageMultiplier = damageMultiplier;
-            this.health = health;
+            this.aimAccuracy = aimAccuracy;
+            this.tacticalChance = tacticalChance;
         }
 
         public String displayName() { return displayName; }
@@ -103,33 +101,31 @@ public final class PvpBotSystem {
     }
 
     private static void configureAttributes(Husk bot, BotDifficulty difficulty) {
-        if (bot.getAttribute(Attributes.MAX_HEALTH) != null) bot.getAttribute(Attributes.MAX_HEALTH).setBaseValue(difficulty.health);
-        if (bot.getAttribute(Attributes.MOVEMENT_SPEED) != null) bot.getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(0.25D + (difficulty.ordinal() * 0.025D));
-        if (bot.getAttribute(Attributes.ATTACK_DAMAGE) != null) bot.getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(5.0D + difficulty.ordinal() * 1.5D);
-        if (bot.getAttribute(Attributes.KNOCKBACK_RESISTANCE) != null) bot.getAttribute(Attributes.KNOCKBACK_RESISTANCE).setBaseValue(0.35D + difficulty.ordinal() * 0.12D);
-        bot.setHealth(difficulty.health);
+        // Zorluk yalnızca karar kalitesini değiştirir; can, hız ve hasar oyuncuyla aynı temelde kalır.
+        if (bot.getAttribute(Attributes.MAX_HEALTH) != null) bot.getAttribute(Attributes.MAX_HEALTH).setBaseValue(20.0D);
+        if (bot.getAttribute(Attributes.MOVEMENT_SPEED) != null) bot.getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(0.23D);
+        if (bot.getAttribute(Attributes.ATTACK_DAMAGE) != null) bot.getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(0.0D);
+        if (bot.getAttribute(Attributes.KNOCKBACK_RESISTANCE) != null) bot.getAttribute(Attributes.KNOCKBACK_RESISTANCE).setBaseValue(0.10D);
+        bot.setHealth(20.0F);
     }
 
     private static void equip(Husk bot, PowerClass powerClass) {
-        ItemStack weapon = switch (powerClass) {
-            case WARDEN -> new ItemStack(Items.NETHERITE_AXE);
-            case FLIGHT -> new ItemStack(Items.NETHERITE_SWORD);
+        // Bütün botlarda aynı zırh ve ana silah vardır; sınıf farkı güçlerden ve parçacıklardan gelir.
+        // Doğal Husk saldırısı ekstra hasar vermesin; bütün yakın dövüş hasarını bu sistem eşit uygular.
+        bot.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+        ItemStack focus = switch (powerClass) {
+            case WARDEN -> new ItemStack(Items.ECHO_SHARD);
+            case FLIGHT -> new ItemStack(Items.AMETHYST_SHARD);
             case FIRE -> new ItemStack(Items.BLAZE_ROD);
-            case NATURE -> new ItemStack(Items.TRIDENT);
-            case ANOMALY -> new ItemStack(Items.ECHO_SHARD);
+            case NATURE -> new ItemStack(Items.SPORE_BLOSSOM);
+            case ANOMALY -> new ItemStack(Items.ENDER_EYE);
             default -> ItemStack.EMPTY;
         };
-        ItemStack helmet = switch (powerClass) {
-            case WARDEN -> new ItemStack(Items.DIAMOND_HELMET);
-            case FLIGHT -> new ItemStack(Items.NETHERITE_HELMET);
-            case FIRE -> new ItemStack(Items.GOLDEN_HELMET);
-            case NATURE -> new ItemStack(Items.TURTLE_HELMET);
-            case ANOMALY -> new ItemStack(Items.CHAINMAIL_HELMET);
-            default -> ItemStack.EMPTY;
-        };
-        bot.setItemSlot(EquipmentSlot.MAINHAND, weapon);
-        bot.setItemSlot(EquipmentSlot.HEAD, helmet);
-        bot.setItemSlot(EquipmentSlot.CHEST, powerClass == PowerClass.FLIGHT ? new ItemStack(Items.NETHERITE_CHESTPLATE) : new ItemStack(Items.CHAINMAIL_CHESTPLATE));
+        bot.setItemSlot(EquipmentSlot.OFFHAND, focus);
+        bot.setItemSlot(EquipmentSlot.HEAD, ItemStack.EMPTY);
+        bot.setItemSlot(EquipmentSlot.CHEST, ItemStack.EMPTY);
+        bot.setItemSlot(EquipmentSlot.LEGS, ItemStack.EMPTY);
+        bot.setItemSlot(EquipmentSlot.FEET, ItemStack.EMPTY);
     }
 
     public static boolean removeOwnerBot(ServerPlayer owner, boolean notify) {
@@ -190,28 +186,25 @@ public final class PvpBotSystem {
                 bot.getNavigation().stop();
                 continue;
             }
+
             bot.setTarget(owner);
-            bot.getLookControl().setLookAt(owner, 35.0F, 35.0F);
+            bot.getLookControl().setLookAt(owner, 30.0F, 30.0F);
             double distance = Math.sqrt(bot.distanceToSqr(owner));
             double preferred = preferredRange(state.powerClass);
-            if (distance > preferred + 1.5) {
-                bot.getNavigation().moveTo(owner, state.difficulty.speed);
-            } else if (distance < Math.max(2.0, preferred - 2.0)) {
+            if (distance > preferred + 1.25) {
+                bot.getNavigation().moveTo(owner, 1.0D);
+            } else if (distance < Math.max(2.0, preferred - 1.75)) {
                 Vec3 away = horizontal(bot.position().subtract(owner.position()));
-                bot.setDeltaMovement(bot.getDeltaMovement().add(away.scale(0.11 + state.difficulty.ordinal() * 0.025)));
+                bot.setDeltaMovement(bot.getDeltaMovement().add(away.scale(0.10)));
                 bot.hurtMarked = true;
-            } else if (now % 16L == 0L) {
+            } else if (now % 18L == 0L) {
                 Vec3 side = horizontal(owner.position().subtract(bot.position())).cross(new Vec3(0.0, 1.0, 0.0));
                 if (state.level.getRandom().nextBoolean()) side = side.scale(-1.0);
-                bot.setDeltaMovement(bot.getDeltaMovement().add(side.scale(0.10 + state.difficulty.ordinal() * 0.02)));
+                bot.setDeltaMovement(bot.getDeltaMovement().add(side.scale(0.09)));
                 bot.hurtMarked = true;
             }
 
-            if (state.awakeningUntil <= now && state.awakeningEnergy >= 100.0F) {
-                state.awakeningEnergy = 0.0F;
-                state.awakeningUntil = now + 240L;
-                state.level.playSound(null, bot.blockPosition(), SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 1.0F, classPitch(state.powerClass));
-            }
+            maybeActivateAwakening(bot, owner, state, now);
             boolean awakened = state.awakeningUntil > now;
             aura(bot, state, now, awakened);
             if (awakened) {
@@ -221,17 +214,169 @@ public final class PvpBotSystem {
 
             if (distance <= 2.7 && now >= state.nextMeleeTick) {
                 bot.swing(InteractionHand.MAIN_HAND);
-                float damage = (5.0F + state.difficulty.ordinal() * 1.5F) * state.difficulty.damageMultiplier * (awakened ? 1.35F : 1.0F);
+                float damage = awakened ? 5.0F : 4.0F;
                 owner.hurtServer(state.level, state.level.damageSources().mobAttack(bot), damage);
-                state.nextMeleeTick = now + Math.max(10L, 24L - state.difficulty.ordinal() * 3L);
+                state.nextMeleeTick = now + 20L;
             }
-            if (now >= state.nextAbilityTick) {
-                useAbility(bot, owner, state, now, awakened);
-                long jitter = state.level.getRandom().nextInt(12);
-                state.nextAbilityTick = now + Math.max(12L, state.difficulty.reactionTicks + jitter - (awakened ? 7L : 0L));
+
+            if (now >= state.nextDecisionTick) {
+                int ability = chooseAbility(bot, owner, state, now, awakened);
+                if (ability > 0) useAbility(bot, owner, state, now, awakened, ability);
+                state.nextDecisionTick = now + state.difficulty.reactionTicks + state.level.getRandom().nextInt(8);
             }
         }
         tickMeteors();
+    }
+
+    private static void maybeActivateAwakening(Husk bot, ServerPlayer target, BotState state, long now) {
+        if (state.awakeningUntil > now || state.awakeningEnergy < 20.0F) return;
+        boolean urgent = bot.getHealth() <= bot.getMaxHealth() * 0.55F || state.awakeningEnergy >= 85.0F;
+        boolean tactical = state.level.getRandom().nextFloat() < state.difficulty.tacticalChance * 0.08F
+            && bot.distanceToSqr(target) <= 14.0 * 14.0;
+        if (!urgent && !tactical) return;
+        int duration = Math.max(48, Math.round(state.awakeningEnergy * 2.4F));
+        state.awakeningEnergy = 0.0F;
+        state.awakeningUntil = now + duration;
+        state.level.playSound(null, bot.blockPosition(), SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 1.0F, classPitch(state.powerClass));
+    }
+
+    private static int chooseAbility(Husk bot, ServerPlayer target, BotState state, long now, boolean awakened) {
+        ArrayList<Integer> usable = new ArrayList<>();
+        for (int ability = 1; ability <= 5; ability++) {
+            if (now < state.cooldownUntil[ability - 1]) continue;
+            if (abilityUsable(bot, target, state, ability)) usable.add(ability);
+        }
+        if (usable.isEmpty()) return 0;
+
+        int tactical = tacticalAbility(bot, target, state, usable);
+        if (tactical > 0 && state.level.getRandom().nextFloat() <= state.difficulty.tacticalChance) return tactical;
+        return usable.get(state.level.getRandom().nextInt(usable.size()));
+    }
+
+    private static int tacticalAbility(Husk bot, ServerPlayer target, BotState state, ArrayList<Integer> usable) {
+        double distance = Math.sqrt(bot.distanceToSqr(target));
+        int preferred = switch (state.powerClass) {
+            case WARDEN -> bot.getHealth() < 12.0F && usable.contains(1) ? 1
+                : distance <= 6.5 && usable.contains(2) ? 2
+                : distance >= 6.0 && usable.contains(3) ? 3
+                : usable.contains(4) ? 4 : usable.get(0);
+            case FIRE -> distance <= 5.5 && usable.contains(1) ? 1
+                : distance >= 8.0 && usable.contains(4) ? 4
+                : distance >= 6.0 && usable.contains(3) ? 3
+                : usable.contains(2) ? 2 : usable.get(0);
+            case NATURE -> bot.getHealth() < 9.0F && usable.contains(3) ? 3
+                : bot.getHealth() < 14.0F && usable.contains(4) ? 4
+                : distance <= 11.5 && usable.contains(2) ? 2
+                : distance >= 8.0 && usable.contains(5) ? 5
+                : usable.contains(1) ? 1 : usable.get(0);
+            case ANOMALY -> hasIncomingProjectile(bot, state) && usable.contains(3) ? 3
+                : bot.getHealth() < 10.0F && usable.contains(3) ? 3
+                : distance <= 6.5 && usable.contains(1) ? 1
+                : distance <= 8.0 && usable.contains(5) ? 5
+                : distance <= 10.0 && usable.contains(4) ? 4
+                : usable.contains(2) ? 2 : usable.get(0);
+            case FLIGHT -> hasIncomingProjectile(bot, state) && usable.contains(3) ? 3
+                : bot.getHealth() < 10.0F && usable.contains(3) ? 3
+                : distance <= 5.8 && usable.contains(1) ? 1
+                : distance <= 7.0 && usable.contains(5) ? 5
+                : distance <= 8.0 && usable.contains(4) ? 4
+                : usable.contains(2) ? 2 : usable.get(0);
+            default -> usable.get(0);
+        };
+        return preferred;
+    }
+
+    private static boolean abilityUsable(Husk bot, ServerPlayer target, BotState state, int ability) {
+        double range = abilityRange(state.powerClass, ability);
+        if (range > 0.0 && bot.distanceToSqr(target) > range * range) return false;
+        if (requiresLineOfSight(state.powerClass, ability) && !bot.hasLineOfSight(target)) return false;
+        if (isSelfAbility(state.powerClass, ability)) {
+            if (state.powerClass == PowerClass.NATURE && ability == 3 && bot.getHealth() >= bot.getMaxHealth() * 0.78F) return false;
+            if ((state.powerClass == PowerClass.ANOMALY || state.powerClass == PowerClass.FLIGHT) && ability == 3
+                && bot.getHealth() >= bot.getMaxHealth() * 0.75F && !hasIncomingProjectile(bot, state)) return false;
+        }
+        return true;
+    }
+
+    private static boolean hasIncomingProjectile(Husk bot, BotState state) {
+        for (net.minecraft.world.entity.projectile.Projectile projectile : state.level.getEntitiesOfClass(
+            net.minecraft.world.entity.projectile.Projectile.class, bot.getBoundingBox().inflate(8.0))) {
+            if (projectile.getOwner() == bot) continue;
+            Vec3 towardBot = bot.getEyePosition().subtract(projectile.position());
+            if (towardBot.lengthSqr() > 0.001 && projectile.getDeltaMovement().dot(towardBot.normalize()) > 0.12) return true;
+        }
+        return false;
+    }
+
+    private static boolean isSelfAbility(PowerClass powerClass, int ability) {
+        return switch (powerClass) {
+            case WARDEN -> ability == 1;
+            case NATURE -> ability == 3 || ability == 4;
+            case ANOMALY, FLIGHT -> ability == 3;
+            default -> false;
+        };
+    }
+
+    private static boolean requiresLineOfSight(PowerClass powerClass, int ability) {
+        return switch (powerClass) {
+            case WARDEN -> ability == 3;
+            case FIRE -> ability == 2 || ability == 3 || ability == 4 || ability == 5;
+            case NATURE -> ability == 1 || ability == 2 || ability == 5;
+            case ANOMALY -> ability == 1 || ability == 2 || ability == 4;
+            case FLIGHT -> ability == 2 || ability == 4;
+            default -> false;
+        };
+    }
+
+    private static boolean requiresAim(PowerClass powerClass, int ability) {
+        return switch (powerClass) {
+            case WARDEN -> ability == 3;
+            case FIRE -> ability == 2 || ability == 3;
+            case NATURE -> ability == 1 || ability == 2 || ability == 5;
+            case ANOMALY -> ability == 1 || ability == 2 || ability == 4;
+            case FLIGHT -> ability == 2 || ability == 4;
+            default -> false;
+        };
+    }
+
+    private static double abilityRange(PowerClass powerClass, int ability) {
+        return switch (powerClass) {
+            case WARDEN -> new double[]{0.0, 7.0, 18.0, 14.0, 10.0}[ability - 1];
+            case FIRE -> new double[]{5.5, 12.0, 18.0, 18.0, 18.0}[ability - 1];
+            case NATURE -> new double[]{16.0, 12.0, 0.0, 0.0, 16.0}[ability - 1];
+            case ANOMALY -> new double[]{7.0, 12.0, 0.0, 10.0, 8.0}[ability - 1];
+            case FLIGHT -> new double[]{6.5, 12.0, 0.0, 8.0, 7.0}[ability - 1];
+            default -> 0.0;
+        };
+    }
+
+    private static long abilityCooldown(PowerClass powerClass, int ability, boolean awakened) {
+        long base = switch (powerClass) {
+            case WARDEN -> new long[]{900L, 600L, 380L, 900L, 2400L}[ability - 1];
+            case FIRE -> new long[]{600L, 180L, 360L, 2400L, 2400L}[ability - 1];
+            case NATURE -> new long[]{125L, 320L, 700L, 700L, 900L}[ability - 1];
+            case ANOMALY -> new long[]{130L, 420L, 360L, 980L, 980L}[ability - 1];
+            case FLIGHT -> new long[]{190L, 390L, 760L, 430L, 760L}[ability - 1];
+            default -> 200L;
+        };
+        return awakened ? Math.max(40L, Math.round(base * 0.65D)) : base;
+    }
+
+    private static void renderMiss(Husk bot, ServerPlayer target, BotState state) {
+        Vec3 start = bot.getEyePosition();
+        double spread = 1.0 + (1.0F - state.difficulty.aimAccuracy) * 5.0;
+        Vec3 miss = target.getEyePosition().add(
+            (state.level.getRandom().nextDouble() - 0.5) * spread,
+            (state.level.getRandom().nextDouble() - 0.5) * spread * 0.55,
+            (state.level.getRandom().nextDouble() - 0.5) * spread
+        );
+        Vec3 direction = miss.subtract(start);
+        double length = Math.min(14.0, Math.max(1.0, direction.length()));
+        direction = direction.normalize();
+        for (double d = 0.7; d <= length; d += 0.8) {
+            Vec3 point = start.add(direction.scale(d));
+            state.level.sendParticles(classParticle(state.powerClass), point.x, point.y, point.z, 2, 0.12, 0.12, 0.12, 0.015);
+        }
     }
 
     private static void aura(Husk bot, BotState state, long now, boolean awakened) {
@@ -240,14 +385,19 @@ public final class PvpBotSystem {
         if (awakened && now % 10L == 0L) PowerSystem.drawExternalRing(state.level, bot.position(), 2.7, classParticle(state.powerClass), 32);
     }
 
-    private static void useAbility(Husk bot, ServerPlayer target, BotState state, long now, boolean awakened) {
-        int phase = state.abilityIndex++;
+    private static void useAbility(Husk bot, ServerPlayer target, BotState state, long now, boolean awakened, int ability) {
+        state.cooldownUntil[ability - 1] = now + abilityCooldown(state.powerClass, ability, awakened);
+        if (requiresAim(state.powerClass, ability) && state.level.getRandom().nextFloat() > state.difficulty.aimAccuracy) {
+            renderMiss(bot, target, state);
+            return;
+        }
+        int phase = ability - 1;
         switch (state.powerClass) {
-            case WARDEN -> botWarden(bot, target, state, awakened, phase % 5);
-            case FIRE -> botFire(bot, target, state, now, awakened, phase % 5);
-            case NATURE -> botNature(bot, target, state, awakened, phase % 5);
-            case ANOMALY -> botAnomaly(bot, target, state, now, awakened, phase % 5);
-            case FLIGHT -> botDragon(bot, target, state, awakened, phase % 5);
+            case WARDEN -> botWarden(bot, target, state, awakened, phase);
+            case FIRE -> botFire(bot, target, state, now, awakened, phase);
+            case NATURE -> botNature(bot, target, state, awakened, phase);
+            case ANOMALY -> botAnomaly(bot, target, state, now, awakened, phase);
+            case FLIGHT -> botDragon(bot, target, state, awakened, phase);
             default -> { }
         }
     }
@@ -268,8 +418,11 @@ public final class PvpBotSystem {
                 state.level.sendParticles(ParticleTypes.SCULK_SOUL, target.getX(), target.getY() + 1.0, target.getZ(), 48, 0.7, 1.0, 0.7, 0.05);
             }
             default -> {
-                botQuake(bot, target, state, awakened);
-                if (bot.distanceToSqr(target) > 20.0) botSonic(bot, target, state, awakened);
+                // Warden Uyanışı gücü: ek saldırı hilesi yerine oyuncudaki gibi süreli savaş güçlendirmesi.
+                bot.addEffect(new MobEffectInstance(MobEffects.STRENGTH, awakened ? 300 : 220, awakened ? 2 : 1, false, true, true));
+                bot.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, awakened ? 300 : 220, awakened ? 2 : 1, false, true, true));
+                bot.addEffect(new MobEffectInstance(MobEffects.REGENERATION, awakened ? 160 : 100, 1, false, true, true));
+                state.level.sendParticles(ParticleTypes.SCULK_SOUL, bot.getX(), bot.getY() + 1.0, bot.getZ(), 85, 1.1, 1.2, 1.1, 0.06);
             }
         }
     }
@@ -280,7 +433,7 @@ public final class PvpBotSystem {
                 double radius = awakened ? 7.0 : 5.0;
                 PowerSystem.drawExternalRing(state.level, bot.position(), radius, ParticleTypes.FLAME, 64);
                 if (bot.distanceToSqr(target) <= radius * radius) {
-                    target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 11.0F : 7.0F) * state.difficulty.damageMultiplier);
+                    target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 11.0F : 7.0F));
                     target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), awakened ? 180 : 100));
                 }
             }
@@ -294,13 +447,15 @@ public final class PvpBotSystem {
                     state.level.sendParticles(d % 0.9 < 0.45 ? ParticleTypes.LAVA : ParticleTypes.FLAME,
                         point.x, point.y, point.z, awakened ? 7 : 4, 0.22, 0.22, 0.22, 0.025);
                 }
-                target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 16.0F : 11.0F) * state.difficulty.damageMultiplier);
+                target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 16.0F : 11.0F));
                 target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), awakened ? 220 : 130));
             }
             case 3 -> launchMeteor(bot, target, state, now, awakened);
             default -> {
-                botFireBurst(bot, target, state, true);
-                launchMeteor(bot, target, state, now, awakened);
+                // Ateş pasifleri: fazladan birleşik saldırı yerine oyuncuyla aynı savunma/yakın dövüş hazırlığı.
+                bot.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 260, 0, false, true, true));
+                bot.addEffect(new MobEffectInstance(MobEffects.STRENGTH, awakened ? 180 : 120, awakened ? 2 : 1, false, true, true));
+                state.level.sendParticles(ParticleTypes.FLAME, bot.getX(), bot.getY() + 1.0, bot.getZ(), 58, 0.9, 1.0, 0.9, 0.055);
             }
         }
     }
@@ -315,7 +470,7 @@ public final class PvpBotSystem {
             Vec3 p = start.add(direction.scale(d));
             state.level.sendParticles(ParticleTypes.SONIC_BOOM, p.x, p.y, p.z, 1, 0, 0, 0, 0);
         }
-        target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 16.0F : 11.0F) * state.difficulty.damageMultiplier);
+        target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 16.0F : 11.0F));
         Vec3 push = horizontal(target.position().subtract(bot.position())).scale(awakened ? 1.7 : 1.1);
         target.push(push.x, awakened ? 0.48 : 0.25, push.z);
         state.level.playSound(null, bot.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.HOSTILE, 1.3F, 1.0F);
@@ -325,7 +480,7 @@ public final class PvpBotSystem {
         double radius = awakened ? 8.0 : 5.5;
         PowerSystem.drawExternalRing(state.level, bot.position(), radius, ParticleTypes.SCULK_SOUL, 60);
         if (bot.distanceToSqr(target) <= radius * radius) {
-            target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 12.0F : 8.0F) * state.difficulty.damageMultiplier);
+            target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 12.0F : 8.0F));
             Vec3 push = horizontal(target.position().subtract(bot.position())).scale(awakened ? 2.0 : 1.35);
             target.push(push.x, awakened ? 0.75 : 0.45, push.z);
             target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, awakened ? 90 : 55, 2, false, true, true));
@@ -340,13 +495,19 @@ public final class PvpBotSystem {
             Vec3 p = start.add(direction.scale(d));
             state.level.sendParticles(d % 1.1 < 0.55 ? ParticleTypes.FLAME : ParticleTypes.LAVA, p.x, p.y, p.z, awakened ? 5 : 3, 0.18, 0.18, 0.18, 0.02);
         }
-        target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 14.0F : 9.0F) * state.difficulty.damageMultiplier);
+        target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 14.0F : 9.0F));
         target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), awakened ? 180 : 100));
         state.level.playSound(null, bot.blockPosition(), SoundEvents.FIRECHARGE_USE, SoundSource.HOSTILE, 1.1F, 0.72F);
     }
 
     private static void launchMeteor(Husk bot, ServerPlayer target, BotState state, long now, boolean awakened) {
-        Vec3 impact = target.position();
+        Vec3 predicted = target.position().add(target.getDeltaMovement().scale(8.0));
+        double error = (1.0F - state.difficulty.aimAccuracy) * 5.5;
+        Vec3 impact = predicted.add(
+            (state.level.getRandom().nextDouble() - 0.5) * error,
+            0.0,
+            (state.level.getRandom().nextDouble() - 0.5) * error
+        );
         Vec3 start = impact.add((state.level.getRandom().nextDouble() - 0.5) * 7.0, awakened ? 24.0 : 18.0, (state.level.getRandom().nextDouble() - 0.5) * 7.0);
         METEORS.add(new BotMeteor(state.level, bot.getUUID(), state.ownerId, start, impact, now, now + (awakened ? 26L : 36L), awakened, state.difficulty));
         state.level.playSound(null, bot.blockPosition(), SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 0.65F, 1.45F);
@@ -360,11 +521,11 @@ public final class PvpBotSystem {
             if (now >= meteor.impactTick) {
                 Entity caster = meteor.level.getEntity(meteor.botId);
                 ServerPlayer target = meteor.level.getServer().getPlayerList().getPlayer(meteor.targetId);
-                Vec3 impact = target != null && target.isAlive() ? target.position() : meteor.impact;
+                Vec3 impact = meteor.impact;
                 meteor.level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, impact.x, impact.y + 0.4, impact.z, 1, 0, 0, 0, 0);
                 meteor.level.sendParticles(ParticleTypes.FLAME, impact.x, impact.y + 0.7, impact.z, meteor.awakened ? 100 : 65, 2.2, 1.1, 2.2, 0.11);
-                if (target != null && target.distanceToSqr(impact) < (meteor.awakened ? 49.0 : 30.0) && caster instanceof LivingEntity living) {
-                    target.hurtServer(meteor.level, meteor.level.damageSources().mobAttack(living), (meteor.awakened ? 18.0F : 12.0F) * meteor.difficulty.damageMultiplier);
+                if (target != null && target.isAlive() && target.distanceToSqr(impact) < (meteor.awakened ? 49.0 : 30.0) && caster instanceof LivingEntity living) {
+                    target.hurtServer(meteor.level, meteor.level.damageSources().mobAttack(living), (meteor.awakened ? 18.0F : 12.0F));
                     Vec3 push = horizontal(target.position().subtract(impact)).scale(meteor.awakened ? 2.1 : 1.4);
                     target.push(push.x, meteor.awakened ? 0.9 : 0.55, push.z);
                 }
@@ -401,7 +562,7 @@ public final class PvpBotSystem {
             case 1 -> awakened ? 11.0F : 7.0F;
             default -> awakened ? 14.0F : 9.0F;
         };
-        target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), damage * state.difficulty.damageMultiplier);
+        target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), damage);
         target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, awakened ? 120 : 75, phase >= 4 ? 6 : 4, false, true, true));
         target.addEffect(new MobEffectInstance(MobEffects.POISON, awakened ? 110 : 65, phase >= 4 ? 1 : 0, false, true, true));
         int particles = phase >= 4 ? 72 : 38;
@@ -419,7 +580,7 @@ public final class PvpBotSystem {
             Vec3 behind = target.position().subtract(horizontal(target.getLookAngle()).scale(2.2));
             bot.setPos(behind.x, behind.y, behind.z);
             bot.setDeltaMovement(Vec3.ZERO);
-            target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 12.0F : 7.0F) * state.difficulty.damageMultiplier);
+            target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 12.0F : 7.0F));
             state.level.sendParticles(ParticleTypes.REVERSE_PORTAL, bot.getX(), bot.getY() + 1.0, bot.getZ(), 55, 0.7, 1.0, 0.7, 0.12);
         } else if (phase == 1) {
             Vec3 motion = target.getDeltaMovement();
@@ -437,7 +598,7 @@ public final class PvpBotSystem {
             target.addEffect(new MobEffectInstance(MobEffects.DARKNESS, awakened ? 70 : 45, 0, false, true, true));
             target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, awakened ? 70 : 45, 10, false, true, true));
             target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, awakened ? 90 : 60, 4, false, true, true));
-            target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 13.0F : 8.0F) * state.difficulty.damageMultiplier);
+            target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 13.0F : 8.0F));
             state.level.sendParticles(ParticleTypes.REVERSE_PORTAL, target.getX(), target.getY() + 1.0, target.getZ(), 90, 1.0, 1.2, 1.0, 0.15);
         } else {
             // 404 alanı: mermiler döner, rakip zayıflar ve alan hasarı alır.
@@ -451,7 +612,7 @@ public final class PvpBotSystem {
                 projectile.setOwner(bot);
             }
             if (bot.distanceToSqr(target) <= radius * radius) {
-                target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 15.0F : 9.0F) * state.difficulty.damageMultiplier);
+                target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 15.0F : 9.0F));
                 target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, awakened ? 120 : 80, 3, false, true, true));
             }
         }
@@ -462,18 +623,19 @@ public final class PvpBotSystem {
             double radius = awakened ? 7.5 : 5.2;
             PowerSystem.drawExternalRing(state.level, bot.position(), radius, ParticleTypes.REVERSE_PORTAL, 65);
             if (bot.distanceToSqr(target) <= radius * radius) {
-                target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 13.0F : 8.0F) * state.difficulty.damageMultiplier);
+                target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 13.0F : 8.0F));
                 Vec3 push = horizontal(target.position().subtract(bot.position())).scale(awakened ? 2.5 : 1.8);
                 target.push(push.x, awakened ? 1.0 : 0.65, push.z);
             }
         } else if (phase == 1) {
             Vec3 start = bot.getEyePosition();
             Vec3 dir = target.getEyePosition().subtract(start).normalize();
-            for (double d = 0.5; d <= 18.0; d += 0.5) {
+            double breathLength = Math.min(12.0, Math.max(1.0, start.distanceTo(target.getEyePosition())));
+            for (double d = 0.5; d <= breathLength; d += 0.5) {
                 Vec3 p = start.add(dir.scale(d));
                 state.level.sendParticles(d % 1.0 < 0.5 ? ParticleTypes.REVERSE_PORTAL : ParticleTypes.WITCH, p.x, p.y, p.z, awakened ? 5 : 3, 0.23, 0.23, 0.23, 0.02);
             }
-            target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 15.0F : 10.0F) * state.difficulty.damageMultiplier);
+            target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 15.0F : 10.0F));
         } else if (phase == 2) {
             state.guardCharges = awakened ? 5 : 3;
             state.anomalyShieldUntil = state.level.getGameTime() + (awakened ? 150L : 100L);
@@ -481,12 +643,12 @@ public final class PvpBotSystem {
         } else if (phase == 3) {
             Vec3 pull = horizontal(bot.position().subtract(target.position())).scale(1.8);
             target.push(pull.x, 0.45, pull.z);
-            target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 12.0F : 8.0F) * state.difficulty.damageMultiplier);
+            target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 12.0F : 8.0F));
             state.level.sendParticles(ParticleTypes.WITCH, target.getX(), target.getY() + 1.0, target.getZ(), 45, 0.65, 0.9, 0.65, 0.08);
         } else {
             Vec3 push = horizontal(target.position().subtract(bot.position())).scale(awakened ? 3.2 : 2.3);
             target.push(push.x, awakened ? 1.25 : 0.85, push.z);
-            target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 11.0F : 7.0F) * state.difficulty.damageMultiplier);
+            target.hurtServer(state.level, state.level.damageSources().mobAttack(bot), (awakened ? 11.0F : 7.0F));
             state.level.playSound(null, bot.blockPosition(), SoundEvents.WARDEN_ROAR, SoundSource.HOSTILE, 1.3F, 1.4F);
         }
     }
@@ -497,7 +659,8 @@ public final class PvpBotSystem {
         Entity attacker = source.getEntity();
         BotState attackerState = attacker == null ? null : BOTS.get(attacker.getUUID());
         if (victimState != null) {
-            victimState.awakeningEnergy = Math.min(100.0F, victimState.awakeningEnergy + Math.max(1.0F, amount * 1.15F));
+            if (victimState.awakeningUntil <= victim.level().getGameTime())
+                victimState.awakeningEnergy = Math.min(100.0F, victimState.awakeningEnergy + Math.min(10.0F, amount * 1.15F));
             long now = victim.level().getGameTime();
             if (victimState.powerClass == PowerClass.ANOMALY && victimState.anomalyShieldUntil > now && attacker instanceof LivingEntity living) {
                 try {
@@ -523,7 +686,8 @@ public final class PvpBotSystem {
                 return false;
             }
         }
-        if (attackerState != null) attackerState.awakeningEnergy = Math.min(100.0F, attackerState.awakeningEnergy + Math.max(1.0F, amount * 1.35F));
+        if (attackerState != null && attackerState.awakeningUntil <= attacker.level().getGameTime())
+            attackerState.awakeningEnergy = Math.min(100.0F, attackerState.awakeningEnergy + Math.min(8.0F, amount * 0.85F));
         return true;
     }
 
@@ -608,22 +772,22 @@ public final class PvpBotSystem {
         private final ServerLevel level;
         private final PowerClass powerClass;
         private final BotDifficulty difficulty;
-        private long nextAbilityTick;
+        private long nextDecisionTick;
         private long nextMeleeTick;
-        private int abilityIndex;
+        private final long[] cooldownUntil = new long[5];
         private float awakeningEnergy;
         private long awakeningUntil;
         private long anomalyShieldUntil;
         private int guardCharges;
         private boolean paused;
 
-        private BotState(UUID entityId, UUID ownerId, ServerLevel level, PowerClass powerClass, BotDifficulty difficulty, long nextAbilityTick) {
+        private BotState(UUID entityId, UUID ownerId, ServerLevel level, PowerClass powerClass, BotDifficulty difficulty, long nextDecisionTick) {
             this.entityId = entityId;
             this.ownerId = ownerId;
             this.level = level;
             this.powerClass = powerClass;
             this.difficulty = difficulty;
-            this.nextAbilityTick = nextAbilityTick;
+            this.nextDecisionTick = nextDecisionTick;
         }
     }
 

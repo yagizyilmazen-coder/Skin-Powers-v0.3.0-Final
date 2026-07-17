@@ -28,7 +28,6 @@ public final class SkinPowersCommands {
             .then(selfClass("warden", PowerClass.WARDEN))
             .then(selfClass("ejderha", PowerClass.FLIGHT))
             .then(selfClass("ates", PowerClass.FIRE))
-            .then(selfClass("alev", PowerClass.FIRE))
             .then(selfClass("doga", PowerClass.NATURE))
             .then(selfClass("anomali", PowerClass.ANOMALY)));
 
@@ -52,12 +51,6 @@ public final class SkinPowersCommands {
                 PvpBotSystem.pause(context.getSource().getPlayerOrException(), true) ? 1 : 0))
             .then(Commands.literal("devam").executes(context ->
                 PvpBotSystem.pause(context.getSource().getPlayerOrException(), false) ? 1 : 0)));
-
-        root.then(Commands.literal("olay")
-            .executes(context -> {
-                context.getSource().sendSuccess(() -> Component.literal(WorldEventSystem.status()), false);
-                return 1;
-            }));
 
         // Test/yönetim komutu: sınıf, seviye ve cooldown şartını değiştirmeden saldırıyı doğrudan çağırır.
         // Yayınlanan sunucularda kötüye kullanılmaması için yalnızca moderatör yetkisine açıktır.
@@ -114,7 +107,6 @@ public final class SkinPowersCommands {
                     .then(targetClass("warden", PowerClass.WARDEN))
                     .then(targetClass("ejderha", PowerClass.FLIGHT))
                     .then(targetClass("ates", PowerClass.FIRE))
-                    .then(targetClass("alev", PowerClass.FIRE))
                     .then(targetClass("doga", PowerClass.NATURE))
                     .then(targetClass("anomali", PowerClass.ANOMALY))))
             .then(Commands.literal("reset")
@@ -124,19 +116,6 @@ public final class SkinPowersCommands {
                 .then(Commands.literal("blokhasari")
                     .then(Commands.argument("durum", BoolArgumentType.bool())
                         .executes(context -> setMeteorDamage(context.getSource(), BoolArgumentType.getBool(context, "durum"))))))
-            .then(Commands.literal("olay")
-                .then(Commands.literal("baslat")
-                    .then(eventLiteral("sculk"))
-                    .then(eventLiteral("meteor"))
-                    .then(eventLiteral("gok"))
-                    .then(eventLiteral("doga"))
-                    .then(eventLiteral("anomali"))
-                    .then(eventLiteral("rastgele")))
-                .then(Commands.literal("durdur").executes(context -> {
-                    boolean stopped = WorldEventSystem.stop(context.getSource().getServer());
-                    if (!stopped) context.getSource().sendFailure(Component.literal("Aktif dünya olayı yok."));
-                    return stopped ? 1 : 0;
-                })))
             .then(Commands.literal("sarj")
                 .then(Commands.literal("ver")
                     .then(Commands.argument("oyuncu", EntityArgument.player())
@@ -182,15 +161,6 @@ public final class SkinPowersCommands {
             }
             context.getSource().sendSuccess(() -> Component.literal("Atak çağrıldı: " + literal), false);
             return 1;
-        });
-    }
-
-    private static LiteralArgumentBuilder<CommandSourceStack> eventLiteral(String literal) {
-        return Commands.literal(literal).executes(context -> {
-            ServerPlayer player = context.getSource().getPlayerOrException();
-            boolean started = WorldEventSystem.startNearPlayer(player, literal);
-            if (!started) context.getSource().sendFailure(Component.literal("Başka bir dünya olayı zaten aktif."));
-            return started ? 1 : 0;
         });
     }
 
