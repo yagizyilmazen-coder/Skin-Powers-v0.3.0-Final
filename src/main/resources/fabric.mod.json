@@ -3,7 +3,7 @@
   "id": "skinpowers",
   "version": "${version}",
   "name": "Skin Powers",
-  "description": "Skin renklerinden Warden, Uçuş, Ateş ve Doğa sınıfları öneren Warden için altı, diğer sınıflar için beş seviyeli Fabric güç modu; oyuncu ve moblara aktarılabilen Antik Şehir Şarjı içerir.",
+  "description": "Skin renklerinden Warden, Uçuş, Ateş ve Doğa sınıfları öneren Warden için altı, diğer sınıflar için beş seviyeli Fabric güç modu; oyuncu ve moblara aktarılabilen Antik Şehir Şarjı ve K ile açılan güç kombinasyonları içerir.",
   "authors": ["Yankalan"],
   "contact": {
     "sources": "https://github.com/yagizyilmazen-coder/Skin-Powers-v0.3.0-Final"

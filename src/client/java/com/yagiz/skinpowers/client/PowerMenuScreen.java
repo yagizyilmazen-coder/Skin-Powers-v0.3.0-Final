@@ -100,7 +100,7 @@ public final class PowerMenuScreen extends Screen {
         String heading = fit(powerClass.displayName() + " GÜÇ AĞACI", headerTextWidth);
         graphics.text(font, heading, headerTextX, 18, 0xFFFFFFFF, true);
         graphics.text(font, fit("Gücünü seç, ustalığını geliştir ve R ile kullan.", headerTextWidth), headerTextX, 35, 0xFFBFD0DA, false);
-        graphics.text(font, fit("Sol/Sağ: güç değiştir   •   O / ESC: menü", headerTextWidth), headerTextX, 49, 0xFF8799A5, false);
+        graphics.text(font, fit("Sol/Sağ: güç değiştir   •   K: kombo   •   O / ESC: menü", headerTextWidth), headerTextX, 49, 0xFF8799A5, false);
 
         graphics.fill(xpX, 20, xpX + xpWidth, 45, withAlpha(colors[2], 65));
         graphics.outline(xpX, 20, xpWidth, 25, colors[2]);
@@ -221,6 +221,15 @@ public final class PowerMenuScreen extends Screen {
         graphics.text(font, status, left + 15, dividerY + 101, 0xFFFFFFFF, true);
 
         int masteryY = top + height - 68;
+        int comboY = masteryY - 50;
+        if (comboY > dividerY + 116) {
+            graphics.fill(left + 15, comboY - 7, left + width - 15, comboY - 6, withAlpha(colors[2], 90));
+            graphics.text(font, "KOMBİNASYON", left + 15, comboY + 2, 0xFFFFD35C, true);
+            graphics.text(font, fit(PowerCatalog.comboName(powerClass), width - 30), left + 15, comboY + 15, 0xFFFFFFFF, true);
+            graphics.text(font, fit(PowerCatalog.comboSequence(powerClass), width - 30), left + 15, comboY + 28, 0xFFC7D4DC, false);
+            String comboMode = ClientState.comboModeEnabled() ? "K ile kapat" : "K ile aç";
+            graphics.text(font, comboMode, left + width - font.width(comboMode) - 15, comboY + 2, ClientState.comboModeEnabled() ? 0xFF8CFFB0 : 0xFFB8C8D3, false);
+        }
         graphics.fill(left + 15, masteryY - 8, left + width - 15, masteryY - 7, withAlpha(colors[2], 100));
         graphics.text(font, "USTALIK", left + 15, masteryY + 3, 0xFF7F929E, false);
         String mastery = PowerCatalog.masteryStageName(stage) + "  •  " + uses + " kullanım";
@@ -238,7 +247,7 @@ public final class PowerMenuScreen extends Screen {
         int selected = ClientState.selectedPower();
         graphics.fill(layout.totalLeft(), y, layout.totalLeft() + layout.totalWidth(), y + 28, 0xC9070B11);
         graphics.outline(layout.totalLeft(), y, layout.totalWidth(), 28, withAlpha(colors[2], 150));
-        String text = PowerCatalog.powerName(powerClass, selected) + "  •  " + controlHint(powerClass, selected) + "  •  " + activeStatus(powerClass, selected);
+        String text = PowerCatalog.powerName(powerClass, selected) + "  •  " + controlHint(powerClass, selected) + "  •  K: Kombo " + (ClientState.comboModeEnabled() ? "AÇIK" : "KAPALI");
         graphics.text(font, fit(text, layout.totalWidth() - 20), layout.totalLeft() + 10, y + 10, 0xFFFFFFFF, false);
     }
 

@@ -8,7 +8,7 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "4.0.0"
+VERSION = "4.1.0"
 REQUIRED = [
     "build.gradle",
     "settings.gradle",
@@ -73,6 +73,11 @@ REQUIRED_SOURCE_SNIPPETS = {
     "clearPendingBeams": "sunucu kapanış temizliği",
     "Made by Yankalan": "yapımcı imzası",
     "SkinPowersModMenu": "Mod Menu entegrasyonu",
+    "COMBO_TOGGLE": "K tuşu kombo komutu",
+    "SONİK FAY": "Warden Sonik Fay kombosu",
+    "CEHENNEM FELAKETİ": "Ateş Cehennem Felaketi kombosu",
+    "DİKEN ORMANI": "Doğa Diken Ormanı kombosu",
+    "GÖK DALIŞI": "Uçuş Gök Dalışı kombosu",
 }
 
 errors: list[str] = []
@@ -173,7 +178,7 @@ for unwanted_dir in ["build", ".gradle", "run", "out", "__pycache__"]:
         errors.append(f"Paketlenmemesi gereken klasör mevcut: {unwanted_dir}")
 for obsolete in [
     "DESIGN.md", "FEATURE_STATUS.md", "FILE_MANIFEST.txt", "VALIDATION.md",
-    "KURULUM_0.3.3.txt", "CHANGELOG_0.3.3.md", "CHANGELOG_0.3.6.md", "CHANGELOG_0.3.7.md",
+    "KURULUM_0.3.3.txt", "CHANGELOG_0.3.3.md", "CHANGELOG_0.3.6.md", "CHANGELOG_0.3.7.md", "CHANGELOG_4.0.0.md",
 ]:
     if (ROOT / obsolete).exists():
         errors.append(f"Eski/gereksiz kök dosyası kalmış: {obsolete}")
@@ -201,11 +206,20 @@ public final class CoreLogicSmokeTest {
     public static void main(String[] args) {
         check(PowerCatalog.maxLevel(PowerClass.WARDEN) == 6, "warden level cap");
         check(PowerCatalog.xpCostForLevel(PowerClass.WARDEN, 6) == 70, "warden sixth xp");
+        check(PowerCatalog.comboStarterPower(PowerClass.FIRE) == 4, "fire combo starter");
+        check(PowerCatalog.comboFinisherPower(PowerClass.FIRE) == 5, "fire combo finisher");
+        check("Cehennem Felaketi".equals(PowerCatalog.comboName(PowerClass.FIRE)), "fire combo name");
         check("Şarj Et Beni Antik Şehir".equals(PowerCatalog.powerName(PowerClass.WARDEN, 6)), "sixth name");
 
         PlayerPowerData data = new PlayerPowerData();
         data.chooseClass(PowerClass.WARDEN);
         for (int i = 0; i < 8; i++) data.unlockNextLevel();
+        check(data.toggleComboMode(), "combo mode enabled");
+        data.beginCombo(2, 100L, 80, 1.0, 2.0, 3.0, true);
+        check(data.comboActive(120L), "combo active");
+        check(data.comboTargetValid() && data.comboTargetX() == 1.0, "combo target");
+        data.clearCombo();
+        check(!data.comboActive(120L), "combo cleared");
         data.setCooldown(1, 100L, 50);
         data.setCooldown(5, 100L, 70);
         data.setCooldown(6, 100L, 90);
@@ -278,5 +292,5 @@ print(
     f"PROJE DENETİMİ BAŞARILI — {len(java_files)} Java dosyası; JSON, PNG, sürüm, "
     "Warden 6. güç, hedef olmasa da ışın, mob şarjı, iki saniyelik Antik Kalp animasyonu, "
     "üç kalp bedeli, 20 saniye sonunda çöküş, yavaş kalp dönüşü, cooldown dondurma, "
-    "20 mor meteor, komutlar ve çekirdek davranış testleri kontrol edildi."
+    "20 mor meteor, K kombo modu, dört kombinasyon, dinamik HUD yerleşimi, komutlar ve çekirdek davranış testleri kontrol edildi."
 )

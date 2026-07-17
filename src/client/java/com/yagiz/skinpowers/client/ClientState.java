@@ -19,6 +19,10 @@ public final class ClientState {
     private static int ancientChargeTicks;
     private static int ancientExhaustionTicks;
     private static boolean ancientChargeAvailable;
+    private static boolean comboModeEnabled;
+    private static int comboTicks;
+    private static String comboName = "";
+    private static String comboNextPowerName = "";
     private static int[] masteryUses = new int[6];
     private static int xpLevel;
     private static String powerName = "-";
@@ -45,6 +49,10 @@ public final class ClientState {
             ancientChargeTicks = Math.max(0, state.ancientChargeTicks);
             ancientExhaustionTicks = Math.max(0, state.ancientExhaustionTicks);
             ancientChargeAvailable = state.ancientChargeAvailable && ancientChargeTicks > 0;
+            comboModeEnabled = state.comboModeEnabled;
+            comboTicks = Math.max(0, state.comboTicks);
+            comboName = state.comboName == null ? "" : state.comboName;
+            comboNextPowerName = state.comboNextPowerName == null ? "" : state.comboNextPowerName;
             masteryUses = normalizeMastery(state.masteryUses);
             xpLevel = Math.max(0, state.xpLevel);
             powerName = state.powerName == null ? PowerCatalog.powerName(powerClass, selectedPower) : state.powerName;
@@ -73,6 +81,8 @@ public final class ClientState {
         if (natureTreeTicks > 0) natureTreeTicks--;
         if (ancientChargeTicks > 0) ancientChargeTicks--;
         if (ancientExhaustionTicks > 0) ancientExhaustionTicks--;
+        if (comboTicks > 0) comboTicks--;
+        if (comboTicks <= 0) { comboName = ""; comboNextPowerName = ""; }
         if (ancientChargeTicks <= 0) ancientChargeAvailable = false;
         if (shakeTicks > 0) {
             shakeTicks--;
@@ -93,6 +103,10 @@ public final class ClientState {
         ancientChargeTicks = 0;
         ancientExhaustionTicks = 0;
         ancientChargeAvailable = false;
+        comboModeEnabled = false;
+        comboTicks = 0;
+        comboName = "";
+        comboNextPowerName = "";
         masteryUses = new int[6];
         xpLevel = 0;
         powerName = "-";
@@ -113,6 +127,10 @@ public final class ClientState {
     public static int ancientChargeTicks() { return ancientChargeTicks; }
     public static int ancientExhaustionTicks() { return ancientExhaustionTicks; }
     public static boolean ancientChargeAvailable() { return ancientChargeAvailable; }
+    public static boolean comboModeEnabled() { return comboModeEnabled; }
+    public static int comboTicks() { return comboTicks; }
+    public static String comboName() { return comboName; }
+    public static String comboNextPowerName() { return comboNextPowerName; }
     public static int xpLevel() { return xpLevel; }
     public static String powerName() { return powerName; }
     public static boolean receivedState() { return receivedState; }
@@ -140,6 +158,10 @@ public final class ClientState {
         private int ancientChargeTicks;
         private int ancientExhaustionTicks;
         private boolean ancientChargeAvailable;
+        private boolean comboModeEnabled;
+        private int comboTicks;
+        private String comboName;
+        private String comboNextPowerName;
         private int[] masteryUses;
         private int xpLevel;
         private String powerName;

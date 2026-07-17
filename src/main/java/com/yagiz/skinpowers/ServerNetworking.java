@@ -66,6 +66,8 @@ public final class ServerNetworking {
             PowerSystem.toggleSelectedFeature(player, data);
         } else if (command.equals("LAUNCH")) {
             PowerSystem.tryRocketlessLaunch(player, data);
+        } else if (command.equals("COMBO_TOGGLE")) {
+            PowerSystem.toggleComboMode(player, data);
         } else {
             return;
         }
@@ -111,6 +113,10 @@ public final class ServerNetworking {
             (int) Math.max(0L, data.ancientChargeUntil() - gameTime),
             (int) Math.max(0L, data.ancientExhaustionUntil() - gameTime),
             data.ancientChargeAvailable(),
+            data.comboModeEnabled(),
+            data.comboActive(gameTime) ? (int) Math.max(0L, data.comboExpiresAt() - gameTime) : 0,
+            data.comboActive(gameTime) ? PowerCatalog.comboName(data.powerClass()) : "",
+            data.comboActive(gameTime) ? PowerCatalog.powerName(data.powerClass(), PowerCatalog.comboFinisherPower(data.powerClass())) : "",
             data.masteryCopy(),
             player.experienceLevel,
             PowerCatalog.powerName(data.powerClass(), data.selectedPower())
@@ -142,6 +148,10 @@ public final class ServerNetworking {
         int ancientChargeTicks,
         int ancientExhaustionTicks,
         boolean ancientChargeAvailable,
+        boolean comboModeEnabled,
+        int comboTicks,
+        String comboName,
+        String comboNextPowerName,
         int[] masteryUses,
         int xpLevel,
         String powerName

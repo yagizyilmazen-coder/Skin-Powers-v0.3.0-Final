@@ -78,6 +78,52 @@ public final class PowerCatalog {
         return costs[level - 1];
     }
 
+
+    public static int comboStarterPower(PowerClass powerClass) {
+        return switch (powerClass) {
+            case WARDEN -> 2;
+            case FLIGHT -> 2;
+            case FIRE -> 4;
+            case NATURE -> 3;
+            default -> 0;
+        };
+    }
+
+    public static int comboFinisherPower(PowerClass powerClass) {
+        return switch (powerClass) {
+            case WARDEN -> 3;
+            case FLIGHT -> 5;
+            case FIRE -> 5;
+            case NATURE -> 2;
+            default -> 0;
+        };
+    }
+
+    public static String comboName(PowerClass powerClass) {
+        return switch (powerClass) {
+            case WARDEN -> "Sonik Fay";
+            case FLIGHT -> "Gök Dalışı";
+            case FIRE -> "Cehennem Felaketi";
+            case NATURE -> "Diken Ormanı";
+            default -> "-";
+        };
+    }
+
+    public static String comboSequence(PowerClass powerClass) {
+        int first = comboStarterPower(powerClass);
+        int second = comboFinisherPower(powerClass);
+        if (first <= 0 || second <= 0) return "-";
+        return powerName(powerClass, first) + " → " + powerName(powerClass, second);
+    }
+
+    public static boolean isComboStarter(PowerClass powerClass, int power) {
+        return comboStarterPower(powerClass) == power;
+    }
+
+    public static boolean isComboFinisher(PowerClass powerClass, int power) {
+        return comboFinisherPower(powerClass) == power;
+    }
+
     public static int masteryStage(int uses) {
         if (uses >= 30) return 3;
         if (uses >= 15) return 2;

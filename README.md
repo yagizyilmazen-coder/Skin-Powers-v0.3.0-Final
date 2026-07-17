@@ -1,4 +1,4 @@
-# Skin Powers 4.0.0
+# Skin Powers 4.1.0
 
 Minecraft Java Edition 26.1.2 için Fabric modudur. İlk sınıf seçiminde oyuncunun skini renklerine göre analiz edilir ve dört sınıf önerilir:
 
@@ -81,10 +81,22 @@ Süre 20 saniyeden büyük yazılsa bile 20 saniyeyle sınırlandırılır. Komu
 1. Bu klasörün içeriğini GitHub deposunun ana dizinine kopyalayın.
 2. Eski sürümden kalan `CHANGELOG_0.3.x.md` gibi dosyaları silin; `.git` klasörünü silmeyin.
 3. `Actions` sekmesindeki **Fabric JAR Derle** iş akışını çalıştırın.
-4. Yeşil tikten sonra `skinpowers-4.0.0-jar` artifact'ini indirin.
-5. ZIP içindeki `skinpowers-4.0.0.jar` dosyasını Minecraft `mods` klasörüne koyun.
+4. Yeşil tikten sonra `skinpowers-4.1.0-jar` artifact'ini indirin.
+5. ZIP içindeki `skinpowers-4.1.0.jar` dosyasını Minecraft `mods` klasörüne koyun.
 6. Eski Skin Powers JAR dosyalarını `mods` klasöründen kaldırın.
 
 ## Yapımcı
 
 **Made by Yankalan**
+
+
+## 4.1 Güç kombinasyonları
+
+`K` ile Kombo Modu açılır/kapatılır. Mod açıkken doğru iki güç kısa süre içinde kullanılırsa özel saldırı oluşur:
+
+- Warden: Yer Sarsıntısı → Sonik Patlama = Sonik Fay
+- Uçuş: Süreli Elytra → Gökyüzü Hâkimiyeti = Gök Dalışı
+- Ateş: Cehennem Küresi → Meteor Yağmuru = Cehennem Felaketi
+- Doğa: Sarmaşık Kapanı → Dikenli Tohum = Diken Ormanı
+
+Antik Şehir Şarjı varsa hazırlık gücü hakkı tüketmez; birleşik saldırı mor-camgöbeği güçlendirilmiş biçimde hakkı tüketir.

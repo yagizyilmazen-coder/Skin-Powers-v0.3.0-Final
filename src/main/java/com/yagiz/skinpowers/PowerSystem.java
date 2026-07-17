@@ -236,31 +236,56 @@ public final class PowerSystem {
             long lastImpact = LAST_SKY_IMPACT.getOrDefault(player.getUUID(), Long.MIN_VALUE / 2);
             if (now - lastImpact >= 24L) {
                 int stage = data.masteryStage(5);
+                boolean skyCombo = data.selectedPower() == 5 && data.comboActive(now)
+                    && data.comboStarterPower() == 2 && data.powerClass() == PowerClass.FLIGHT;
                 boolean chargeFromReadyState = data.selectedPower() == 5 && AncientChargeSystem.isUsableCharge(data, now, 5);
                 // Şarjlı Süreli Elytra yalnızca kendi süresini ve görünümünü güçlendirir.
                 // Gökyüzü Hâkimiyeti ancak 5. güç seçiliyken tek kullanım hakkını ayrıca tüketir.
                 boolean boosted = chargeFromReadyState;
-                double hitRadius = AncientChargeSystem.radius(2.25 + stage * 0.20, boosted);
+                double hitRadius = AncientChargeSystem.radius((skyCombo ? 4.2 : 2.25) + stage * 0.20, boosted);
                 AABB sweptArea = new AABB(previousPosition, currentPosition).inflate(hitRadius);
                 for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, sweptArea)) {
                     if (target == player || protectedAlly(player, target)) continue;
                     Vec3 targetCenter = target.getEyePosition();
                     if (distanceToSegmentSqr(targetCenter, previousPosition, currentPosition) > hitRadius * hitRadius) continue;
 
-                    target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(12.0F + stage * 2.0F, boosted));
+                    target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage((skyCombo ? 18.0F : 12.0F) + stage * 2.0F, boosted));
                     Vec3 push = player.getDeltaMovement();
                     if (push.lengthSqr() < 0.0001) push = player.getLookAngle();
-                    push = push.normalize().scale(AncientChargeSystem.knockback(1.25 + stage * 0.14, boosted));
-                    target.push(push.x, 0.42, push.z);
+                    push = push.normalize().scale(AncientChargeSystem.knockback((skyCombo ? 1.85 : 1.25) + stage * 0.14, boosted));
+                    target.push(push.x, skyCombo ? 0.68 : 0.42, push.z);
 
                     // Darbenin oyuncuya geri dönmesini azalt: hız yumuşatılır ve düşüş birikimi sıfırlanır.
                     player.setDeltaMovement(player.getDeltaMovement().scale(0.58));
                     player.fallDistance = 0.0F;
                     player.hurtMarked = true;
                     LAST_SKY_IMPACT.put(player.getUUID(), now);
-                    level.sendParticles(boosted ? ParticleTypes.WITCH : ParticleTypes.CLOUD, target.getX(), target.getY() + 0.7, target.getZ(), boosted ? 68 : 36, 0.9, 0.9, 0.9, 0.11);
-                    if (chargeFromReadyState) AncientChargeSystem.consume(player, data, 5, now);
+                    level.sendParticles(boosted ? ParticleTypes.WITCH : ParticleTypes.CLOUD, target.getX(), target.getY() + 0.7, target.getZ(), skyCombo ? 96 : (boosted ? 68 : 36), skyCombo ? 1.5 : 0.9, skyCombo ? 1.25 : 0.9, skyCombo ? 1.5 : 0.9, 0.11);
+                    if (skyCombo) {
+                        Vec3 impactCenter = target.position();
+                        double shockRadius = AncientChargeSystem.radius(6.0 + stage * 0.45, boosted);
+                        for (LivingEntity nearby : level.getEntitiesOfClass(LivingEntity.class, new AABB(impactCenter, impactCenter).inflate(shockRadius))) {
+                            if (nearby == player || nearby == target || protectedAlly(player, nearby)) continue;
+                            nearby.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(9.0F + stage * 1.4F, boosted));
+                            Vec3 outward = nearby.position().subtract(impactCenter);
+                            if (outward.lengthSqr() > 0.001) {
+                                outward = outward.normalize().scale(AncientChargeSystem.knockback(1.35 + stage * 0.10, boosted));
+                                nearby.push(outward.x, 0.48, outward.z);
+                            }
+                        }
+                        drawRing(level, impactCenter.add(0.0, 0.2, 0.0), shockRadius, boosted ? ParticleTypes.WITCH : ParticleTypes.CLOUD, boosted ? 110 : 76);
+                        ServerNetworking.sendScreenShake(level, impactCenter, boosted ? 38.0 : 28.0, boosted ? 1.8F : 1.3F, boosted ? 24 : 17);
+                        player.sendSystemMessage(Component.literal("GÖK DALIŞI!"));
+                        data.clearCombo();
+                        data.setCooldown(5, now, Math.max(420, 620 - stage * 45));
+                        PlayerDataStore.markDirty();
+                    }
+                    if (chargeFromReadyState) {
+                        if (skyCombo) data.consumeAncientChargeForCombo(now, 2, 5);
+                        else AncientChargeSystem.consume(player, data, 5, now);
+                    }
                     creditMastery(player, data, 5, now, 24L);
+                    ServerNetworking.sync(player);
                     break;
                 }
             }
@@ -324,6 +349,7 @@ public final class PowerSystem {
         if (power > data.unlockedLevel()) return;
 
         long now = player.level().getGameTime();
+        data.comboActive(now); // Süresi dolmuş kombo penceresini temizle.
         if (power == 6 && data.ancientChargeActive(now)) {
             player.sendSystemMessage(Component.literal("Antik Şehir Şarjı taşırken 6. güç kullanılamaz."));
             return;
@@ -334,18 +360,48 @@ public final class PowerSystem {
             return;
         }
 
+        boolean pendingCombo = data.comboActive(now);
+        boolean expectedFinisher = pendingCombo
+            && data.comboStarterPower() == PowerCatalog.comboStarterPower(data.powerClass())
+            && power == PowerCatalog.comboFinisherPower(data.powerClass());
         boolean charged = AncientChargeSystem.isUsableCharge(data, now, power);
+
+        if (expectedFinisher && data.powerClass() != PowerClass.FLIGHT) {
+            boolean comboUsed = useComboFinisher(player, data, power, now, charged);
+            if (comboUsed) {
+                recordMasteryUse(player, data, power);
+                if (charged) {
+                    data.consumeAncientChargeForCombo(now, PowerCatalog.comboStarterPower(data.powerClass()), power);
+                    AncientChargeSystem.emitChargedBurst((ServerLevel) player.level(), player.position().add(0.0, 1.0, 0.0), data.powerClass(), 1.5);
+                }
+                data.clearCombo();
+                PlayerDataStore.markDirty();
+                ServerNetworking.sync(player);
+            }
+            return;
+        }
+
+        // Yanlış ikinci güç normal çalışır ama bekleyen kombinasyonu iptal eder.
+        if (pendingCombo && !expectedFinisher) data.clearCombo();
+
+        boolean comboStarter = data.comboModeEnabled()
+            && data.unlockedLevel() >= PowerCatalog.comboFinisherPower(data.powerClass())
+            && PowerCatalog.isComboStarter(data.powerClass(), power);
+        // Antik Şehir hakkı ilk hazırlık gücünde harcanmaz; yalnızca birleşik saldırıyı güçlendirir.
+        boolean normalCharged = charged && !comboStarter;
         boolean used = switch (data.powerClass()) {
-            case WARDEN -> useWarden(player, data, power, now, charged);
-            case FLIGHT -> useFlight(player, data, power, now, charged);
-            case FIRE -> useFire(player, data, power, now, charged);
-            case NATURE -> useNature(player, data, power, now, charged);
+            case WARDEN -> useWarden(player, data, power, now, normalCharged);
+            case FLIGHT -> useFlight(player, data, power, now, normalCharged);
+            case FIRE -> useFire(player, data, power, now, normalCharged, comboStarter);
+            case NATURE -> useNature(player, data, power, now, normalCharged, comboStarter);
             default -> false;
         };
 
         if (used) {
+            if (comboStarter) beginImmediateComboIfNeeded(player, data, power, now);
             recordMasteryUse(player, data, power);
-            if (charged) AncientChargeSystem.consume(player, data, power, now);
+            if (normalCharged) AncientChargeSystem.consume(player, data, power, now);
+            PlayerDataStore.markDirty();
             ServerNetworking.sync(player);
         }
     }
@@ -375,6 +431,13 @@ public final class PowerSystem {
             PlayerDataStore.markDirty();
             ServerNetworking.sync(player);
         }
+    }
+
+    public static void toggleComboMode(ServerPlayer player, PlayerPowerData data) {
+        boolean enabled = data.toggleComboMode();
+        PlayerDataStore.markDirty();
+        player.sendSystemMessage(Component.literal("Kombo Modu: " + (enabled ? "AÇIK" : "KAPALI")));
+        ServerNetworking.sync(player);
     }
 
     public static void tryRocketlessLaunch(ServerPlayer player, PlayerPowerData data) {
@@ -529,7 +592,7 @@ public final class PowerSystem {
         return false;
     }
 
-    private static boolean useFire(ServerPlayer player, PlayerPowerData data, int power, long now, boolean charged) {
+    private static boolean useFire(ServerPlayer player, PlayerPowerData data, int power, long now, boolean charged, boolean comboStarter) {
         ServerLevel level = (ServerLevel) player.level();
         int stage = data.masteryStage(power);
         switch (power) {
@@ -557,7 +620,7 @@ public final class PowerSystem {
                 return true;
             }
             case 4 -> {
-                hellfireBeam(player, stage, charged);
+                hellfireBeam(player, stage, charged, comboStarter);
                 data.setCooldown(4, now, Math.max(240, 360 - stage * 40));
                 return true;
             }
@@ -570,7 +633,7 @@ public final class PowerSystem {
         }
     }
 
-    private static boolean useNature(ServerPlayer player, PlayerPowerData data, int power, long now, boolean charged) {
+    private static boolean useNature(ServerPlayer player, PlayerPowerData data, int power, long now, boolean charged, boolean comboStarter) {
         ServerLevel level = (ServerLevel) player.level();
         int stage = data.masteryStage(power);
         switch (power) {
@@ -589,6 +652,10 @@ public final class PowerSystem {
                 long duration = AncientChargeSystem.duration((int) (80L + stage * 15L), charged);
                 PendingVineTrap trap = new PendingVineTrap(level, player.getUUID(), center, now + duration, stage, charged);
                 buildVineTrapVisual(trap);
+                if (comboStarter) {
+                    data.beginCombo(3, now, 80, center.x, center.y, center.z, true);
+                    announceComboReady(player, data);
+                }
                 VINE_TRAPS.add(trap);
                 level.sendParticles(charged ? ParticleTypes.WITCH : ParticleTypes.HAPPY_VILLAGER, center.x, center.y + 0.5, center.z, charged ? 52 : 28, 2.1, 0.6, 2.1, 0.03);
                 data.setCooldown(3, now, Math.max(240, 320 - stage * 25));
@@ -616,6 +683,142 @@ public final class PowerSystem {
             }
             default -> { return false; }
         }
+    }
+
+    private static void beginImmediateComboIfNeeded(ServerPlayer player, PlayerPowerData data, int power, long now) {
+        if (!data.comboModeEnabled()) return;
+        if (data.powerClass() == PowerClass.WARDEN && power == 2) {
+            data.beginCombo(2, now, 80);
+            announceComboReady(player, data);
+        } else if (data.powerClass() == PowerClass.FLIGHT && power == 2) {
+            data.beginCombo(2, now, 80);
+            announceComboReady(player, data);
+        }
+        // Ateş işareti küre çarpınca, Doğa işareti kapanın gerçek merkezinde başlatılır.
+    }
+
+    private static void announceComboReady(ServerPlayer player, PlayerPowerData data) {
+        player.sendSystemMessage(Component.literal(
+            "KOMBO HAZIR: " + PowerCatalog.comboName(data.powerClass())
+                + " • " + PowerCatalog.powerName(data.powerClass(), PowerCatalog.comboFinisherPower(data.powerClass()))
+        ));
+        PlayerDataStore.markDirty();
+        ServerNetworking.sync(player);
+    }
+
+    private static boolean useComboFinisher(ServerPlayer player, PlayerPowerData data, int power, long now, boolean charged) {
+        int stage = data.masteryStage(power);
+        return switch (data.powerClass()) {
+            case WARDEN -> {
+                sonicFault(player, stage, charged);
+                data.setCooldown(3, now, Math.max(320, 480 - stage * 35));
+                player.sendSystemMessage(Component.literal("SONİK FAY!"));
+                yield true;
+            }
+            case FIRE -> {
+                Vec3 center = comboTarget(data, findGroundPoint((ServerLevel) player.level(), player.position().add(horizontalDirection(player.getLookAngle()).scale(8.0))));
+                scheduleComboMeteors(player, data, stage, charged, center);
+                data.setCooldown(5, now, Math.max(1900, 2500 - stage * 110));
+                player.sendSystemMessage(Component.literal("CEHENNEM FELAKETİ!"));
+                yield true;
+            }
+            case NATURE -> {
+                Vec3 center = comboTarget(data, findGroundPoint((ServerLevel) player.level(), player.position().add(horizontalDirection(player.getLookAngle()).scale(7.0))));
+                launchNatureComboSeed(player, stage, charged, center);
+                data.setCooldown(2, now, Math.max(120, 180 - stage * 10));
+                player.sendSystemMessage(Component.literal("DİKEN ORMANI!"));
+                yield true;
+            }
+            default -> false;
+        };
+    }
+
+    private static Vec3 comboTarget(PlayerPowerData data, Vec3 fallback) {
+        return data.comboTargetValid()
+            ? new Vec3(data.comboTargetX(), data.comboTargetY(), data.comboTargetZ())
+            : fallback;
+    }
+
+    private static void sonicFault(ServerPlayer player, int stage, boolean charged) {
+        ServerLevel level = (ServerLevel) player.level();
+        Vec3 direction = horizontalDirection(player.getLookAngle());
+        Vec3 start = player.position().add(direction.scale(1.5));
+        double range = AncientChargeSystem.radius(22.0 + stage * 2.0, charged);
+        double hitRadius = AncientChargeSystem.radius(2.1 + stage * 0.25, charged);
+        java.util.Set<UUID> hit = new java.util.HashSet<>();
+
+        for (double distance = 0.0; distance <= range; distance += 1.15) {
+            Vec3 point = findGroundPoint(level, start.add(direction.scale(distance)));
+            level.sendParticles(ParticleTypes.SONIC_BOOM, point.x, point.y + 0.35, point.z, 1, 0.0, 0.0, 0.0, 0.0);
+            level.sendParticles(charged ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL,
+                point.x, point.y + 0.18, point.z, charged ? 9 : 5, 0.45, 0.18, 0.45, 0.025);
+            AABB area = new AABB(point, point).inflate(hitRadius, 2.0, hitRadius);
+            for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, area)) {
+                if (target == player || protectedAlly(player, target) || !hit.add(target.getUUID())) continue;
+                target.hurtServer(level, level.damageSources().playerAttack(player), AncientChargeSystem.damage(16.0F + stage * 3.0F, charged));
+                target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 90 + stage * 15, 2, false, true, true));
+                Vec3 push = direction.scale(AncientChargeSystem.knockback(1.15 + stage * 0.12, charged));
+                target.push(push.x, AncientChargeSystem.knockback(0.62 + stage * 0.06, charged), push.z);
+            }
+        }
+        Vec3 end = findGroundPoint(level, start.add(direction.scale(range)));
+        drawRing(level, end.add(0.0, 0.15, 0.0), AncientChargeSystem.radius(5.0 + stage * 0.5, charged), charged ? ParticleTypes.WITCH : ParticleTypes.SCULK_SOUL, charged ? 88 : 56);
+        level.playSound(null, BlockPos.containing(end), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.8F, 0.70F);
+        ServerNetworking.sendScreenShake(level, end, charged ? 42.0 : 30.0, charged ? 1.9F : 1.35F, charged ? 25 : 18);
+    }
+
+    private static void launchNatureComboSeed(ServerPlayer player, int stage, boolean charged, Vec3 center) {
+        ServerLevel level = (ServerLevel) player.level();
+        Vec3 start = player.getEyePosition().add(player.getLookAngle().normalize().scale(1.0));
+        Vec3 target = center.add(0.0, 1.1, 0.0);
+        Vec3 direction = target.subtract(start);
+        if (direction.lengthSqr() < 0.01) direction = player.getLookAngle();
+        Vec3 velocity = direction.normalize().scale(charged ? 1.35 : 1.08);
+        long travelTicks = Math.max(8L, Math.min(46L, (long) Math.ceil(direction.length() / Math.max(0.2, velocity.length())) + 5L));
+        NATURE_SEEDS.add(new PendingNatureSeed(level, player.getUUID(), start, velocity,
+            level.getGameTime() + travelTicks, stage, charged, true, center));
+        level.sendParticles(charged ? ParticleTypes.WITCH : ParticleTypes.HAPPY_VILLAGER,
+            start.x, start.y, start.z, charged ? 54 : 26, 0.35, 0.35, 0.35, 0.04);
+    }
+
+    private static void createThornForest(PendingNatureSeed seed, Vec3 center, ServerPlayer owner) {
+        int radius = (seed.charged ? 6 : 5) + seed.stage / 2;
+        List<PlacedBlock> blocks = new ArrayList<>();
+        BlockPos baseCenter = BlockPos.containing(findGroundPoint(seed.level, center));
+        for (int ray = 0; ray < 12; ray++) {
+            double angle = Math.PI * 2.0 * ray / 12.0;
+            for (int step = 1; step <= radius; step++) {
+                int x = baseCenter.getX() + (int) Math.round(Math.cos(angle) * step);
+                int z = baseCenter.getZ() + (int) Math.round(Math.sin(angle) * step);
+                int y = seed.level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+                BlockPos root = new BlockPos(x, y, z);
+                BlockState rootState = seed.charged ? Blocks.CRYING_OBSIDIAN.defaultBlockState() : Blocks.MANGROVE_ROOTS.defaultBlockState();
+                placeIfAir(seed.level, blocks, root, rootState);
+                if (step % 2 == 0) {
+                    BlockState tip = seed.charged ? Blocks.AMETHYST_BLOCK.defaultBlockState() : Blocks.OAK_LEAVES.defaultBlockState();
+                    placeIfAir(seed.level, blocks, root.above(), tip);
+                    if (step >= radius - 1) placeIfAir(seed.level, blocks, root.above(2), tip);
+                }
+            }
+        }
+        for (int y = 0; y < 4 + seed.stage / 2; y++) {
+            placeIfAir(seed.level, blocks, baseCenter.above(y), seed.charged ? Blocks.AMETHYST_BLOCK.defaultBlockState() : Blocks.MOSS_BLOCK.defaultBlockState());
+        }
+        NATURE_SHAPES.add(new TemporaryNatureShape(seed.level, blocks, seed.level.getGameTime() + (seed.charged ? 100L : 75L)));
+
+        double damageRadius = AncientChargeSystem.radius(radius + 1.5, seed.charged);
+        for (LivingEntity target : seed.level.getEntitiesOfClass(LivingEntity.class, new AABB(center, center).inflate(damageRadius, 4.0, damageRadius))) {
+            if (owner != null && (target == owner || protectedAlly(owner, target))) continue;
+            target.hurtServer(seed.level, owner == null ? seed.level.damageSources().generic() : seed.level.damageSources().playerAttack(owner),
+                AncientChargeSystem.damage(10.0F + seed.stage * 2.2F, seed.charged));
+            target.addEffect(new MobEffectInstance(MobEffects.POISON, 100 + seed.stage * 20, seed.stage >= 2 ? 1 : 0, false, true, true));
+            target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 90 + seed.stage * 18, 5, false, true, true));
+            target.push(0.0, AncientChargeSystem.knockback(0.72 + seed.stage * 0.08, seed.charged), 0.0);
+        }
+        seed.level.sendParticles(seed.charged ? ParticleTypes.WITCH : ParticleTypes.COMPOSTER,
+            center.x, center.y + 0.7, center.z, seed.charged ? 180 : 105, radius * 0.72, 1.4, radius * 0.72, 0.09);
+        seed.level.playSound(null, baseCenter, SoundEvents.WARDEN_ATTACK_IMPACT, SoundSource.PLAYERS, 1.4F, 0.72F);
+        ServerNetworking.sendScreenShake(seed.level, center, seed.charged ? 34.0 : 24.0, seed.charged ? 1.45F : 1.0F, seed.charged ? 20 : 14);
     }
 
     private static void sonicBlast(ServerPlayer player, PlayerPowerData data, int stage, boolean charged) {
@@ -659,7 +862,7 @@ public final class PowerSystem {
         level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.6F, 0.92F);
     }
 
-    private static void hellfireBeam(ServerPlayer player, int stage, boolean charged) {
+    private static void hellfireBeam(ServerPlayer player, int stage, boolean charged, boolean comboPrimer) {
         ServerLevel level = (ServerLevel) player.level();
         Vec3 direction = player.getLookAngle().normalize();
         Vec3 start = player.getEyePosition().add(direction.scale(1.15));
@@ -672,7 +875,8 @@ public final class PowerSystem {
             velocity,
             now + (charged ? 48L : 34L + stage * 4L),
             stage,
-            charged
+            charged,
+            comboPrimer
         ));
         level.sendParticles(charged ? ParticleTypes.WITCH : ParticleTypes.FLAME, start.x, start.y, start.z, charged ? 48 : 24, 0.35, 0.35, 0.35, 0.05);
         level.sendParticles(charged ? ParticleTypes.SCULK_SOUL : ParticleTypes.LAVA, start.x, start.y, start.z, charged ? 18 : 5, 0.20, 0.20, 0.20, 0.0);
@@ -792,6 +996,14 @@ public final class PowerSystem {
         level.sendParticles(orb.charged ? ParticleTypes.WITCH : ParticleTypes.FLAME, impact.x, impact.y, impact.z, orb.charged ? 130 : 70, 1.25, 1.25, 1.25, 0.11);
         level.sendParticles(orb.charged ? ParticleTypes.SCULK_SOUL : ParticleTypes.LAVA, impact.x, impact.y, impact.z, orb.charged ? 50 : 15, 0.85, 0.85, 0.85, 0.0);
         level.playSound(null, BlockPos.containing(impact), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.15F, 1.05F);
+        if (orb.comboPrimer && owner != null) {
+            PlayerPowerData data = PlayerDataStore.get(owner.getUUID());
+            if (data.comboModeEnabled() && data.powerClass() == PowerClass.FIRE) {
+                Vec3 ground = findGroundPoint(level, impact);
+                data.beginCombo(4, level.getGameTime(), 80, ground.x, ground.y, ground.z, true);
+                announceComboReady(owner, data);
+            }
+        }
     }
 
     private static void launchNatureSeed(ServerPlayer player, int stage, boolean charged) {
@@ -857,6 +1069,10 @@ public final class PowerSystem {
     }
 
     private static void impactNatureSeed(PendingNatureSeed seed, Vec3 impact, LivingEntity direct, ServerPlayer owner) {
+        if (seed.comboForest) {
+            createThornForest(seed, seed.comboCenter == null ? impact : seed.comboCenter, owner);
+            return;
+        }
         if (direct != null) {
             direct.hurtServer(seed.level, owner == null ? seed.level.damageSources().generic() : seed.level.damageSources().playerAttack(owner), AncientChargeSystem.damage(5.0F + seed.stage * 1.4F, seed.charged));
             direct.addEffect(new MobEffectInstance(MobEffects.POISON, 70 + seed.stage * 15, seed.stage >= 2 ? 1 : 0, false, true, true));
@@ -1069,6 +1285,43 @@ public final class PowerSystem {
             double spread = 0.08 * i;
             level.sendParticles(charged ? ParticleTypes.WITCH : ParticleTypes.CLOUD, point.x, point.y, point.z, charged ? 8 : 4, spread, spread, spread, 0.03);
         }
+    }
+
+    private static void scheduleComboMeteors(ServerPlayer player, PlayerPowerData data, int stage, boolean charged, Vec3 center) {
+        ServerLevel level = (ServerLevel) player.level();
+        long now = level.getGameTime();
+        RandomSource random = level.getRandom();
+        int count = charged ? 20 : 10;
+        int outerCount = Math.max(1, count - 1);
+
+        player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 40, 6, false, true, true));
+        player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 40, 4, false, true, true));
+        level.playSound(null, BlockPos.containing(center), SoundEvents.WITHER_SPAWN, SoundSource.PLAYERS, 1.1F, 1.22F);
+        drawRing(level, center.add(0.0, 0.15, 0.0), charged ? 7.5 : 6.0, charged ? ParticleTypes.WITCH : ParticleTypes.FLAME, charged ? 92 : 64);
+
+        for (int i = 0; i < count; i++) {
+            double radius = i == 0 ? 0.0 : (charged ? 7.5 : 6.0);
+            double angle = i == 0 ? 0.0 : Math.PI * 2.0 * (i - 1) / outerCount;
+            int x = (int) Math.floor(center.x + Math.cos(angle) * radius);
+            int z = (int) Math.floor(center.z + Math.sin(angle) * radius);
+            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+            Vec3 impact = new Vec3(x + 0.5, y, z + 0.5);
+
+            double approachAngle = angle + Math.PI + (random.nextDouble() - 0.5) * 0.35;
+            double horizontalOffset = 10.0 + random.nextDouble() * 5.0;
+            Vec3 startPosition = new Vec3(
+                impact.x + Math.cos(approachAngle) * horizontalOffset,
+                impact.y + 40.0 + random.nextInt(9),
+                impact.z + Math.sin(approachAngle) * horizontalOffset
+            );
+
+            long spawnTick = now + i * (charged ? 3L : 4L);
+            long impactTick = spawnTick + 52L + random.nextInt(8);
+            int craterRadius = (i == 0 ? 6 : 5) + stage / 2 + (charged ? 1 : 0);
+            float damage = AncientChargeSystem.damage((i == 0 ? 28.0F : 23.0F) + stage * 3.5F, charged);
+            METEORS.add(new PendingMeteor(level, player.getUUID(), startPosition, impact, spawnTick, impactTick, craterRadius, damage, charged));
+        }
+        ServerNetworking.sendScreenShake(level, center, charged ? 52.0 : 38.0, charged ? 2.1F : 1.55F, charged ? 30 : 22);
     }
 
     private static void scheduleMeteors(ServerPlayer player, PlayerPowerData data, int stage, boolean charged) {
@@ -1339,6 +1592,7 @@ public final class PowerSystem {
         private final long expireTick;
         private final int stage;
         private final boolean charged;
+        private final boolean comboPrimer;
         private final List<BlockPos> visualBlocks = new ArrayList<>();
 
         private PendingHellfireOrb(
@@ -1348,7 +1602,8 @@ public final class PowerSystem {
             Vec3 velocity,
             long expireTick,
             int stage,
-            boolean charged
+            boolean charged,
+            boolean comboPrimer
         ) {
             this.level = level;
             this.owner = owner;
@@ -1357,6 +1612,7 @@ public final class PowerSystem {
             this.expireTick = expireTick;
             this.stage = stage;
             this.charged = charged;
+            this.comboPrimer = comboPrimer;
         }
     }
 
@@ -1370,9 +1626,14 @@ public final class PowerSystem {
         private final long expireTick;
         private final int stage;
         private final boolean charged;
+        private final boolean comboForest;
+        private final Vec3 comboCenter;
         private final List<PlacedBlock> visualBlocks = new ArrayList<>();
         private PendingNatureSeed(ServerLevel level, UUID owner, Vec3 position, Vec3 velocity, long expireTick, int stage, boolean charged) {
-            this.level = level; this.owner = owner; this.position = position; this.velocity = velocity; this.expireTick = expireTick; this.stage = stage; this.charged = charged;
+            this(level, owner, position, velocity, expireTick, stage, charged, false, null);
+        }
+        private PendingNatureSeed(ServerLevel level, UUID owner, Vec3 position, Vec3 velocity, long expireTick, int stage, boolean charged, boolean comboForest, Vec3 comboCenter) {
+            this.level = level; this.owner = owner; this.position = position; this.velocity = velocity; this.expireTick = expireTick; this.stage = stage; this.charged = charged; this.comboForest = comboForest; this.comboCenter = comboCenter;
         }
     }
 

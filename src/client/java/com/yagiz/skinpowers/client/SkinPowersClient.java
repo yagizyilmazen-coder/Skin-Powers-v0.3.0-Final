@@ -30,6 +30,7 @@ public final class SkinPowersClient implements ClientModInitializer {
     private final KeyMapping previousKey = register("key.skinpowers.previous", GLFW.GLFW_KEY_LEFT);
     private final KeyMapping nextKey = register("key.skinpowers.next", GLFW.GLFW_KEY_RIGHT);
     private final KeyMapping menuKey = register("key.skinpowers.menu", GLFW.GLFW_KEY_O);
+    private final KeyMapping comboKey = register("key.skinpowers.combo", GLFW.GLFW_KEY_K);
 
     private boolean selectionScreenOpened;
     private boolean previousJumpDown;
@@ -82,6 +83,7 @@ public final class SkinPowersClient implements ClientModInitializer {
             while (toggleKey.consumeClick()) send("TOGGLE");
             while (previousKey.consumeClick()) send("PREV");
             while (nextKey.consumeClick()) send("NEXT");
+            while (comboKey.consumeClick()) send("COMBO_TOGGLE");
             while (menuKey.consumeClick()) {
                 Object currentScreen = getCurrentScreen(client);
                 if (currentScreen instanceof PowerMenuScreen) {

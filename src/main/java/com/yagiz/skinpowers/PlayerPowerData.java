@@ -20,6 +20,15 @@ public final class PlayerPowerData {
     private long wardenHuntUntil = 0L;
     private long natureTreeUntil = 0L;
 
+    // 4.1 Kombo modu ve kısa süreli kombinasyon penceresi.
+    private boolean comboModeEnabled = false;
+    private int comboStarterPower = 0;
+    private long comboExpiresAt = 0L;
+    private double comboTargetX = 0.0;
+    private double comboTargetY = 0.0;
+    private double comboTargetZ = 0.0;
+    private boolean comboTargetValid = false;
+
     // Antik Şehir Şarjı ortak durumu.
     // Sayaç 20 saniye boyunca sürer; tek güç hakkı daha erken kullanılsa bile çöküş sayaç bitince başlar.
     private long ancientChargeStartedAt = 0L;
@@ -51,6 +60,13 @@ public final class PlayerPowerData {
     public long temporaryElytraUntil() { return temporaryElytraUntil; }
     public long wardenHuntUntil() { return wardenHuntUntil; }
     public long natureTreeUntil() { return natureTreeUntil; }
+    public boolean comboModeEnabled() { return comboModeEnabled; }
+    public int comboStarterPower() { return comboStarterPower; }
+    public long comboExpiresAt() { return comboExpiresAt; }
+    public boolean comboTargetValid() { return comboTargetValid; }
+    public double comboTargetX() { return comboTargetX; }
+    public double comboTargetY() { return comboTargetY; }
+    public double comboTargetZ() { return comboTargetZ; }
     public long ancientChargeStartedAt() { return ancientChargeStartedAt; }
     public long ancientChargeUntil() { return ancientChargeUntil; }
     public long ancientExhaustionUntil() { return ancientExhaustionUntil; }
@@ -85,6 +101,8 @@ public final class PlayerPowerData {
         temporaryElytraUntil = 0L;
         wardenHuntUntil = 0L;
         natureTreeUntil = 0L;
+        comboModeEnabled = false;
+        clearCombo();
         ancientChargeStartedAt = 0L;
         ancientChargeUntil = 0L;
         ancientExhaustionUntil = 0L;
@@ -200,6 +218,18 @@ public final class PlayerPowerData {
         ancientChargeUsedPower = Math.max(1, Math.min(STORAGE_SIZE, usedPower));
     }
 
+    /** Kombinasyonda hem hazırlık hem bitiriş gücünün yeni cooldown'unu korur. */
+    public void consumeAncientChargeForCombo(long gameTime, int starterPower, int finisherPower) {
+        if (!ancientChargeReady(gameTime)) return;
+        ensureArrays();
+        int starterIndex = index(starterPower);
+        long starterCooldown = cooldownUntil[starterIndex];
+        restoreFrozenCooldowns(gameTime, finisherPower);
+        cooldownUntil[starterIndex] = Math.max(gameTime, starterCooldown);
+        ancientChargeAvailable = false;
+        ancientChargeUsedPower = Math.max(1, Math.min(STORAGE_SIZE, finisherPower));
+    }
+
     /** Sayaç bittiğinde cooldown'ları geri yükler ve şarj döngüsünü kapatır. */
     public void finishAncientCharge(long gameTime) {
         if (ancientChargeAvailable) restoreFrozenCooldowns(gameTime, 0);
@@ -259,6 +289,49 @@ public final class PlayerPowerData {
 
     public void setAncientExhaustionUntil(long value) { ancientExhaustionUntil = value; }
     public void clearAncientExhaustion() { ancientExhaustionUntil = 0L; }
+
+
+    public boolean toggleComboMode() {
+        comboModeEnabled = !comboModeEnabled;
+        if (!comboModeEnabled) clearCombo();
+        return comboModeEnabled;
+    }
+
+    public void setComboModeEnabled(boolean value) {
+        comboModeEnabled = value;
+        if (!value) clearCombo();
+    }
+
+    public boolean comboActive(long gameTime) {
+        if (!comboModeEnabled || comboStarterPower <= 0 || comboExpiresAt <= gameTime) {
+            if (comboStarterPower > 0 && comboExpiresAt <= gameTime) clearCombo();
+            return false;
+        }
+        return true;
+    }
+
+    public void beginCombo(int starterPower, long gameTime, int durationTicks) {
+        beginCombo(starterPower, gameTime, durationTicks, 0.0, 0.0, 0.0, false);
+    }
+
+    public void beginCombo(int starterPower, long gameTime, int durationTicks, double x, double y, double z, boolean hasTarget) {
+        if (!comboModeEnabled) return;
+        comboStarterPower = Math.max(1, Math.min(STORAGE_SIZE, starterPower));
+        comboExpiresAt = gameTime + Math.max(1, durationTicks);
+        comboTargetX = x;
+        comboTargetY = y;
+        comboTargetZ = z;
+        comboTargetValid = hasTarget;
+    }
+
+    public void clearCombo() {
+        comboStarterPower = 0;
+        comboExpiresAt = 0L;
+        comboTargetX = 0.0;
+        comboTargetY = 0.0;
+        comboTargetZ = 0.0;
+        comboTargetValid = false;
+    }
 
     public void togglePassive() { passiveEnabled = !passiveEnabled; }
     public void toggleVision() { visionEnabled = !visionEnabled; }
