@@ -48,7 +48,7 @@ public final class SkinSelectionScreen extends Screen {
         }
 
         if (minecraft != null && minecraft.player != null) {
-            SkinAnalyzer.analyzeAsync(minecraft.player.getGameProfile()).thenAccept(analyzed ->
+            SkinAnalyzer.analyzeAsync(minecraft.player.getGameProfile(), true).thenAccept(analyzed ->
                 minecraft.execute(() -> {
                     result = analyzed;
                     analysisFinished = true;
@@ -219,13 +219,13 @@ public final class SkinSelectionScreen extends Screen {
 
         graphics.fill(x - 22, top + 64, x + 22, top + 68, 0x44000000);
         if (!result.hasSkinImage()) {
-            graphics.fill(x - 8, top, x + 8, top + 16, 0xFF34404D);
-            graphics.outline(x - 8, top, 16, 16, 0xAAFFFFFF);
-            graphics.fill(x - 8, top + 17, x + 8, top + 41, 0xFF516270);
-            graphics.fill(x - 16, top + 18, x - 9, top + 41, 0xFF3B4854);
-            graphics.fill(x + 9, top + 18, x + 16, top + 41, 0xFF3B4854);
-            graphics.fill(x - 8, top + 42, x - 1, top + 66, 0xFF28333D);
-            graphics.fill(x + 1, top + 42, x + 8, top + 66, 0xFF28333D);
+            // Skin yüklenmediyse Steve benzeri sahte bir karakter çizilmez.
+            graphics.fill(x - 19, top + 7, x + 19, top + 55, 0xAA101722);
+            graphics.outline(x - 19, top + 7, 38, 48, 0xCC63FFF1);
+            String waiting = "?";
+            graphics.text(font, waiting, x - font.width(waiting) / 2, top + 25, 0xFFFFFFFF, true);
+            String label = "SKIN BEKLENİYOR";
+            graphics.text(font, label, x - font.width(label) / 2, top + 58, 0xFF9BEFD9, false);
         } else {
             int armSwing = (int) Math.round(Math.sin(now / 260.0) * 1.5);
             boolean modern = result.skinHeight() >= 64;

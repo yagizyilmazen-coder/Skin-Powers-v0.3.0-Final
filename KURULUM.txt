@@ -1,20 +1,18 @@
-SKIN POWERS v1.1.0 FIX3 — İKİ DOSYA ONARIMI
+SKIN POWERS v1.1.1 KÜÇÜK GÜNCELLEME
 
-Bu paket iki dosyayı birlikte düzeltir:
-
-1) src\main\java\com\yagiz\skinpowers\ClassEnchantmentSystem.java
-2) src\main\java\com\yagiz\skinpowers\PowerSystem.java
-
-KURULUM
-1. ZIP'e sağ tıklayıp Tümünü Ayıkla seçin.
-2. Ayıklanan klasördeki src klasörünü kopyalayın.
+1. ZIP'e sağ tıklayın ve Tümünü Ayıkla seçin.
+2. Ayıklanan klasördeki bütün dosya ve klasörleri kopyalayın.
 3. GitHub Desktop > Repository > Show in Explorer seçin.
 4. Proje klasörüne yapıştırın.
 5. Hedefteki dosyaları değiştir seçin.
-6. GitHub Desktop'ta yalnızca iki Java dosyasının değiştiğini kontrol edin.
-7. Summary:
-   1.1.0 FIX3 büyü API ve Warden parçacık onarımı
-8. Commit to main ve Push origin yapın.
+6. GitHub Desktop Summary:
+   1.1.1 skin tarama ve görünür büyü güncellemesi
+7. Commit to main ve Push origin yapın.
+8. GitHub Actions yeşil olunca skinpowers-1.1.1.jar artifact'ını kullanın.
 
-NOT
-Dosyaları tek tek seçmeyin. ZIP içindeki src klasörünü bütünüyle kopyalayın.
+ÖNEMLİ DEĞİŞİKLİKLER
+- Skin tarama üç kez yeniden denenir ve oyuncu adı fallback'i kullanır.
+- Skin alınamazsa sahte Steve karakteri çizilmez.
+- Büyülü kitaplar survival sandık ganimetlerinde ve kütüphaneci takaslarında bulunabilir.
+- Meteor ve diğer aktif büyüler görünür eşya/blok gövdeleri kullanır.
+- Antik Çöküş ve Kor Birikimi güçlendirildi.

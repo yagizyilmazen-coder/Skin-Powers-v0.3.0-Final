@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 errors: list[str] = []
 checks: list[str] = []
 
@@ -39,7 +39,7 @@ def text(relative: str) -> str:
 
 required_files = [
     "build.gradle", "gradle.properties", "settings.gradle", "README.md", "VALIDATION.md", "FEATURE_STATUS.md",
-    "CHANGELOG_1.1.0.md", ".github/workflows/build.yml", "src/main/resources/fabric.mod.json",
+    "CHANGELOG_1.1.1.md", ".github/workflows/build.yml", "src/main/resources/fabric.mod.json",
     "src/main/resources/assets/skinpowers/lang/tr_tr.json",
     "src/main/resources/assets/skinpowers/lang/en_us.json",
     "src/main/java/com/yagiz/skinpowers/AwakeningSystem.java",
@@ -48,6 +48,9 @@ required_files = [
     "src/main/java/com/yagiz/skinpowers/ClassEnchantments.java",
     "src/main/java/com/yagiz/skinpowers/ClassEnchantmentSystem.java",
     "src/main/resources/data/skinpowers/tags/enchantment/class_enchantments.json",
+    "src/main/resources/data/minecraft/tags/enchantment/tradeable.json",
+    "src/main/resources/data/minecraft/tags/enchantment/treasure.json",
+    "src/main/resources/data/minecraft/tags/enchantment/on_random_loot.json",
     "src/client/java/com/yagiz/skinpowers/client/SkinPowersSettingsScreen.java",
 ]
 for file_name in required_files:
@@ -71,7 +74,7 @@ if f"skinpowers-{VERSION}-jar" not in workflow or f"skinpowers-{VERSION}.jar" no
 if "java-version: '25'" not in workflow or "gradle-version: '9.5.1'" not in workflow:
     fail("GitHub Actions Java 25 / Gradle 9.5.1 ayarı eksik")
 if "20 sınıfa özel büyü" not in mod_json or "normal örste" not in mod_json:
-    fail("fabric.mod.json 1.1.0 büyü açıklamasını içermiyor")
+    fail("fabric.mod.json 1.1.1 büyü açıklamasını içermiyor")
 
 power_class = text("src/main/java/com/yagiz/skinpowers/PowerClass.java")
 catalog = text("src/main/java/com/yagiz/skinpowers/PowerCatalog.java")
@@ -154,7 +157,7 @@ required_tokens = {
         '"KADİM EJDERHA"', "drawDragonStorm", "drawAncientCity", "drawLavaCave", "drawForest", "drawAnomalyGlitch",
         "cardProgress >= 0.85F"
     ],
-    analyzer: ["FLIGHT_COLORS", "ANOMALY_COLORS", "SkinPowers/1.1.0"],
+    analyzer: ["FLIGHT_COLORS", "ANOMALY_COLORS", "SkinPowers/1.1.1", "analyzeAsync(profile, false)", "CACHE_TTL_MILLIS", "response.statusCode() == 429"],
     commands: [
         'Commands.literal("degistir")', 'selfClass("ejderha"', 'Commands.literal("olay")',
         'worldEventLiteral("meteor")', 'Commands.literal("durdur")',
@@ -167,7 +170,7 @@ required_tokens = {
         "PowerSystem::allowWardenAmbushDamage",
         "ClassEnchantmentSystem::tickServer", "ClassEnchantmentSystem::onAttackEntity",
         "ClassEnchantmentSystem::allowDamage", "ClassEnchantmentSystem::allowDeath",
-        "Skin Powers 1.1.0 yüklendi"
+        "Skin Powers 1.1.1 yüklendi"
     ],
     store: ["migrateLegacyClassNames", "JsonParser.parseReader"],
     collision: ["registerCast", "cancelActiveOffense", "GÜÇ ÇARPIŞMASI"],
@@ -183,7 +186,8 @@ required_tokens = {
     class_enchantment_system: [
         "tryDragonJump", "tickDepthStep", "tickAshWalk", "tickForestLeap",
         "echoStrike", "ancientCollapse", "emberHit", "rootBind", "dragonClaw",
-        "hellCore", "tickOwnedProjectiles", "tickMeteors", "allowDeath"
+        "hellCore", "tickOwnedProjectiles", "tickMeteors", "tickVisibleEffects", "spawnVisibleRing", "allowDeath",
+        "Items.SCULK_CATALYST", "5.5F", "inflate(5.0)", "6.5F", "List<UUID> visualIds"
     ],
 }
 for source, tokens in required_tokens.items():
@@ -238,6 +242,20 @@ if exclusive_tag_path.is_file():
         fail("class_enchantments etiketi 20 büyünün tamamını içermiyor")
     else:
         ok("Tek sınıf büyüsü etiketi")
+
+for survival_tag in ["tradeable", "treasure", "on_random_loot"]:
+    survival_path = ROOT / f"src/main/resources/data/minecraft/tags/enchantment/{survival_tag}.json"
+    if survival_path.is_file():
+        values = json.loads(survival_path.read_text(encoding="utf-8")).get("values", [])
+        if "#skinpowers:class_enchantments" not in values:
+            fail(f"Survival büyü etiketi sınıf büyülerini içermiyor: {survival_tag}")
+        else:
+            ok(f"Survival büyü etiketi: {survival_tag}")
+
+if "SkinAnalyzer.analyzeAsync(minecraft.player.getGameProfile(), true)" not in selection:
+    fail("Skin ekranı zorunlu yenileme ile tarama başlatmıyor")
+if "SKIN BEKLENİYOR" not in selection or "Steve benzeri sahte bir karakter" not in selection:
+    fail("Skin alınamadığında sahte Steve kaldırma göstergesi eksik")
 
 tr_lang = json.loads(text("src/main/resources/assets/skinpowers/lang/tr_tr.json") or "{}")
 en_lang = json.loads(text("src/main/resources/assets/skinpowers/lang/en_us.json") or "{}")
@@ -446,4 +464,4 @@ if errors:
 
 print("SKIN POWERS PROJE DENETİMİ BAŞARILI")
 print(f"{len(checks)} kontrol geçti.")
-print("20 sınıf büyüsü, normal örs kitapları, dünya olayları ve mevcut güç sistemleri doğrulandı.")
+print("Skin yenileme, survival büyü kitapları, görünür büyü gövdeleri ve güçlendirilmiş büyüler doğrulandı.")

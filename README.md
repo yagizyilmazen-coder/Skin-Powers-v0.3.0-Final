@@ -1,4 +1,4 @@
-# Skin Powers 1.1.0
+# Skin Powers 1.1.1
 
 Minecraft 26.1.2 için Fabric güç modu. Oyuncunun skin renklerini inceleyerek Warden, Kadim Ejderha, Ateş, Doğa ve Anomali sınıflarını önerir.
 
@@ -88,3 +88,12 @@ Uygun eşya + Sınıf Büyülü Kitabı = Sınıf büyülü eşya
 ```
 
 Dünya olayı, büyü kitabı ve yönetim komutları moderatör yetkisi gerektirir.
+
+## 1.1.1 düzeltmeleri
+
+- Skin tarama üç kez dener; UUID sorgusu başarısız olsa bile oyuncu adıyla devam eder.
+- Eski başarılı skin sonucu kalıcı tutulmaz; sınıf ekranı her açıldığında gerçek skin yeniden istenir.
+- Skin alınamazsa sahte Steve çizilmez, "Skin bekleniyor" göstergesi görünür.
+- Sınıf büyülü kitapları survival sandık ganimetlerinde ve kütüphaneci takaslarında bulunabilir.
+- Meteor ve etkin büyü saldırıları gerçek eşya/blok gövdeleriyle görünür.
+- Antik Çöküş ve Kor Birikimi güçlendirildi ve daha belirgin hâle getirildi.

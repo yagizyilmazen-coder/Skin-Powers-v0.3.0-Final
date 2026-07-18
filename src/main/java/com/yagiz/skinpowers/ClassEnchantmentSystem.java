@@ -48,6 +48,7 @@ public final class ClassEnchantmentSystem {
     private static final List<HealingSprout> HEALING_SPROUTS = new ArrayList<>();
     private static final List<PurpleBreathZone> PURPLE_BREATH_ZONES = new ArrayList<>();
     private static final List<EnchantMeteor> METEORS = new ArrayList<>();
+    private static final List<EnchantVisual> VISIBLE_EFFECTS = new ArrayList<>();
     private static boolean internalDamage;
 
     private ClassEnchantmentSystem() {}
@@ -123,6 +124,7 @@ public final class ClassEnchantmentSystem {
         tickHealingSprouts();
         tickPurpleBreathZones();
         tickMeteors();
+        tickVisibleEffects();
         long now = server.overworld().getGameTime();
         COOLDOWNS.entrySet().removeIf(entry -> entry.getValue() + 2400L < now);
     }
@@ -164,6 +166,7 @@ public final class ClassEnchantmentSystem {
         player.fallDistance = 0.0F;
         DOUBLE_JUMP_USED.put(player.getUUID(), true);
         level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 0.5, player.getZ(), 34, 0.65, 0.35, 0.65, 0.08);
+        spawnVisibleRing(level, player.position().add(0.0, 0.65, 0.0), Items.PHANTOM_MEMBRANE, 6, 0.95, level.getGameTime(), 16L, 0.45);
         level.playSound(null, player.blockPosition(), SoundEvents.ENDER_DRAGON_FLAP, SoundSource.PLAYERS, 0.8F, 1.35F);
         return true;
     }
@@ -184,6 +187,7 @@ public final class ClassEnchantmentSystem {
                 projectile.setOwner(player);
                 projectile.setDeltaMovement(projectile.getDeltaMovement().scale(-1.18));
                 level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 45, 0.7, 0.9, 0.7, 0.09);
+                spawnVisibleRing(level, player.position().add(0.0, 1.0, 0.0), Items.AMETHYST_SHARD, 8, 1.15, now, 24L, 0.23);
                 level.playSound(null, player.blockPosition(), SoundEvents.SHIELD_BLOCK.value(), SoundSource.PLAYERS, 1.0F, 0.65F);
                 return false;
             }
@@ -200,6 +204,8 @@ public final class ClassEnchantmentSystem {
                 }
                 player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 80, 1, false, true, true));
                 level.sendParticles(ParticleTypes.SCULK_SOUL, player.getX(), player.getY() + 1.0, player.getZ(), 38, 0.6, 0.8, 0.6, 0.07);
+                spawnVisibleRing(level, player.position().add(0.0, 1.0, 0.0), Items.SCULK, 7, 1.0, now, 28L, 0.18);
+                spawnVisibleRing(level, player.position().add(0.0, 1.25, 0.0), Items.ECHO_SHARD, 5, 0.72, now, 28L, -0.25);
                 return false;
             }
 
@@ -224,6 +230,7 @@ public final class ClassEnchantmentSystem {
                 Vec3 push = attacker.position().subtract(player.position()).normalize().scale(0.55);
                 attacker.push(push.x, 0.25, push.z);
                 level.sendParticles(ParticleTypes.HAPPY_VILLAGER, attacker.getX(), attacker.getY() + 1.0, attacker.getZ(), 18, 0.35, 0.55, 0.35, 0.03);
+                spawnVisibleRing(level, attacker.position().add(0.0, 0.9, 0.0), Items.POINTED_DRIPSTONE, 6, 0.9, now, 20L, 0.30);
             }
         }
 
@@ -234,6 +241,7 @@ public final class ClassEnchantmentSystem {
                 if (owner instanceof ServerPlayer player && PlayerDataStore.get(player.getUUID()).powerClass() == PowerClass.FLIGHT) {
                     PURPLE_BREATH_ZONES.add(new PurpleBreathZone(level, player.getUUID(), victim.position(), now + 100L));
                     level.sendParticles(ParticleTypes.WITCH, victim.getX(), victim.getY() + 0.6, victim.getZ(), 55, 1.0, 0.45, 1.0, 0.05);
+                    spawnVisibleRing(level, victim.position().add(0.0, 0.55, 0.0), Items.DRAGON_BREATH, 9, 2.15, now, 100L, 0.10);
                     state.purpleBreath = false;
                 }
             }
@@ -257,6 +265,7 @@ public final class ClassEnchantmentSystem {
                 player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 100, 4, false, true, true));
                 player.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 50, 0, false, false, true));
                 level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 80, 1.1, 1.0, 1.1, 0.12);
+                spawnVisibleRing(level, player.position().add(0.0, 1.0, 0.0), Items.ENDER_EYE, 8, 1.2, now, 38L, 0.34);
                 player.sendSystemMessage(Component.literal("Hata Payı: Ölümcül sonuç iptal edildi."));
                 return false;
             }
@@ -269,7 +278,9 @@ public final class ClassEnchantmentSystem {
             if (data.powerClass() == PowerClass.NATURE
                 && ClassEnchantments.has(level.registryAccess(), helmet, ClassEnchantments.LIFE_SPROUT)
                 && level.getRandom().nextFloat() < 0.38F) {
-                HEALING_SPROUTS.add(new HealingSprout(level, attacker.getUUID(), victim.position(), level.getGameTime() + 140L));
+                long sproutNow = level.getGameTime();
+                HEALING_SPROUTS.add(new HealingSprout(level, attacker.getUUID(), victim.position(), sproutNow + 140L));
+                spawnStaticVisual(level, Items.FLOWERING_AZALEA, victim.position().add(0.0, 0.45, 0.0), sproutNow, 140L, true);
             }
         }
         return true;
@@ -277,8 +288,14 @@ public final class ClassEnchantmentSystem {
 
     public static void clearAll() {
         for (EnchantMeteor meteor : METEORS) {
-            Entity visual = meteor.level.getEntity(meteor.visualId);
-            if (visual != null) visual.discard();
+            for (UUID visualId : meteor.visualIds) {
+                Entity visual = meteor.level.getEntity(visualId);
+                if (visual != null) visual.discard();
+            }
+        }
+        for (EnchantVisual visual : VISIBLE_EFFECTS) {
+            Entity entity = visual.level.getEntity(visual.entityId);
+            if (entity != null) entity.discard();
         }
         COOLDOWNS.clear();
         EMBER_COMBOS.clear();
@@ -291,6 +308,7 @@ public final class ClassEnchantmentSystem {
         HEALING_SPROUTS.clear();
         PURPLE_BREATH_ZONES.clear();
         METEORS.clear();
+        VISIBLE_EFFECTS.clear();
     }
 
     private static boolean ready(ServerPlayer player, String id, long now, long cooldown) {
@@ -304,9 +322,11 @@ public final class ClassEnchantmentSystem {
     private static void echoStrike(ServerPlayer player, LivingEntity target, ServerLevel level) {
         Vec3 direction = player.getLookAngle().normalize();
         Vec3 start = target.position().add(0.0, 0.8, 0.0);
+        long now = level.getGameTime();
         for (int i = 0; i < 15; i++) {
             Vec3 point = start.add(direction.scale(i * 0.55));
             level.sendParticles(ParticleTypes.SONIC_BOOM, point.x, point.y, point.z, 1, 0.0, 0.0, 0.0, 0.0);
+            if (i % 2 == 0) spawnStaticVisual(level, Items.ECHO_SHARD, point, now, 14L + i / 2, true);
         }
         AABB area = new AABB(start, start.add(direction.scale(8.0))).inflate(1.35);
         for (LivingEntity other : level.getEntitiesOfClass(LivingEntity.class, area)) {
@@ -320,46 +340,76 @@ public final class ClassEnchantmentSystem {
     private static void ancientCollapse(ServerPlayer player, LivingEntity target, ServerLevel level) {
         Vec3 direction = player.getLookAngle();
         direction = new Vec3(direction.x, 0.0, direction.z).normalize();
+        if (direction.lengthSqr() < 0.001) direction = new Vec3(0.0, 0.0, 1.0);
         Vec3 origin = target.position();
-        for (int step = 0; step < 10; step++) {
-            Vec3 point = origin.add(direction.scale(step * 1.15));
-            level.sendParticles(ParticleTypes.SCULK_SOUL, point.x, point.y + 0.15, point.z, 9, 0.45, 0.12, 0.45, 0.02);
-            AABB hit = new AABB(point, point).inflate(1.1, 1.2, 1.1);
+        long now = level.getGameTime();
+        Set<UUID> damaged = new HashSet<>();
+        for (int step = 0; step < 14; step++) {
+            Vec3 point = origin.add(direction.scale(step * 1.25));
+            level.sendParticles(ParticleTypes.SCULK_SOUL, point.x, point.y + 0.18, point.z, 14, 0.58, 0.16, 0.58, 0.035);
+            if (step % 3 == 0) {
+                level.sendParticles(ParticleTypes.SONIC_BOOM, point.x, point.y + 0.45, point.z, 1, 0.0, 0.0, 0.0, 0.0);
+            }
+            spawnStaticVisual(level, step == 13 ? Items.SCULK_CATALYST : Items.SCULK, point.add(0.0, 0.25, 0.0), now, 22L + step, true);
+            if (step % 2 == 0) {
+                spawnStaticVisual(level, Items.ECHO_SHARD, point.add(0.0, 0.75, 0.0), now, 18L + step, true);
+            }
+            AABB hit = new AABB(point, point).inflate(1.35, 1.45, 1.35);
             for (LivingEntity other : level.getEntitiesOfClass(LivingEntity.class, hit)) {
-                if (other == player || PowerSystem.isProtectedAlly(player, other)) continue;
-                other.hurtServer(level, level.damageSources().playerAttack(player), 3.0F);
-                other.push(direction.x * 0.35, 0.55, direction.z * 0.35);
+                if (other == player || PowerSystem.isProtectedAlly(player, other) || !damaged.add(other.getUUID())) continue;
+                other.hurtServer(level, level.damageSources().playerAttack(player), 5.5F);
+                other.push(direction.x * 0.52, 0.72, direction.z * 0.52);
             }
         }
-        ServerNetworking.sendScreenShake(level, origin, 18.0, 0.8F, 10);
+        Vec3 endPoint = origin.add(direction.scale(16.25));
+        level.sendParticles(ParticleTypes.EXPLOSION, endPoint.x, endPoint.y + 0.5, endPoint.z, 4, 0.75, 0.35, 0.75, 0.02);
+        level.playSound(null, BlockPos.containing(endPoint), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.0F, 0.72F);
+        ServerNetworking.sendScreenShake(level, origin, 26.0, 1.15F, 16);
     }
 
     private static void emberHit(ServerPlayer player, LivingEntity target, ServerLevel level, long now) {
         EmberCombo combo = EMBER_COMBOS.get(player.getUUID());
         int hits = combo != null && combo.target.equals(target.getUUID()) && combo.expireTick > now ? combo.hits + 1 : 1;
         if (hits < 3) {
-            EMBER_COMBOS.put(player.getUUID(), new EmberCombo(target.getUUID(), hits, now + 80L));
-            level.sendParticles(ParticleTypes.FLAME, target.getX(), target.getY() + 1.0, target.getZ(), 5 + hits * 4, 0.25, 0.4, 0.25, 0.02);
+            EMBER_COMBOS.put(player.getUUID(), new EmberCombo(target.getUUID(), hits, now + 100L));
+            level.sendParticles(ParticleTypes.FLAME, target.getX(), target.getY() + 1.0, target.getZ(), 10 + hits * 7, 0.38, 0.55, 0.38, 0.035);
+            spawnVisibleRing(level, target.position().add(0.0, 1.0, 0.0), hits == 1 ? Items.BLAZE_POWDER : Items.FIRE_CHARGE,
+                3 + hits * 2, 0.75 + hits * 0.22, now, 22L, 0.28 + hits * 0.05);
             return;
         }
         EMBER_COMBOS.remove(player.getUUID());
-        if (!ready(player, "ember_burst", now, 70L)) return;
-        AABB area = target.getBoundingBox().inflate(3.0);
+        if (!ready(player, "ember_burst", now, 65L)) return;
+        AABB area = target.getBoundingBox().inflate(5.0);
         for (LivingEntity other : level.getEntitiesOfClass(LivingEntity.class, area)) {
             if (other == player || PowerSystem.isProtectedAlly(player, other)) continue;
-            other.hurtServer(level, level.damageSources().playerAttack(player), 4.5F);
-            other.setRemainingFireTicks(Math.max(other.getRemainingFireTicks(), 100));
+            other.hurtServer(level, level.damageSources().playerAttack(player), 6.5F);
+            other.setRemainingFireTicks(Math.max(other.getRemainingFireTicks(), 140));
+            Vec3 push = other.position().subtract(target.position());
+            if (push.lengthSqr() > 0.001) {
+                push = push.normalize().scale(0.78);
+                other.push(push.x, 0.32, push.z);
+            }
         }
-        level.sendParticles(ParticleTypes.LAVA, target.getX(), target.getY() + 0.8, target.getZ(), 42, 1.0, 0.65, 1.0, 0.08);
-        level.playSound(null, target.blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.75F, 1.35F);
+        for (int ring = 0; ring < 3; ring++) {
+            spawnVisibleRing(level, target.position().add(0.0, 0.65 + ring * 0.25, 0.0),
+                ring == 1 ? Items.MAGMA_CREAM : Items.FIRE_CHARGE, 8 + ring * 2,
+                1.25 + ring * 1.55, now, 30L + ring * 4L, 0.35 - ring * 0.05);
+        }
+        level.sendParticles(ParticleTypes.LAVA, target.getX(), target.getY() + 0.8, target.getZ(), 70, 1.75, 0.9, 1.75, 0.12);
+        level.sendParticles(ParticleTypes.EXPLOSION, target.getX(), target.getY() + 0.6, target.getZ(), 5, 1.1, 0.4, 1.1, 0.02);
+        level.playSound(null, target.blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.0F, 1.15F);
+        ServerNetworking.sendScreenShake(level, target.position(), 18.0, 0.85F, 10);
     }
 
     private static void rootBind(ServerPlayer player, LivingEntity target, ServerLevel level) {
         target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 70, 4, false, true, true));
         target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 70, 1, false, true, true));
+        long now = level.getGameTime();
         for (int i = 0; i < 4; i++) {
             PowerSystem.drawExternalRing(level, target.position().add(0.0, i * 0.28, 0.0), 0.65 + i * 0.08, ParticleTypes.HAPPY_VILLAGER, 18);
         }
+        spawnVisibleRing(level, target.position().add(0.0, 0.55, 0.0), Items.VINE, 8, 0.82, now, 72L, 0.08);
+        spawnVisibleRing(level, target.position().add(0.0, 1.1, 0.0), Items.HANGING_ROOTS, 6, 0.72, now, 72L, -0.10);
         level.playSound(null, target.blockPosition(), SoundEvents.GRASS_BREAK, SoundSource.PLAYERS, 0.8F, 0.75F);
     }
 
@@ -368,6 +418,8 @@ public final class ClassEnchantmentSystem {
         target.push(0.0, 0.85, 0.0);
         target.fallDistance = 0.0F;
         Vec3 center = target.position().add(0.0, 1.0, 0.0);
+        long now = level.getGameTime();
+        spawnVisibleRing(level, center, Items.AMETHYST_SHARD, 9, 1.35, now, 28L, 0.38);
         for (int arm = 0; arm < 3; arm++) {
             double angle = arm * Math.PI * 2.0 / 3.0;
             for (int i = 0; i < 7; i++) {
@@ -395,6 +447,9 @@ public final class ClassEnchantmentSystem {
         }
         PowerSystem.drawExternalRing(level, player.position().add(0.0, 0.4, 0.0), 4.2, ParticleTypes.FLAME, 72);
         level.sendParticles(ParticleTypes.LAVA, player.getX(), player.getY() + 1.0, player.getZ(), 65, 1.4, 1.0, 1.4, 0.08);
+        long now = level.getGameTime();
+        spawnVisibleRing(level, player.position().add(0.0, 1.0, 0.0), Items.MAGMA_BLOCK, 8, 1.6, now, 42L, 0.22);
+        spawnVisibleRing(level, player.position().add(0.0, 1.25, 0.0), Items.FIRE_CHARGE, 10, 2.45, now, 42L, -0.28);
         ServerNetworking.sendScreenShake(level, player.position(), 18.0, 0.9F, 10);
     }
 
@@ -439,13 +494,19 @@ public final class ClassEnchantmentSystem {
 
     private static void startMeteor(ServerPlayer player, LivingEntity target, ServerLevel level, long now) {
         Vec3 impact = target.position();
-        Vec3 start = impact.add(0.0, 14.0, 0.0);
-        ItemEntity visual = new ItemEntity(level, start.x, start.y, start.z, new ItemStack(Items.MAGMA_BLOCK));
-        visual.setNoGravity(true);
-        visual.setPickUpDelay(32767);
-        visual.setGlowingTag(true);
-        if (level.addFreshEntity(visual)) {
-            METEORS.add(new EnchantMeteor(level, player.getUUID(), visual.getUUID(), start, impact, now, now + 24L));
+        Vec3 start = impact.add(0.0, 18.0, 0.0);
+        List<UUID> visualIds = new ArrayList<>();
+        net.minecraft.world.item.Item[] items = {
+            Items.MAGMA_BLOCK,
+            Items.CRYING_OBSIDIAN, Items.FIRE_CHARGE, Items.BLACKSTONE, Items.FIRE_CHARGE,
+            Items.CRYING_OBSIDIAN, Items.MAGMA_CREAM, Items.BLACKSTONE, Items.MAGMA_CREAM
+        };
+        for (int i = 0; i < items.length; i++) {
+            ItemEntity visual = createVisualItem(level, new ItemStack(items[i]), start, true);
+            if (visual != null) visualIds.add(visual.getUUID());
+        }
+        if (!visualIds.isEmpty()) {
+            METEORS.add(new EnchantMeteor(level, player.getUUID(), List.copyOf(visualIds), start, impact, now, now + 36L));
         }
     }
 
@@ -454,31 +515,53 @@ public final class ClassEnchantmentSystem {
         while (iterator.hasNext()) {
             EnchantMeteor meteor = iterator.next();
             long now = meteor.level.getGameTime();
-            Entity visual = meteor.level.getEntity(meteor.visualId);
             Entity ownerEntity = meteor.level.getEntity(meteor.ownerId);
-            if (!(visual instanceof ItemEntity) || !(ownerEntity instanceof ServerPlayer owner)) {
-                if (visual != null) visual.discard();
+            if (!(ownerEntity instanceof ServerPlayer owner)) {
+                discardVisuals(meteor.level, meteor.visualIds);
                 iterator.remove();
                 continue;
             }
             double progress = Math.min(1.0, (now - meteor.startTick) / (double) Math.max(1L, meteor.impactTick - meteor.startTick));
-            Vec3 position = meteor.start.lerp(meteor.impact, progress);
-            visual.setPos(position.x, position.y, position.z);
-            meteor.level.sendParticles(ParticleTypes.FLAME, position.x, position.y, position.z, 7, 0.32, 0.32, 0.32, 0.03);
-            meteor.level.sendParticles(ParticleTypes.LARGE_SMOKE, position.x, position.y + 0.25, position.z, 3, 0.22, 0.22, 0.22, 0.01);
+            Vec3 core = meteor.start.lerp(meteor.impact, progress);
+            int visibleCount = 0;
+            for (int i = 0; i < meteor.visualIds.size(); i++) {
+                Entity entity = meteor.level.getEntity(meteor.visualIds.get(i));
+                if (!(entity instanceof ItemEntity visual)) continue;
+                visibleCount++;
+                if (i == 0) {
+                    visual.setPos(core.x, core.y, core.z);
+                } else {
+                    double ring = i <= 4 ? 0.62 : 1.02;
+                    double angle = (now - meteor.startTick) * (i % 2 == 0 ? 0.58 : -0.46) + i * Math.PI * 2.0 / 8.0;
+                    double y = Math.sin(angle * 1.7) * 0.34;
+                    visual.setPos(core.x + Math.cos(angle) * ring, core.y + y, core.z + Math.sin(angle) * ring);
+                }
+            }
+            if (visibleCount == 0) {
+                iterator.remove();
+                continue;
+            }
+            meteor.level.sendParticles(ParticleTypes.FLAME, core.x, core.y, core.z, 14, 0.52, 0.52, 0.52, 0.05);
+            meteor.level.sendParticles(ParticleTypes.LARGE_SMOKE, core.x, core.y + 0.25, core.z, 6, 0.38, 0.38, 0.38, 0.02);
             if (now < meteor.impactTick) continue;
-            visual.discard();
-            AABB area = new AABB(meteor.impact, meteor.impact).inflate(3.4);
+
+            discardVisuals(meteor.level, meteor.visualIds);
+            AABB area = new AABB(meteor.impact, meteor.impact).inflate(3.8);
             for (LivingEntity target : meteor.level.getEntitiesOfClass(LivingEntity.class, area)) {
                 if (target == owner || PowerSystem.isProtectedAlly(owner, target)) continue;
                 target.hurtServer(meteor.level, meteor.level.damageSources().playerAttack(owner), 7.0F);
                 target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), 100));
-                Vec3 push = target.position().subtract(meteor.impact).normalize().scale(0.8);
-                target.push(push.x, 0.45, push.z);
+                Vec3 push = target.position().subtract(meteor.impact);
+                if (push.lengthSqr() > 0.001) {
+                    push = push.normalize().scale(0.8);
+                    target.push(push.x, 0.45, push.z);
+                }
             }
-            meteor.level.sendParticles(ParticleTypes.EXPLOSION, meteor.impact.x, meteor.impact.y + 0.4, meteor.impact.z, 8, 1.1, 0.5, 1.1, 0.02);
+            spawnVisibleRing(meteor.level, meteor.impact.add(0.0, 0.6, 0.0), Items.FIRE_CHARGE, 12, 2.6, now, 26L, 0.45);
+            spawnVisibleRing(meteor.level, meteor.impact.add(0.0, 0.4, 0.0), Items.MAGMA_CREAM, 8, 1.45, now, 26L, -0.38);
+            meteor.level.sendParticles(ParticleTypes.EXPLOSION, meteor.impact.x, meteor.impact.y + 0.4, meteor.impact.z, 10, 1.25, 0.55, 1.25, 0.025);
             meteor.level.playSound(null, BlockPos.containing(meteor.impact), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.0F, 0.75F);
-            ServerNetworking.sendScreenShake(meteor.level, meteor.impact, 20.0, 1.0F, 12);
+            ServerNetworking.sendScreenShake(meteor.level, meteor.impact, 22.0, 1.1F, 14);
             iterator.remove();
         }
     }
@@ -549,6 +632,73 @@ public final class ClassEnchantmentSystem {
         });
     }
 
+    private static ItemEntity createVisualItem(ServerLevel level, ItemStack stack, Vec3 position, boolean glowing) {
+        ItemEntity visual = new ItemEntity(level, position.x, position.y, position.z, stack);
+        visual.setNoGravity(true);
+        visual.setPickUpDelay(32767);
+        visual.setGlowingTag(glowing);
+        visual.setDeltaMovement(Vec3.ZERO);
+        return level.addFreshEntity(visual) ? visual : null;
+    }
+
+    private static void spawnStaticVisual(ServerLevel level, net.minecraft.world.item.Item item, Vec3 position,
+                                          long now, long lifetime, boolean glowing) {
+        ItemEntity visual = createVisualItem(level, new ItemStack(item), position, glowing);
+        if (visual != null) {
+            VISIBLE_EFFECTS.add(new EnchantVisual(level, visual.getUUID(), position, position, now, now + lifetime,
+                0.0, 0.0, 0.0, VisualMotion.STATIC));
+        }
+    }
+
+    private static void spawnVisibleRing(ServerLevel level, Vec3 center, net.minecraft.world.item.Item item,
+                                         int count, double radius, long now, long lifetime, double speed) {
+        int safeCount = Math.max(1, count);
+        for (int i = 0; i < safeCount; i++) {
+            double phase = i * Math.PI * 2.0 / safeCount;
+            Vec3 position = center.add(Math.cos(phase) * radius, Math.sin(phase * 2.0) * 0.12, Math.sin(phase) * radius);
+            ItemEntity visual = createVisualItem(level, new ItemStack(item), position, true);
+            if (visual != null) {
+                VISIBLE_EFFECTS.add(new EnchantVisual(level, visual.getUUID(), center, center, now, now + lifetime,
+                    radius, phase, speed, VisualMotion.ORBIT));
+            }
+        }
+    }
+
+    private static void tickVisibleEffects() {
+        Iterator<EnchantVisual> iterator = VISIBLE_EFFECTS.iterator();
+        while (iterator.hasNext()) {
+            EnchantVisual visual = iterator.next();
+            long now = visual.level.getGameTime();
+            Entity entity = visual.level.getEntity(visual.entityId);
+            if (!(entity instanceof ItemEntity item) || item.isRemoved() || now >= visual.expireTick) {
+                if (entity != null) entity.discard();
+                iterator.remove();
+                continue;
+            }
+            double age = now - visual.startTick;
+            if (visual.motion == VisualMotion.ORBIT) {
+                double angle = visual.phase + age * visual.speed;
+                double bob = Math.sin(age * 0.32 + visual.phase) * 0.18;
+                item.setPos(visual.start.x + Math.cos(angle) * visual.radius,
+                    visual.start.y + bob,
+                    visual.start.z + Math.sin(angle) * visual.radius);
+            } else if (visual.motion == VisualMotion.TRAVEL) {
+                double progress = Math.min(1.0, age / Math.max(1.0, visual.expireTick - visual.startTick));
+                Vec3 position = visual.start.lerp(visual.end, progress);
+                item.setPos(position.x, position.y, position.z);
+            } else {
+                item.setPos(visual.start.x, visual.start.y + Math.sin(age * 0.28 + visual.phase) * 0.10, visual.start.z);
+            }
+        }
+    }
+
+    private static void discardVisuals(ServerLevel level, List<UUID> visualIds) {
+        for (UUID visualId : visualIds) {
+            Entity entity = level.getEntity(visualId);
+            if (entity != null) entity.discard();
+        }
+    }
+
     private static boolean hasEither(ServerLevel level, ItemStack first, ItemStack second, net.minecraft.resources.ResourceKey<net.minecraft.world.item.enchantment.Enchantment> key) {
         return ClassEnchantments.has(level.registryAccess(), first, key) || ClassEnchantments.has(level.registryAccess(), second, key);
     }
@@ -578,6 +728,7 @@ public final class ClassEnchantmentSystem {
             if (attackerEntity instanceof ServerPlayer attacker && targetEntity instanceof LivingEntity target && target.isAlive()) {
                 target.hurtServer(entry.level, entry.level.damageSources().playerAttack(attacker), entry.damage);
                 entry.level.sendParticles(ParticleTypes.WITCH, target.getX(), target.getY() + 1.0, target.getZ(), 28, 0.45, 0.65, 0.45, 0.08);
+                spawnVisibleRing(entry.level, target.position().add(0.0, 1.0, 0.0), Items.ENDER_EYE, 6, 0.85, entry.level.getGameTime(), 22L, 0.42);
                 entry.level.playSound(null, target.blockPosition(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.6F, 0.6F);
             }
             iterator.remove();
@@ -654,7 +805,11 @@ public final class ClassEnchantmentSystem {
     private record AshPatch(ServerLevel level, UUID owner, Vec3 center, long expireTick) {}
     private record HealingSprout(ServerLevel level, UUID owner, Vec3 center, long expireTick) {}
     private record PurpleBreathZone(ServerLevel level, UUID owner, Vec3 center, long expireTick) {}
-    private record EnchantMeteor(ServerLevel level, UUID ownerId, UUID visualId, Vec3 start, Vec3 impact, long startTick, long impactTick) {}
+    private record EnchantMeteor(ServerLevel level, UUID ownerId, List<UUID> visualIds, Vec3 start, Vec3 impact, long startTick, long impactTick) {}
+    private record EnchantVisual(ServerLevel level, UUID entityId, Vec3 start, Vec3 end,
+                                 long startTick, long expireTick, double radius, double phase,
+                                 double speed, VisualMotion motion) {}
+    private enum VisualMotion { STATIC, ORBIT, TRAVEL }
 
     private static final class ProjectileState {
         private final ServerLevel level;

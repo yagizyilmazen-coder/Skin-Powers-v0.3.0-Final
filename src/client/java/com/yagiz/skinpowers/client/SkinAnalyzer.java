@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -44,7 +45,8 @@ public final class SkinAnalyzer {
         {69, 220, 224}, {234, 75, 99}, {238, 240, 248}
     };
 
-    private static final java.util.concurrent.ConcurrentHashMap<UUID, Result> CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.concurrent.ConcurrentHashMap<UUID, CachedResult> CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long CACHE_TTL_MILLIS = 120_000L;
     private static final ExecutorService ANALYSIS_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
         Thread thread = new Thread(runnable, "SkinPowers-SkinAnalyzer");
         thread.setDaemon(true);
@@ -69,31 +71,58 @@ public final class SkinAnalyzer {
     private SkinAnalyzer() {}
 
     public static CompletableFuture<Result> analyzeAsync(GameProfile profile) {
+        return analyzeAsync(profile, false);
+    }
+
+    public static CompletableFuture<Result> analyzeAsync(GameProfile profile, boolean forceRefresh) {
         UUID profileId = profile == null ? null : extractProfileId(profile);
-        if (profileId != null) {
-            Result cached = CACHE.get(profileId);
-            if (cached != null) return CompletableFuture.completedFuture(cached);
-        }
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                String skinUrl = normalizeSkinUrl(findSkinUrl(profile, HTTP_CLIENT));
-                if (skinUrl == null) return Result.unavailable();
-                HttpRequest request = HttpRequest.newBuilder(URI.create(skinUrl))
-                    .timeout(Duration.ofSeconds(10))
-                    .header("User-Agent", "SkinPowers/1.1.0")
-                    .GET()
-                    .build();
-                HttpResponse<byte[]> response = sendBytesWithRetry(request, 2);
-                if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) return Result.unavailable();
-                BufferedImage image = ImageIO.read(new ByteArrayInputStream(response.body()));
-                if (image == null || image.getWidth() < 64 || image.getHeight() < 32) return Result.unavailable();
-                Result analyzed = analyze(image);
-                if (profileId != null && analyzed.fromSkin()) CACHE.put(profileId, analyzed);
-                return analyzed;
-            } catch (Exception ignored) {
-                return Result.unavailable();
+        long requestedAt = System.currentTimeMillis();
+        if (profileId != null && !forceRefresh) {
+            CachedResult cached = CACHE.get(profileId);
+            if (cached != null && requestedAt - cached.createdAtMillis() <= CACHE_TTL_MILLIS) {
+                return CompletableFuture.completedFuture(cached.result());
             }
+            CACHE.remove(profileId);
+        } else if (profileId != null) {
+            CACHE.remove(profileId);
+        }
+
+        return CompletableFuture.supplyAsync(() -> {
+            for (int attempt = 0; attempt < 3; attempt++) {
+                Result analyzed = analyzeOnce(profile);
+                if (analyzed.fromSkin()) {
+                    if (profileId != null) CACHE.put(profileId, new CachedResult(analyzed, System.currentTimeMillis()));
+                    return analyzed;
+                }
+                if (attempt < 2) {
+                    try { Thread.sleep(450L * (attempt + 1)); }
+                    catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+            return Result.unavailable();
         }, ANALYSIS_EXECUTOR);
+    }
+
+    private static Result analyzeOnce(GameProfile profile) {
+        try {
+            String skinUrl = normalizeSkinUrl(findSkinUrl(profile, HTTP_CLIENT));
+            if (skinUrl == null) return Result.unavailable();
+            HttpRequest request = HttpRequest.newBuilder(URI.create(skinUrl))
+                .timeout(Duration.ofSeconds(12))
+                .header("User-Agent", "SkinPowers/1.1.1")
+                .GET()
+                .build();
+            HttpResponse<byte[]> response = sendBytesWithRetry(request, 3);
+            if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) return Result.unavailable();
+            BufferedImage image = ImageIO.read(new ByteArrayInputStream(response.body()));
+            if (image == null || image.getWidth() < 64 || image.getHeight() < 32) return Result.unavailable();
+            return analyze(image);
+        } catch (Exception ignored) {
+            return Result.unavailable();
+        }
     }
 
     static Result analyze(BufferedImage image) {
@@ -251,35 +280,46 @@ public final class SkinAnalyzer {
         return Math.exp(-bestDistanceSquared / (2.0 * sigma * sigma));
     }
 
-    private static String findSkinUrl(GameProfile profile, HttpClient client) throws Exception {
+    private static String findSkinUrl(GameProfile profile, HttpClient client) {
         if (profile == null) return null;
-        String embedded = findEmbeddedSkinUrl(profile);
-        if (embedded != null) return embedded;
+
+        try {
+            String embedded = findEmbeddedSkinUrl(profile);
+            if (embedded != null) return embedded;
+        } catch (RuntimeException ignored) { }
 
         UUID profileId = extractProfileId(profile);
-        String byProfileId = profileId == null ? null : findSkinUrlForUuid(profileId, client);
-        if (byProfileId != null) return byProfileId;
+        if (profileId != null) {
+            try {
+                String byProfileId = findSkinUrlForUuid(profileId, client);
+                if (byProfileId != null) return byProfileId;
+            } catch (Exception ignored) { }
+        }
 
-        // Çevrimdışı UUID veya eski profil yapısında UUID oturum sunucusunda bulunamayabilir.
-        // Son çare olarak oyuncu adından resmî UUID çözülüp skin tekrar istenir.
+        // Çevrimdışı UUID, geç yüklenen profil veya geçici oturum sunucusu hatasında
+        // oyuncu adından resmî UUID yeniden çözülür. Bir adımın hatası diğerini durdurmaz.
         String profileName = extractProfileName(profile);
         if (profileName == null || profileName.isBlank() || !profileName.matches("[A-Za-z0-9_]{1,16}")) return null;
-        HttpRequest nameRequest = HttpRequest.newBuilder(URI.create("https://api.mojang.com/users/profiles/minecraft/" + profileName))
-            .timeout(Duration.ofSeconds(8)).header("User-Agent", "SkinPowers/1.1.0").GET().build();
-        HttpResponse<String> nameResponse = sendStringWithRetry(nameRequest, 2);
-        if (nameResponse == null || nameResponse.statusCode() < 200 || nameResponse.statusCode() >= 300 || nameResponse.body().isBlank()) return null;
-        JsonObject profileJson = JsonParser.parseString(nameResponse.body()).getAsJsonObject();
-        if (!profileJson.has("id")) return null;
-        String compact = profileJson.get("id").getAsString();
-        if (compact.length() != 32) return null;
-        UUID officialId = UUID.fromString(compact.substring(0, 8) + "-" + compact.substring(8, 12) + "-" + compact.substring(12, 16) + "-" + compact.substring(16, 20) + "-" + compact.substring(20));
-        return findSkinUrlForUuid(officialId, client);
+        try {
+            HttpRequest nameRequest = HttpRequest.newBuilder(URI.create("https://api.mojang.com/users/profiles/minecraft/" + profileName))
+                .timeout(Duration.ofSeconds(10)).header("User-Agent", "SkinPowers/1.1.1").GET().build();
+            HttpResponse<String> nameResponse = sendStringWithRetry(nameRequest, 3);
+            if (nameResponse == null || nameResponse.statusCode() < 200 || nameResponse.statusCode() >= 300 || nameResponse.body().isBlank()) return null;
+            JsonObject profileJson = JsonParser.parseString(nameResponse.body()).getAsJsonObject();
+            if (!profileJson.has("id")) return null;
+            String compact = profileJson.get("id").getAsString();
+            if (compact.length() != 32) return null;
+            UUID officialId = UUID.fromString(compact.substring(0, 8) + "-" + compact.substring(8, 12) + "-" + compact.substring(12, 16) + "-" + compact.substring(16, 20) + "-" + compact.substring(20));
+            return findSkinUrlForUuid(officialId, client);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static String findSkinUrlForUuid(UUID profileId, HttpClient client) throws Exception {
         String compactUuid = profileId.toString().replace("-", "");
         HttpRequest request = HttpRequest.newBuilder(URI.create("https://sessionserver.mojang.com/session/minecraft/profile/" + compactUuid + "?unsigned=false"))
-            .timeout(Duration.ofSeconds(8)).header("User-Agent", "SkinPowers/1.1.0").GET().build();
+            .timeout(Duration.ofSeconds(10)).header("User-Agent", "SkinPowers/1.1.1").GET().build();
         HttpResponse<String> response = sendStringWithRetry(request, 2);
         if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) return null;
         JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
@@ -297,10 +337,15 @@ public final class SkinAnalyzer {
         Exception last = null;
         for (int attempt = 0; attempt < Math.max(1, attempts); attempt++) {
             try {
-                return HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                if ((response.statusCode() == 429 || response.statusCode() >= 500) && attempt + 1 < attempts) {
+                    Thread.sleep(300L * (attempt + 1));
+                    continue;
+                }
+                return response;
             } catch (Exception exception) {
                 last = exception;
-                if (attempt + 1 < attempts) Thread.sleep(150L * (attempt + 1));
+                if (attempt + 1 < attempts) Thread.sleep(300L * (attempt + 1));
             }
         }
         if (last != null) throw last;
@@ -311,10 +356,15 @@ public final class SkinAnalyzer {
         Exception last = null;
         for (int attempt = 0; attempt < Math.max(1, attempts); attempt++) {
             try {
-                return HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofByteArray());
+                HttpResponse<byte[]> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofByteArray());
+                if ((response.statusCode() == 429 || response.statusCode() >= 500) && attempt + 1 < attempts) {
+                    Thread.sleep(300L * (attempt + 1));
+                    continue;
+                }
+                return response;
             } catch (Exception exception) {
                 last = exception;
-                if (attempt + 1 < attempts) Thread.sleep(150L * (attempt + 1));
+                if (attempt + 1 < attempts) Thread.sleep(300L * (attempt + 1));
             }
         }
         if (last != null) throw last;
@@ -347,6 +397,7 @@ public final class SkinAnalyzer {
 
     private static UUID extractProfileId(GameProfile profile) {
         Object value = invokeNoArg(profile, "id", "getId");
+        if (value instanceof Optional<?> optional) value = optional.orElse(null);
         if (value instanceof UUID uuid) return uuid;
         if (value instanceof String string) {
             try { return UUID.fromString(string); } catch (IllegalArgumentException ignored) { return null; }
@@ -356,6 +407,7 @@ public final class SkinAnalyzer {
 
     private static String extractProfileName(GameProfile profile) {
         Object value = invokeNoArg(profile, "name", "getName");
+        if (value instanceof Optional<?> optional) value = optional.orElse(null);
         return value instanceof String string ? string : null;
     }
 
@@ -421,6 +473,8 @@ public final class SkinAnalyzer {
     }
 
     private static double clamp01(double value) { return Math.max(0.0, Math.min(1.0, value)); }
+
+    private record CachedResult(Result result, long createdAtMillis) {}
 
     public record Result(
         double[] scores,
