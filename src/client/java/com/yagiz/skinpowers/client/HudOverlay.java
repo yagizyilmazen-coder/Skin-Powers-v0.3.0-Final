@@ -20,7 +20,6 @@ public final class HudOverlay {
 
         drawShakeOverlay(graphics, screenWidth, screenHeight, config);
         drawCastOverlay(graphics, screenWidth, screenHeight, config);
-        drawBattlePanel(graphics, client, screenWidth, config);
 
         if (powerClass == PowerClass.WARDEN && ClientState.wardenHuntTicks() > 0) {
             graphics.fill(0, 0, screenWidth, 4, 0xAA35D7D0);
@@ -48,36 +47,6 @@ public final class HudOverlay {
         int comboHeight = drawComboStatus(graphics, client, x, y + panelHeight + awakeningHeight + 4, panelWidth, accent);
         drawAncientStatus(graphics, client, screenWidth, screenHeight, x, y, panelWidth, panelHeight + awakeningHeight + comboHeight + 4);
         drawAnomalyChoice(graphics, client, screenWidth, screenHeight);
-    }
-
-    private static void drawBattlePanel(GuiGraphicsExtractor graphics, Minecraft client, int screenWidth, ClientConfig config) {
-        if (!config.showBattlePanel() || !ClientState.battlePanelVisible()) return;
-        int width = Math.min(230, Math.max(168, screenWidth - 24));
-        int height = 42;
-        int left = (screenWidth - width) / 2;
-        int top = 6;
-        int accent = ClientState.battleMode().equals("DÜELLO") ? 0xFFFFD35C : 0xFFB65CFF;
-        graphics.fill(left, top, left + width, top + height, 0xD0060710);
-        graphics.fill(left, top, left + 4, top + height, accent);
-        graphics.outline(left, top, width, height, accent);
-        String title = ClientState.battleMode() + " • " + ClientState.battleOpponentName();
-        graphics.text(client.font, fit(client, title, width - 16), left + 9, top + 5, 0xFFFFFFFF, true);
-        String subtitle = ClientState.battleOpponentClass() + (ClientState.battleDetail().isBlank() ? "" : " • " + ClientState.battleDetail());
-        graphics.text(client.font, fit(client, subtitle, width - 16), left + 9, top + 16, 0xFFD7C8F2, false);
-        int barLeft = left + 9;
-        int barRight = left + width - 9;
-        int healthTop = top + 28;
-        int healthBottom = healthTop + 4;
-        graphics.fill(barLeft, healthTop, barRight, healthBottom, 0xFF2B151B);
-        float maxHealth = Math.max(1.0F, ClientState.battleOpponentMaxHealth());
-        float healthRatio = Math.max(0.0F, Math.min(1.0F, ClientState.battleOpponentHealth() / maxHealth));
-        int healthFill = Math.round((barRight - barLeft) * healthRatio);
-        if (healthFill > 0) graphics.fill(barLeft, healthTop, barLeft + healthFill, healthBottom, 0xFFE85065);
-        int awakenTop = top + 35;
-        int awakenBottom = awakenTop + 3;
-        graphics.fill(barLeft, awakenTop, barRight, awakenBottom, 0xFF1A1724);
-        int awakenFill = Math.round((barRight - barLeft) * Math.max(0.0F, Math.min(1.0F, ClientState.battleOpponentAwakening() / 100.0F)));
-        if (awakenFill > 0) graphics.fill(barLeft, awakenTop, barLeft + awakenFill, awakenBottom, accent);
     }
 
     private static void drawPowerPanel(
@@ -141,7 +110,7 @@ public final class HudOverlay {
         if (!config.showAwakeningBar()) return 0;
         int height = ClientState.classAwakeningTicks() > 0 ? 27 : 18;
         graphics.fill(x, y, x + width, y + height, 0xC5080710);
-        graphics.outline(x, y, width, height, ClientState.duelActive() ? 0xFFFFD35C : accent);
+        graphics.outline(x, y, width, height, accent);
         int barLeft = x + 7;
         int barRight = x + width - 7;
         int barTop = y + 7;

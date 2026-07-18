@@ -55,7 +55,6 @@ public final class SkinPowersSettingsScreen extends Screen {
             addSettingButton(3, buttonWidth, startX, top, rowGap, twoColumns, "Bildirim Boyutu: %" + config.notificationScalePercent(), config::cycleNotificationScale);
             addSettingButton(4, buttonWidth, startX, top, rowGap, twoColumns, "Uyanış Çubuğu: " + onOff(config.showAwakeningBar()), config::toggleAwakeningBar);
             addSettingButton(5, buttonWidth, startX, top, rowGap, twoColumns, "Kompakt HUD: " + onOff(config.compactHud()), config::toggleCompactHud);
-            addSettingButton(6, buttonWidth, startX, top, rowGap, twoColumns, "Düello/Bot Paneli: " + onOff(config.showBattlePanel()), config::toggleBattlePanel);
         } else if (page == 1) {
             addSettingButton(0, buttonWidth, startX, top, rowGap, twoColumns, "Menü Animasyonları: " + onOff(config.menuAnimations()), config::toggleMenuAnimations);
             addSettingButton(1, buttonWidth, startX, top, rowGap, twoColumns, "Kart Hızı: %" + config.cardAnimationSpeedPercent(), config::cycleCardSpeed);
@@ -99,7 +98,7 @@ public final class SkinPowersSettingsScreen extends Screen {
         graphics.text(font, title, (width - font.width(title)) / 2, 18, 0xFFFFFFFF, true);
         String hint = page == 0 ? "HUD ve bildirim yerleşimi" : page == 1 ? "Kartlar, efektler ve animasyon kalitesi" : "Performans ve rahatsız edici efektleri azaltma";
         graphics.text(font, hint, (width - font.width(hint)) / 2, 31, 0xFFD7C8F2, false);
-        String signature = "Skin Powers 1.0.9 • Made by Yankalan";
+        String signature = "Skin Powers 1.0.10 • Made by Yankalan";
         graphics.text(font, signature, (width - font.width(signature)) / 2, height - 17, 0xFFB98DFF, true);
         super.extractRenderState(graphics, mouseX, mouseY, delta);
     }

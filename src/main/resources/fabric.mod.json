@@ -3,7 +3,7 @@
   "id": "skinpowers",
   "version": "${version}",
   "name": "Skin Powers",
-  "description": "Skin renklerinden güç sınıfları öneren; gelişmiş Ateş/Warden/Anomali savaşları, sınıf ustası PvP botları, düello panelleri, Kadim Ejderha ve Uyanış Formları içeren Fabric güç modu.",
+  "description": "Skin renklerinden güç sınıfları öneren; gelişmiş Ateş, Warden, Doğa ve Anomali güçleri, Kadim Ejderha, Uyanış Formları ve yönetilebilir dünya olayları içeren Fabric modu.",
   "authors": [
     "Yankalan"
   ],

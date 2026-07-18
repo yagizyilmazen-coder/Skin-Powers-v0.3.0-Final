@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.0.9"
+VERSION = "1.0.10"
 errors: list[str] = []
 checks: list[str] = []
 
@@ -39,15 +39,12 @@ def text(relative: str) -> str:
 
 required_files = [
     "build.gradle", "gradle.properties", "settings.gradle", "README.md", "VALIDATION.md", "FEATURE_STATUS.md",
-    "CHANGELOG_1.0.9.md", ".github/workflows/build.yml", "src/main/resources/fabric.mod.json",
+    "CHANGELOG_1.0.10.md", ".github/workflows/build.yml", "src/main/resources/fabric.mod.json",
     "src/main/resources/assets/skinpowers/lang/tr_tr.json",
     "src/main/resources/assets/skinpowers/lang/en_us.json",
     "src/main/java/com/yagiz/skinpowers/AwakeningSystem.java",
-    "src/main/java/com/yagiz/skinpowers/DuelSystem.java",
     "src/main/java/com/yagiz/skinpowers/PowerCollisionSystem.java",
     "src/main/java/com/yagiz/skinpowers/WorldEventSystem.java",
-    "src/main/java/com/yagiz/skinpowers/PvpBotSystem.java",
-    "src/main/java/com/yagiz/skinpowers/BattlePanel.java",
     "src/client/java/com/yagiz/skinpowers/client/SkinPowersSettingsScreen.java",
 ]
 for file_name in required_files:
@@ -71,7 +68,7 @@ if f"skinpowers-{VERSION}-jar" not in workflow or f"skinpowers-{VERSION}.jar" no
 if "java-version: '25'" not in workflow or "gradle-version: '9.5.1'" not in workflow:
     fail("GitHub Actions Java 25 / Gradle 9.5.1 ayarı eksik")
 if "Kadim Ejderha" not in mod_json or "Uyanış" not in mod_json:
-    fail("fabric.mod.json 1.0.9 açıklamasını içermiyor")
+    fail("fabric.mod.json 1.0.10 açıklamasını içermiyor")
 
 power_class = text("src/main/java/com/yagiz/skinpowers/PowerClass.java")
 catalog = text("src/main/java/com/yagiz/skinpowers/PowerCatalog.java")
@@ -91,11 +88,8 @@ analyzer = text("src/client/java/com/yagiz/skinpowers/client/SkinAnalyzer.java")
 commands = text("src/main/java/com/yagiz/skinpowers/SkinPowersCommands.java")
 mod = text("src/main/java/com/yagiz/skinpowers/SkinPowersMod.java")
 store = text("src/main/java/com/yagiz/skinpowers/PlayerDataStore.java")
-duel = text("src/main/java/com/yagiz/skinpowers/DuelSystem.java")
 collision = text("src/main/java/com/yagiz/skinpowers/PowerCollisionSystem.java")
 world_event = text("src/main/java/com/yagiz/skinpowers/WorldEventSystem.java")
-pvp_bot = text("src/main/java/com/yagiz/skinpowers/PvpBotSystem.java")
-battle_panel = text("src/main/java/com/yagiz/skinpowers/BattlePanel.java")
 
 required_tokens = {
     power_class: [
@@ -122,19 +116,19 @@ required_tokens = {
         "tickFlight", "Kadim Ejderha pasifi", "DRAGON_CLAW_TARGET", "DRAGON_CLAW_ESCAPE_PRESSES", "DRAGON_BREATHS", "DRAGON_SILENCE_UNTIL",
         "data.setDragonScalesUntil", "data.setDragonScaleCharges", "data.setDragonFormUntil", "dragon_dash", "dragon_breath",
         "dragon_roar", "dragon_form", "ServerNetworking.sendCastAnimation", "PowerCollisionSystem.registerCast",
-        "DuelSystem.protects", "WorldEventSystem.tick", "data.beginCombo(2, now, 80)",
+        "WorldEventSystem.tick", "data.beginCombo(2, now, 80)",
         "WARDEN_AMBUSHES", "spawnWardenArm", "nearbyLiving(player, 30.0)", "WardenArmSegment"
     ],
     network: [
         'command.equals("AWAKEN")', "dragonScalesTicks", "dragonScaleCharges", "awakeningEnergy", "classAwakeningTicks",
-        "duelActive", "sendCastAnimation"
+        "sendCastAnimation"
     ],
     client: [
         "GLFW.GLFW_KEY_G", 'send("AWAKEN")', "GLFW.GLFW_KEY_V", "GLFW.GLFW_KEY_X", "GLFW.GLFW_KEY_Z", 'send("DRAGON_ESCAPE")', "CAST_"
     ],
     client_state: [
         "dragonScalesTicks", "dragonFormTicks", "awakeningEnergy", "classAwakeningTicks",
-        "duelActive", "castPulseTicks"
+        "castPulseTicks"
     ],
     client_config: [
         "hudScalePercent", "notificationScalePercent", "showAwakeningBar", "cardAnimationSpeedPercent",
@@ -155,31 +149,21 @@ required_tokens = {
         '"KADİM EJDERHA"', "drawDragonStorm", "drawAncientCity", "drawLavaCave", "drawForest", "drawAnomalyGlitch",
         "cardProgress >= 0.85F"
     ],
-    analyzer: ["FLIGHT_COLORS", "ANOMALY_COLORS", "SkinPowers/1.0.9"],
+    analyzer: ["FLIGHT_COLORS", "ANOMALY_COLORS", "SkinPowers/1.0.10"],
     commands: [
-        'Commands.literal("degistir")', 'selfClass("ejderha"', 'Commands.literal("duello")',
-        'Commands.literal("trigger")', 'triggerLiteral("dragon_breath")', 'triggerLiteral("dragon_form")',
-        'Commands.literal("bot")', 'botClass("anomali"', 'botDifficulty("kabus"'
+        'Commands.literal("degistir")', 'selfClass("ejderha"', 'Commands.literal("olay")',
+        'worldEventLiteral("meteor")', 'Commands.literal("durdur")',
+        'Commands.literal("durum")', 'Commands.literal("trigger")', 'triggerLiteral("dragon_breath")',
+        'triggerLiteral("dragon_form")'
     ],
     mod: [
-        "ServerLivingEntityEvents.ALLOW_DAMAGE.register(DuelSystem::allowDamage)",
         "ServerLivingEntityEvents.ALLOW_DAMAGE.register(AwakeningSystem::allowDamage)",
-        "ServerLivingEntityEvents.ALLOW_DAMAGE.register(PvpBotSystem::allowDamage)",
-        "Skin Powers 1.0.9 yüklendi"
+        "PowerSystem::allowWardenAmbushDamage",
+        "Skin Powers 1.0.10 yüklendi"
     ],
     store: ["migrateLegacyClassNames", "JsonParser.parseReader"],
-    duel: [
-        "challenge", "accept", "allowDamage", "allowDeath", "DÜELLO BAŞLADI",
-        "data.setAwakeningEnergy(0.0F)", "data.finishClassAwakening()"
-    ],
     collision: ["registerCast", "cancelActiveOffense", "GÜÇ ÇARPIŞMASI"],
     world_event: ["Sculk Uyanışı", "Meteor Fırtınası", "Gökyüzü Yarığı", "Kadim Çiçeklenme", "Gerçeklik Çatlağı"],
-    pvp_bot: [
-        "BotDifficulty", 'EASY("Kolay"', 'NIGHTMARE("Kâbus"', "botWarden", "botFire", "botNature",
-        "botAnomaly", "botDragon", "awakeningEnergy", "panelFor", "guardCharges",
-        "spawnTravelCluster", "tickBotWardenAmbush", "updateBotMovement", "lastAbilityTick", "nextDodgeTick"
-    ],
-    battle_panel: ["record BattlePanel", "opponentName", "awakening", "hidden()"],
 }
 for source, tokens in required_tokens.items():
     for token in tokens:
@@ -188,12 +172,29 @@ for source, tokens in required_tokens.items():
 
 # Kök komutta doğrudan sınıf değişimi bulunmamalı.
 root_prefix = commands.split('root.then(Commands.literal("degistir")', 1)[0]
+if 'Commands.literal("baslat")' in commands:
+    fail("Dünya olayı komutunda gereksiz baslat katmanı kaldı")
+
 for forbidden in [
     'selfClass("warden"', 'selfClass("ejderha"', 'selfClass("ucus"', 'selfClass("ates"',
     'selfClass("doga"', 'selfClass("anomali"'
 ]:
     if forbidden in root_prefix:
         fail(f"Sınıf kök komutta doğrudan görünüyor: {forbidden}")
+
+# Bot ve düello sistemleri tamamen kaldırılmış olmalı.
+for removed in [
+    "src/main/java/com/yagiz/skinpowers/DuelSystem.java",
+    "src/main/java/com/yagiz/skinpowers/PvpBotSystem.java",
+    "src/main/java/com/yagiz/skinpowers/BattlePanel.java",
+]:
+    if (ROOT / removed).exists():
+        fail(f"Kaldırılması gereken kaynak hâlâ mevcut: {removed}")
+
+combined_sources = "\n".join([power_system, network, commands, mod, world_event, hud, settings, client_state, client_config])
+for forbidden in ["DuelSystem", "PvpBotSystem", "BattlePanel", 'Commands.literal("duello")', 'Commands.literal("bot")', "Düello/Bot Paneli", "duelActive", "battlePanel", "showBattlePanel", "battleOpponent"]:
+    if forbidden in combined_sources:
+        fail(f"Kaldırılan sistemden kalan kod bulundu: {forbidden}")
 
 # Eski sınıf kartları / metinleri aktif seçim arayüzünde kalmamalı.
 if (ROOT / "src/main/resources/assets/skinpowers/textures/gui/cards/time.png").exists():
@@ -376,4 +377,4 @@ if errors:
 
 print("SKIN POWERS PROJE DENETİMİ BAŞARILI")
 print(f"{len(checks)} kontrol geçti.")
-print("Derinlik Pususu, 30 blok Warden görüşü, görünür bot saldırıları ve geliştirilmiş bot zekâsı doğrulandı.")
+print("Bot ve düello kaldırma işlemi ile dünya olayı komutları doğrulandı.")

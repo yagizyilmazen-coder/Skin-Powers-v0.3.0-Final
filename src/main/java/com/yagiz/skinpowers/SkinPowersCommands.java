@@ -31,26 +31,19 @@ public final class SkinPowersCommands {
             .then(selfClass("doga", PowerClass.NATURE))
             .then(selfClass("anomali", PowerClass.ANOMALY)));
 
-        root.then(Commands.literal("duello")
-            .then(Commands.literal("kabul").executes(context -> DuelSystem.accept(context.getSource().getPlayerOrException()) ? 1 : 0))
-            .then(Commands.literal("reddet").executes(context -> DuelSystem.decline(context.getSource().getPlayerOrException()) ? 1 : 0))
-            .then(Commands.literal("bitir").executes(context -> DuelSystem.surrender(context.getSource().getPlayerOrException()) ? 1 : 0))
-            .then(Commands.argument("oyuncu", EntityArgument.player()).executes(context ->
-                DuelSystem.challenge(context.getSource().getPlayerOrException(), EntityArgument.getPlayer(context, "oyuncu")) ? 1 : 0)));
-
-        root.then(Commands.literal("bot")
-            .then(Commands.literal("cagir")
-                .then(botClass("warden", PowerClass.WARDEN))
-                .then(botClass("ejderha", PowerClass.FLIGHT))
-                .then(botClass("ates", PowerClass.FIRE))
-                .then(botClass("doga", PowerClass.NATURE))
-                .then(botClass("anomali", PowerClass.ANOMALY)))
-            .then(Commands.literal("temizle").executes(context ->
-                PvpBotSystem.removeOwnerBot(context.getSource().getPlayerOrException(), true) ? 1 : 0))
-            .then(Commands.literal("durdur").executes(context ->
-                PvpBotSystem.pause(context.getSource().getPlayerOrException(), true) ? 1 : 0))
-            .then(Commands.literal("devam").executes(context ->
-                PvpBotSystem.pause(context.getSource().getPlayerOrException(), false) ? 1 : 0)));
+        // Dünya olaylarını yalnızca yetkili oyuncular elle başlatabilir.
+        root.then(Commands.literal("olay")
+            .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_MODERATOR))
+            .then(worldEventLiteral("sculk"))
+            .then(worldEventLiteral("meteor"))
+            .then(worldEventLiteral("gok"))
+            .then(worldEventLiteral("doga"))
+            .then(worldEventLiteral("anomali"))
+            .then(worldEventLiteral("rastgele"))
+            .then(Commands.literal("durdur")
+                .executes(context -> stopWorldEvent(context.getSource())))
+            .then(Commands.literal("durum")
+                .executes(context -> worldEventStatus(context.getSource()))));
 
         // Test/yönetim komutu: sınıf, seviye ve cooldown şartını değiştirmeden saldırıyı doğrudan çağırır.
         // Yayınlanan sunucularda kötüye kullanılmaması için yalnızca moderatör yetkisine açıktır.
@@ -132,23 +125,34 @@ public final class SkinPowersCommands {
         return root;
     }
 
-    private static LiteralArgumentBuilder<CommandSourceStack> botClass(String literal, PowerClass powerClass) {
-        return Commands.literal(literal)
-            .then(botDifficulty("kolay", powerClass, PvpBotSystem.BotDifficulty.EASY))
-            .then(botDifficulty("normal", powerClass, PvpBotSystem.BotDifficulty.NORMAL))
-            .then(botDifficulty("zor", powerClass, PvpBotSystem.BotDifficulty.HARD))
-            .then(botDifficulty("kabus", powerClass, PvpBotSystem.BotDifficulty.NIGHTMARE))
-            .executes(context -> PvpBotSystem.spawn(
-                context.getSource().getPlayerOrException(), powerClass, PvpBotSystem.BotDifficulty.NORMAL
-            ) ? 1 : 0);
+    private static LiteralArgumentBuilder<CommandSourceStack> worldEventLiteral(String literal) {
+        return Commands.literal(literal).executes(context ->
+            startWorldEvent(context.getSource(), literal)
+        );
     }
 
-    private static LiteralArgumentBuilder<CommandSourceStack> botDifficulty(
-        String literal, PowerClass powerClass, PvpBotSystem.BotDifficulty difficulty
-    ) {
-        return Commands.literal(literal).executes(context -> PvpBotSystem.spawn(
-            context.getSource().getPlayerOrException(), powerClass, difficulty
-        ) ? 1 : 0);
+    private static int startWorldEvent(CommandSourceStack source, String eventName) {
+        ServerPlayer player = source.getPlayerOrException();
+        if (!WorldEventSystem.startNearPlayer(player, eventName)) {
+            source.sendFailure(Component.literal("Dünya olayı başlatılamadı. " + WorldEventSystem.status()));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Dünya olayı başlatıldı: " + eventName), true);
+        return 1;
+    }
+
+    private static int stopWorldEvent(CommandSourceStack source) {
+        if (!WorldEventSystem.stop(source.getServer())) {
+            source.sendFailure(Component.literal("Durdurulacak aktif dünya olayı yok."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Dünya olayı durduruldu."), true);
+        return 1;
+    }
+
+    private static int worldEventStatus(CommandSourceStack source) {
+        source.sendSuccess(() -> Component.literal(WorldEventSystem.status()), false);
+        return 1;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> triggerLiteral(String literal) {

@@ -26,25 +26,19 @@ public final class SkinPowersMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             PowerSystem.clearAllMeteorVisuals();
             AnomalySystem.clearAll();
-            DuelSystem.clearAll();
-            PvpBotSystem.removeAll(server);
             PowerCollisionSystem.clearAll();
             WorldEventSystem.clearAll();
             PlayerDataStore.save();
         });
         ServerTickEvents.END_SERVER_TICK.register(PowerSystem::tickServer);
         AttackEntityCallback.EVENT.register(PowerSystem::onAttackEntity);
-        // Düello filtresi ilk çalışır; dışarıdan gelen saldırılar Anomali veya Uyanış enerjisi üretemez.
-        ServerLivingEntityEvents.ALLOW_DAMAGE.register(DuelSystem::allowDamage);
         // Derinlik Pususu, diğer hasar/uyanış sistemlerinden önce bütün hasarı keser.
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(PowerSystem::allowWardenAmbushDamage);
-        ServerLivingEntityEvents.ALLOW_DAMAGE.register(PvpBotSystem::allowDamage);
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(PowerSystem::allowDragonScalesDamage);
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(AnomalySystem::allowDamage);
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(AwakeningSystem::allowDamage);
         ServerLivingEntityEvents.ALLOW_DEATH.register(AnomalySystem::allowDeath);
-        ServerLivingEntityEvents.ALLOW_DEATH.register(DuelSystem::allowDeath);
 
-        LOGGER.info("Skin Powers 1.0.9 yüklendi.");
+        LOGGER.info("Skin Powers 1.0.10 yüklendi.");
     }
 }

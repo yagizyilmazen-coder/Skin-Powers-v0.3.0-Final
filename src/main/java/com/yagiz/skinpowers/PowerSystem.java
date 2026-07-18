@@ -135,8 +135,6 @@ public final class PowerSystem {
         AnomalySystem.tickServer(server);
         AncientChargeSystem.tick(server);
         PowerCollisionSystem.tick(server);
-        DuelSystem.tick(server);
-        PvpBotSystem.tick(server);
         WorldEventSystem.tick(server);
 
         long gameTime = server.overworld().getGameTime();
@@ -369,7 +367,7 @@ public final class PowerSystem {
             }
             if (now % 3L == 0L) {
                 drawRing(level, player.position(), radius, boosted ? ParticleTypes.WITCH : ParticleTypes.FLAME, boosted ? 82 : 48);
-                if (!DuelSystem.isInDuel(player.getUUID())) igniteSparseGround(level, player.blockPosition(), (int) Math.ceil(radius), now);
+                igniteSparseGround(level, player.blockPosition(), (int) Math.ceil(radius), now);
             }
         } else if (data.fireRingUntil() != 0L) {
             data.setFireRingUntil(0L);
@@ -2768,11 +2766,10 @@ public final class PowerSystem {
             target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), 120));
         }
 
-        boolean duelSafe = owner != null && DuelSystem.isInDuel(owner.getUUID());
-        if (!duelSafe && PlayerDataStore.config().meteorBlockDamage()) {
+        if (PlayerDataStore.config().meteorBlockDamage()) {
             carveCrater(level, BlockPos.containing(impact), radius, owner);
         }
-        if (!duelSafe) igniteMeteorGround(level, BlockPos.containing(impact), radius + 2);
+        igniteMeteorGround(level, BlockPos.containing(impact), radius + 2);
     }
 
     private static void igniteMeteorGround(ServerLevel level, BlockPos center, int radius) {
@@ -2835,7 +2832,6 @@ public final class PowerSystem {
     }
 
     private static boolean protectedAlly(ServerPlayer source, LivingEntity target) {
-        if (DuelSystem.protects(source, target)) return true;
         if (source.isAlliedTo(target)) return true;
         return target instanceof TamableAnimal tamable
             && tamable.getOwner() == source;

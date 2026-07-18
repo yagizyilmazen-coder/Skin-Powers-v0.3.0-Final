@@ -40,7 +40,7 @@ public final class WorldEventSystem {
         if (active == null && now >= nextAutomaticEvent) {
             List<ServerPlayer> candidates = new ArrayList<>();
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-                if (!DuelSystem.isInDuel(player.getUUID())) candidates.add(player);
+                candidates.add(player);
             }
             if (!candidates.isEmpty()) {
                 ServerPlayer anchor = candidates.get(overworld.getRandom().nextInt(candidates.size()));
@@ -110,7 +110,6 @@ public final class WorldEventSystem {
                 if (now % 20L == 0L) {
                     for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, area)) {
                         if (entity instanceof ServerPlayer player) {
-                            if (DuelSystem.isInDuel(player.getUUID())) continue;
                             player.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 45, 0, false, false, true));
                             player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 45, 0, false, false, true));
                         } else {
@@ -127,7 +126,6 @@ public final class WorldEventSystem {
             }
             case SKY_RIFT -> {
                 for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, area)) {
-                    if (entity instanceof ServerPlayer player && DuelSystem.isInDuel(player.getUUID())) continue;
                     entity.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 35, 0, false, false, true));
                     if (now % 40L == 0L) {
                         Vec3 motion = entity.getDeltaMovement();
@@ -141,7 +139,6 @@ public final class WorldEventSystem {
                 if (now % 20L == 0L) {
                     for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, area)) {
                         if (entity instanceof ServerPlayer player) {
-                            if (DuelSystem.isInDuel(player.getUUID())) continue;
                             player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 45, 0, false, false, true));
                         } else {
                             entity.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 45, 1, false, false, true));
@@ -157,7 +154,6 @@ public final class WorldEventSystem {
                 }
                 if (now % 20L == 0L) {
                     for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, area)) {
-                        if (entity instanceof ServerPlayer player && DuelSystem.isInDuel(player.getUUID())) continue;
                         entity.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 35, 1, false, false, true));
                     }
                 }
@@ -196,7 +192,6 @@ public final class WorldEventSystem {
             clearStrikeVisual(strike);
             AABB blast = new AABB(strike.target, strike.target).inflate(6.0);
             for (LivingEntity entity : strike.level.getEntitiesOfClass(LivingEntity.class, blast)) {
-                if (entity instanceof ServerPlayer player && DuelSystem.isInDuel(player.getUUID())) continue;
                 double distance = Math.sqrt(entity.distanceToSqr(strike.target));
                 if (distance > 6.0) continue;
                 entity.hurtServer(strike.level, strike.level.damageSources().generic(), (float) Math.max(5.0, 16.0 - distance * 1.8));
