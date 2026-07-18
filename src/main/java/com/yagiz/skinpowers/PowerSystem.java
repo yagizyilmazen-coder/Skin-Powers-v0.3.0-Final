@@ -169,17 +169,7 @@ public final class PowerSystem {
     }
 
     private static void tickWarden(ServerPlayer player, PlayerPowerData data, ServerLevel level, long now) {
-        // Göğüsteki sculk çekirdeği; Warden artık yalnızca iksir parçacığı gibi görünmez.
-        if (now % 6L == 0L) {
-            Vec3 chest = player.position().add(0.0, 1.15, 0.0);
-            double pulse = 0.34 + Math.sin(now * 0.24) * 0.08;
-            for (int i = 0; i < 8; i++) {
-                double angle = Math.PI * 2.0 * i / 8.0 + now * 0.07;
-                level.sendParticles(i % 2 == 0 ? ParticleTypes.SCULK_SOUL : ParticleTypes.SOUL_FIRE_FLAME,
-                    chest.x + Math.cos(angle) * pulse, chest.y + Math.sin(angle * 2.0) * 0.12,
-                    chest.z + Math.sin(angle) * pulse, 1, 0.02, 0.02, 0.02, 0.0);
-            }
-        }
+        // Pasif Warden göğüs aurası kaldırıldı. Parçacıklar yalnızca aktif güçler ve Uyanış sırasında görünür.
         // Warden görüşü: mob ve oyuncuları 30 blok içinde vurgular.
         if (data.unlockedLevel() >= 1 && now % 10L == 0L) {
             for (LivingEntity living : nearbyLiving(player, 30.0)) {
