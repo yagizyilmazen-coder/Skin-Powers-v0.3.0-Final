@@ -1,28 +1,20 @@
-SKIN POWERS v1.1.0 KÜÇÜK GÜNCELLEME
+SKIN POWERS v1.1.0 FIX3 — İKİ DOSYA ONARIMI
 
-1. ZIP'e sağ tıklayın ve "Tümünü Ayıkla" seçin.
-2. Ayıklanan klasördeki bütün dosya ve klasörleri kopyalayın.
+Bu paket iki dosyayı birlikte düzeltir:
+
+1) src\main\java\com\yagiz\skinpowers\ClassEnchantmentSystem.java
+2) src\main\java\com\yagiz\skinpowers\PowerSystem.java
+
+KURULUM
+1. ZIP'e sağ tıklayıp Tümünü Ayıkla seçin.
+2. Ayıklanan klasördeki src klasörünü kopyalayın.
 3. GitHub Desktop > Repository > Show in Explorer seçin.
-4. Dosyaları proje klasörüne yapıştırın.
-5. "Hedefteki dosyaları değiştir" seçeneğini seçin.
-6. GitHub Desktop Summary:
-   1.1.0 sınıf büyüleri ve normal örs sistemi
-7. Commit to main ve Push origin yapın.
-8. GitHub Actions yeşil olunca artifact içindeki skinpowers-1.1.0.jar dosyasını kullanın.
+4. Proje klasörüne yapıştırın.
+5. Hedefteki dosyaları değiştir seçin.
+6. GitHub Desktop'ta yalnızca iki Java dosyasının değiştiğini kontrol edin.
+7. Summary:
+   1.1.0 FIX3 büyü API ve Warden parçacık onarımı
+8. Commit to main ve Push origin yapın.
 
-BÜYÜLÜ KİTAP TEST KOMUTU
-/skinpower buyu kitap <buyu_adi>
-
-Örnek:
-/skinpower buyu kitap yanki_darbesi
-/skinpower buyu kitap kor_birikimi
-/skinpower buyu kitap mor_kanat
-
-ÖRS KULLANIMI
-Sol yuva: uygun eşya
-Sağ yuva: sınıf büyülü kitabı
-Sonuç: normal Minecraft örsüyle büyülenmiş eşya
-
-Bir eşyada en fazla bir Skin Powers sınıf büyüsü bulunabilir.
-Normal Minecraft büyüleri aynı eşyanın üzerinde kalabilir.
-Özel etki yalnızca büyüyle eşleşen sınıf seçiliyken çalışır.
+NOT
+Dosyaları tek tek seçmeyin. ZIP içindeki src klasörünü bütünüyle kopyalayın.

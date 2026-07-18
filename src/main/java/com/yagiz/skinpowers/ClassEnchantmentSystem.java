@@ -184,7 +184,7 @@ public final class ClassEnchantmentSystem {
                 projectile.setOwner(player);
                 projectile.setDeltaMovement(projectile.getDeltaMovement().scale(-1.18));
                 level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 45, 0.7, 0.9, 0.7, 0.09);
-                level.playSound(null, player.blockPosition(), SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, 1.0F, 0.65F);
+                level.playSound(null, player.blockPosition(), SoundEvents.SHIELD_BLOCK.value(), SoundSource.PLAYERS, 1.0F, 0.65F);
                 return false;
             }
 
@@ -233,7 +233,7 @@ public final class ClassEnchantmentSystem {
                 Entity owner = level.getEntity(state.owner);
                 if (owner instanceof ServerPlayer player && PlayerDataStore.get(player.getUUID()).powerClass() == PowerClass.FLIGHT) {
                     PURPLE_BREATH_ZONES.add(new PurpleBreathZone(level, player.getUUID(), victim.position(), now + 100L));
-                    level.sendParticles(ParticleTypes.DRAGON_BREATH, victim.getX(), victim.getY() + 0.6, victim.getZ(), 55, 1.0, 0.45, 1.0, 0.05);
+                    level.sendParticles(ParticleTypes.WITCH, victim.getX(), victim.getY() + 0.6, victim.getZ(), 55, 1.0, 0.45, 1.0, 0.05);
                     state.purpleBreath = false;
                 }
             }
@@ -351,7 +351,7 @@ public final class ClassEnchantmentSystem {
             other.setRemainingFireTicks(Math.max(other.getRemainingFireTicks(), 100));
         }
         level.sendParticles(ParticleTypes.LAVA, target.getX(), target.getY() + 0.8, target.getZ(), 42, 1.0, 0.65, 1.0, 0.08);
-        level.playSound(null, target.blockPosition(), SoundEvents.GENERIC_EXPLODE, SoundSource.PLAYERS, 0.75F, 1.35F);
+        level.playSound(null, target.blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.75F, 1.35F);
     }
 
     private static void rootBind(ServerPlayer player, LivingEntity target, ServerLevel level) {
@@ -477,7 +477,7 @@ public final class ClassEnchantmentSystem {
                 target.push(push.x, 0.45, push.z);
             }
             meteor.level.sendParticles(ParticleTypes.EXPLOSION, meteor.impact.x, meteor.impact.y + 0.4, meteor.impact.z, 8, 1.1, 0.5, 1.1, 0.02);
-            meteor.level.playSound(null, BlockPos.containing(meteor.impact), SoundEvents.GENERIC_EXPLODE, SoundSource.PLAYERS, 1.0F, 0.75F);
+            meteor.level.playSound(null, BlockPos.containing(meteor.impact), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.0F, 0.75F);
             ServerNetworking.sendScreenShake(meteor.level, meteor.impact, 20.0, 1.0F, 12);
             iterator.remove();
         }
@@ -636,7 +636,7 @@ public final class ClassEnchantmentSystem {
                 continue;
             }
             if (now % 4L == 0L) {
-                zone.level.sendParticles(ParticleTypes.DRAGON_BREATH, zone.center.x, zone.center.y + 0.35, zone.center.z, 14, 1.15, 0.35, 1.15, 0.02);
+                zone.level.sendParticles(ParticleTypes.WITCH, zone.center.x, zone.center.y + 0.35, zone.center.z, 14, 1.15, 0.35, 1.15, 0.02);
             }
             if (now % 20L == 0L) {
                 AABB area = new AABB(zone.center, zone.center).inflate(2.7, 1.5, 2.7);
