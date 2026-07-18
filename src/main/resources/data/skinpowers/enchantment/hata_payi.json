@@ -1,0 +1,22 @@
+{
+  "anvil_cost": 10,
+  "description": {
+    "translate": "enchantment.skinpowers.hata_payi"
+  },
+  "effects": {},
+  "exclusive_set": "#skinpowers:class_enchantments",
+  "max_cost": {
+    "base": 30,
+    "per_level_above_first": 0
+  },
+  "max_level": 1,
+  "min_cost": {
+    "base": 12,
+    "per_level_above_first": 0
+  },
+  "slots": [
+    "chest"
+  ],
+  "supported_items": "#skinpowers:class_chestplates",
+  "weight": 1
+}

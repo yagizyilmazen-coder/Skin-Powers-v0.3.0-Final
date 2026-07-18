@@ -1,21 +1,28 @@
-SKIN POWERS v1.0.10 KÜÇÜK GÜNCELLEME
+SKIN POWERS v1.1.0 KÜÇÜK GÜNCELLEME
 
-1. Bu ZIP'in içindeki bütün dosyaları GitHub proje klasörüne kopyalayın.
-2. Sorulduğunda "Hedefteki dosyaları değiştir" seçeneğini seçin.
-3. Proje klasörüne kopyalanan SIL_ESKI_BOT_DUELLO_DOSYALARINI.bat dosyasına çift tıklayın.
-4. GitHub Desktop'ta değişiklikleri kontrol edin.
-5. Summary:
-   1.0.10 bot ve duello kaldırma, olay komutu
-6. Commit to main ve Push origin yapın.
+1. ZIP'e sağ tıklayın ve "Tümünü Ayıkla" seçin.
+2. Ayıklanan klasördeki bütün dosya ve klasörleri kopyalayın.
+3. GitHub Desktop > Repository > Show in Explorer seçin.
+4. Dosyaları proje klasörüne yapıştırın.
+5. "Hedefteki dosyaları değiştir" seçeneğini seçin.
+6. GitHub Desktop Summary:
+   1.1.0 sınıf büyüleri ve normal örs sistemi
+7. Commit to main ve Push origin yapın.
+8. GitHub Actions yeşil olunca artifact içindeki skinpowers-1.1.0.jar dosyasını kullanın.
 
-Eklenen komutlar:
-  /skinpower olay sculk
-  /skinpower olay meteor
-  /skinpower olay gok
-  /skinpower olay doga
-  /skinpower olay anomali
-  /skinpower olay rastgele
-  /skinpower olay durum
-  /skinpower olay durdur
+BÜYÜLÜ KİTAP TEST KOMUTU
+/skinpower buyu kitap <buyu_adi>
 
-Not: Olay komutu için oyuncunun yetki seviyesi 2 veya üzeri olmalıdır.
+Örnek:
+/skinpower buyu kitap yanki_darbesi
+/skinpower buyu kitap kor_birikimi
+/skinpower buyu kitap mor_kanat
+
+ÖRS KULLANIMI
+Sol yuva: uygun eşya
+Sağ yuva: sınıf büyülü kitabı
+Sonuç: normal Minecraft örsüyle büyülenmiş eşya
+
+Bir eşyada en fazla bir Skin Powers sınıf büyüsü bulunabilir.
+Normal Minecraft büyüleri aynı eşyanın üzerinde kalabilir.
+Özel etki yalnızca büyüyle eşleşen sınıf seçiliyken çalışır.

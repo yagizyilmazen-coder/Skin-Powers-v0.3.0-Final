@@ -1,0 +1,22 @@
+{
+  "anvil_cost": 7,
+  "description": {
+    "translate": "enchantment.skinpowers.faz_kaymasi"
+  },
+  "effects": {},
+  "exclusive_set": "#skinpowers:class_enchantments",
+  "max_cost": {
+    "base": 30,
+    "per_level_above_first": 0
+  },
+  "max_level": 1,
+  "min_cost": {
+    "base": 12,
+    "per_level_above_first": 0
+  },
+  "slots": [
+    "hand"
+  ],
+  "supported_items": "#skinpowers:ranged_class_enchantable",
+  "weight": 1
+}

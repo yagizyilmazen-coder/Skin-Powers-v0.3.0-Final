@@ -69,6 +69,8 @@ public final class ServerNetworking {
             PowerSystem.toggleSelectedFeature(player, data);
         } else if (command.equals("LAUNCH")) {
             PowerSystem.tryRocketlessLaunch(player, data);
+        } else if (command.equals("ENCHANT_JUMP")) {
+            ClassEnchantmentSystem.tryDragonJump(player);
         } else if (command.equals("COMBO_TOGGLE")) {
             PowerSystem.toggleComboMode(player, data);
         } else if (command.equals("ANOMALY_HEALTH")) {

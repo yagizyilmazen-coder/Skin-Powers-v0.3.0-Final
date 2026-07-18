@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.0.10"
+VERSION = "1.1.0"
 errors: list[str] = []
 checks: list[str] = []
 
@@ -39,12 +39,15 @@ def text(relative: str) -> str:
 
 required_files = [
     "build.gradle", "gradle.properties", "settings.gradle", "README.md", "VALIDATION.md", "FEATURE_STATUS.md",
-    "CHANGELOG_1.0.10.md", ".github/workflows/build.yml", "src/main/resources/fabric.mod.json",
+    "CHANGELOG_1.1.0.md", ".github/workflows/build.yml", "src/main/resources/fabric.mod.json",
     "src/main/resources/assets/skinpowers/lang/tr_tr.json",
     "src/main/resources/assets/skinpowers/lang/en_us.json",
     "src/main/java/com/yagiz/skinpowers/AwakeningSystem.java",
     "src/main/java/com/yagiz/skinpowers/PowerCollisionSystem.java",
     "src/main/java/com/yagiz/skinpowers/WorldEventSystem.java",
+    "src/main/java/com/yagiz/skinpowers/ClassEnchantments.java",
+    "src/main/java/com/yagiz/skinpowers/ClassEnchantmentSystem.java",
+    "src/main/resources/data/skinpowers/tags/enchantment/class_enchantments.json",
     "src/client/java/com/yagiz/skinpowers/client/SkinPowersSettingsScreen.java",
 ]
 for file_name in required_files:
@@ -67,8 +70,8 @@ if f"skinpowers-{VERSION}-jar" not in workflow or f"skinpowers-{VERSION}.jar" no
     fail(f"GitHub Actions artifact/JAR adı {VERSION} değil")
 if "java-version: '25'" not in workflow or "gradle-version: '9.5.1'" not in workflow:
     fail("GitHub Actions Java 25 / Gradle 9.5.1 ayarı eksik")
-if "Kadim Ejderha" not in mod_json or "Uyanış" not in mod_json:
-    fail("fabric.mod.json 1.0.10 açıklamasını içermiyor")
+if "20 sınıfa özel büyü" not in mod_json or "normal örste" not in mod_json:
+    fail("fabric.mod.json 1.1.0 büyü açıklamasını içermiyor")
 
 power_class = text("src/main/java/com/yagiz/skinpowers/PowerClass.java")
 catalog = text("src/main/java/com/yagiz/skinpowers/PowerCatalog.java")
@@ -90,6 +93,8 @@ mod = text("src/main/java/com/yagiz/skinpowers/SkinPowersMod.java")
 store = text("src/main/java/com/yagiz/skinpowers/PlayerDataStore.java")
 collision = text("src/main/java/com/yagiz/skinpowers/PowerCollisionSystem.java")
 world_event = text("src/main/java/com/yagiz/skinpowers/WorldEventSystem.java")
+class_enchantments = text("src/main/java/com/yagiz/skinpowers/ClassEnchantments.java")
+class_enchantment_system = text("src/main/java/com/yagiz/skinpowers/ClassEnchantmentSystem.java")
 
 required_tokens = {
     power_class: [
@@ -149,21 +154,37 @@ required_tokens = {
         '"KADİM EJDERHA"', "drawDragonStorm", "drawAncientCity", "drawLavaCave", "drawForest", "drawAnomalyGlitch",
         "cardProgress >= 0.85F"
     ],
-    analyzer: ["FLIGHT_COLORS", "ANOMALY_COLORS", "SkinPowers/1.0.10"],
+    analyzer: ["FLIGHT_COLORS", "ANOMALY_COLORS", "SkinPowers/1.1.0"],
     commands: [
         'Commands.literal("degistir")', 'selfClass("ejderha"', 'Commands.literal("olay")',
         'worldEventLiteral("meteor")', 'Commands.literal("durdur")',
-        'Commands.literal("durum")', 'Commands.literal("trigger")', 'triggerLiteral("dragon_breath")',
+        'Commands.literal("durum")', 'Commands.literal("buyu")', 'Commands.literal("kitap")',
+        'giveEnchantmentBook', 'Commands.literal("trigger")', 'triggerLiteral("dragon_breath")',
         'triggerLiteral("dragon_form")'
     ],
     mod: [
         "ServerLivingEntityEvents.ALLOW_DAMAGE.register(AwakeningSystem::allowDamage)",
         "PowerSystem::allowWardenAmbushDamage",
-        "Skin Powers 1.0.10 yüklendi"
+        "ClassEnchantmentSystem::tickServer", "ClassEnchantmentSystem::onAttackEntity",
+        "ClassEnchantmentSystem::allowDamage", "ClassEnchantmentSystem::allowDeath",
+        "Skin Powers 1.1.0 yüklendi"
     ],
     store: ["migrateLegacyClassNames", "JsonParser.parseReader"],
     collision: ["registerCast", "cancelActiveOffense", "GÜÇ ÇARPIŞMASI"],
     world_event: ["Sculk Uyanışı", "Meteor Fırtınası", "Gökyüzü Yarığı", "Kadim Çiçeklenme", "Gerçeklik Çatlağı"],
+    class_enchantments: [
+        "ECHO_STRIKE", "DEPTH_STEP", "SCULK_ARMOR", "ANCIENT_COLLAPSE",
+        "EMBER_BUILDUP", "ASH_WALK", "HELL_CORE", "METEOR_FALL",
+        "ROOT_BIND", "LIFE_SPROUT", "FOREST_LEAP", "THORNY_DEFENSE",
+        "DELAYED_STRIKE", "PHASE_SHIFT", "ERROR_MARGIN", "BROKEN_TRAJECTORY",
+        "DRAGON_CLAW", "PURPLE_WING", "ANCIENT_SCALES", "PURPLE_BREATH",
+        "EnchantmentHelper.createBook"
+    ],
+    class_enchantment_system: [
+        "tryDragonJump", "tickDepthStep", "tickAshWalk", "tickForestLeap",
+        "echoStrike", "ancientCollapse", "emberHit", "rootBind", "dragonClaw",
+        "hellCore", "tickOwnedProjectiles", "tickMeteors", "allowDeath"
+    ],
 }
 for source, tokens in required_tokens.items():
     for token in tokens:
@@ -181,6 +202,54 @@ for forbidden in [
 ]:
     if forbidden in root_prefix:
         fail(f"Sınıf kök komutta doğrudan görünüyor: {forbidden}")
+
+# 20 sınıf büyüsü ve normal örs veri yapısı.
+enchantment_ids = [
+    "yanki_darbesi", "derinlik_adimi", "sculk_zirhi", "antik_cokus",
+    "kor_birikimi", "kul_yuruyusu", "cehennem_cekirdegi", "meteor_dususu",
+    "kok_bagi", "can_filizi", "orman_sicrayisi", "dikenli_savunma",
+    "gecikmis_darbe", "faz_kaymasi", "hata_payi", "bozuk_yorunge",
+    "ejderha_pencesi", "mor_kanat", "kadim_pullar", "mor_nefes",
+]
+enchantment_dir = ROOT / "src/main/resources/data/skinpowers/enchantment"
+found_enchantments = sorted(path.stem for path in enchantment_dir.glob("*.json")) if enchantment_dir.is_dir() else []
+if sorted(enchantment_ids) != found_enchantments:
+    fail(f"Büyü JSON listesi yanlış: {found_enchantments}")
+else:
+    ok("20 büyü JSON'u")
+
+for enchantment_id in enchantment_ids:
+    path = enchantment_dir / f"{enchantment_id}.json"
+    if not path.is_file():
+        continue
+    definition = json.loads(path.read_text(encoding="utf-8"))
+    if definition.get("max_level") != 1:
+        fail(f"Büyü tek seviyeli değil: {enchantment_id}")
+    if definition.get("exclusive_set") != "#skinpowers:class_enchantments":
+        fail(f"Tek sınıf büyüsü sınırı eksik: {enchantment_id}")
+    if "supported_items" not in definition or "slots" not in definition:
+        fail(f"Büyü eşya/yuva tanımı eksik: {enchantment_id}")
+
+exclusive_tag_path = ROOT / "src/main/resources/data/skinpowers/tags/enchantment/class_enchantments.json"
+if exclusive_tag_path.is_file():
+    exclusive_values = json.loads(exclusive_tag_path.read_text(encoding="utf-8")).get("values", [])
+    expected_values = [f"skinpowers:{entry}" for entry in enchantment_ids]
+    if sorted(exclusive_values) != sorted(expected_values):
+        fail("class_enchantments etiketi 20 büyünün tamamını içermiyor")
+    else:
+        ok("Tek sınıf büyüsü etiketi")
+
+tr_lang = json.loads(text("src/main/resources/assets/skinpowers/lang/tr_tr.json") or "{}")
+en_lang = json.loads(text("src/main/resources/assets/skinpowers/lang/en_us.json") or "{}")
+for enchantment_id in enchantment_ids:
+    key = f"enchantment.skinpowers.{enchantment_id}"
+    if key not in tr_lang or key not in en_lang:
+        fail(f"Büyü çevirisi eksik: {key}")
+
+if 'command.equals("ENCHANT_JUMP")' not in network or 'send("ENCHANT_JUMP")' not in client:
+    fail("Mor Kanat ikinci zıplama ağı eksik")
+else:
+    ok("Mor Kanat ağ doğrulaması")
 
 # Bot ve düello sistemleri tamamen kaldırılmış olmalı.
 for removed in [
@@ -377,4 +446,4 @@ if errors:
 
 print("SKIN POWERS PROJE DENETİMİ BAŞARILI")
 print(f"{len(checks)} kontrol geçti.")
-print("Bot ve düello kaldırma işlemi ile dünya olayı komutları doğrulandı.")
+print("20 sınıf büyüsü, normal örs kitapları, dünya olayları ve mevcut güç sistemleri doğrulandı.")

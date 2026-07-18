@@ -1,0 +1,22 @@
+{
+  "anvil_cost": 8,
+  "description": {
+    "translate": "enchantment.skinpowers.meteor_dususu"
+  },
+  "effects": {},
+  "exclusive_set": "#skinpowers:class_enchantments",
+  "max_cost": {
+    "base": 30,
+    "per_level_above_first": 0
+  },
+  "max_level": 1,
+  "min_cost": {
+    "base": 12,
+    "per_level_above_first": 0
+  },
+  "slots": [
+    "hand"
+  ],
+  "supported_items": "minecraft:mace",
+  "weight": 1
+}

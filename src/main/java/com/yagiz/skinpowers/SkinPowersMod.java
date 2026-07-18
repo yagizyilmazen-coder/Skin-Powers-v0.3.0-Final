@@ -28,17 +28,22 @@ public final class SkinPowersMod implements ModInitializer {
             AnomalySystem.clearAll();
             PowerCollisionSystem.clearAll();
             WorldEventSystem.clearAll();
+            ClassEnchantmentSystem.clearAll();
             PlayerDataStore.save();
         });
         ServerTickEvents.END_SERVER_TICK.register(PowerSystem::tickServer);
+        ServerTickEvents.END_SERVER_TICK.register(ClassEnchantmentSystem::tickServer);
         AttackEntityCallback.EVENT.register(PowerSystem::onAttackEntity);
+        AttackEntityCallback.EVENT.register(ClassEnchantmentSystem::onAttackEntity);
         // Derinlik Pususu, diğer hasar/uyanış sistemlerinden önce bütün hasarı keser.
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(PowerSystem::allowWardenAmbushDamage);
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(PowerSystem::allowDragonScalesDamage);
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register(ClassEnchantmentSystem::allowDamage);
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(AnomalySystem::allowDamage);
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(AwakeningSystem::allowDamage);
+        ServerLivingEntityEvents.ALLOW_DEATH.register(ClassEnchantmentSystem::allowDeath);
         ServerLivingEntityEvents.ALLOW_DEATH.register(AnomalySystem::allowDeath);
 
-        LOGGER.info("Skin Powers 1.0.10 yüklendi.");
+        LOGGER.info("Skin Powers 1.1.0 yüklendi.");
     }
 }

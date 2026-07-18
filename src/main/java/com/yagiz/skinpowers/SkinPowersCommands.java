@@ -11,6 +11,7 @@ import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.Permissions;
+import net.minecraft.world.item.ItemStack;
 
 public final class SkinPowersCommands {
     private SkinPowersCommands() {}
@@ -45,6 +46,16 @@ public final class SkinPowersCommands {
                 .executes(context -> stopWorldEvent(context.getSource())))
             .then(Commands.literal("durum")
                 .executes(context -> worldEventStatus(context.getSource()))));
+
+        // Sınıf büyülü kitaplarını test etmek için gerçek büyülü kitap verir.
+        // Kitaplar normal örste uygun eşyaya basılır.
+        LiteralArgumentBuilder<CommandSourceStack> enchantmentBooks = Commands.literal("kitap");
+        for (String enchantmentId : ClassEnchantments.commandEntries().keySet()) {
+            enchantmentBooks.then(enchantmentBookLiteral(enchantmentId));
+        }
+        root.then(Commands.literal("buyu")
+            .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_MODERATOR))
+            .then(enchantmentBooks));
 
         // Test/yönetim komutu: sınıf, seviye ve cooldown şartını değiştirmeden saldırıyı doğrudan çağırır.
         // Yayınlanan sunucularda kötüye kullanılmaması için yalnızca moderatör yetkisine açıktır.
@@ -124,6 +135,28 @@ public final class SkinPowersCommands {
                         .executes(context -> clearCharge(context.getSource(), EntityArgument.getPlayer(context, "oyuncu")))))));
 
         return root;
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> enchantmentBookLiteral(String literal) {
+        return Commands.literal(literal).executes(context ->
+            giveEnchantmentBook(context.getSource(), literal)
+        );
+    }
+
+    private static int giveEnchantmentBook(CommandSourceStack source, String enchantmentId) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        var key = ClassEnchantments.byCommand(enchantmentId);
+        if (key == null) {
+            source.sendFailure(Component.literal("Bilinmeyen sınıf büyüsü: " + enchantmentId));
+            return 0;
+        }
+        ItemStack book = ClassEnchantments.createBook(source.getServer().registryAccess(), key);
+        player.getInventory().add(book);
+        if (!book.isEmpty()) {
+            player.drop(book, false, false);
+        }
+        source.sendSuccess(() -> Component.literal("Büyülü kitap verildi: " + enchantmentId), false);
+        return 1;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> worldEventLiteral(String literal) {

@@ -107,6 +107,7 @@ public final class SkinPowersClient implements ClientModInitializer {
 
             boolean jumpDown = client.options.keyJump.isDown();
             if (jumpDown && !previousJumpDown) {
+                send("ENCHANT_JUMP");
                 long now = System.currentTimeMillis();
                 if (now - lastJumpPress <= 320L) send("LAUNCH");
                 lastJumpPress = now;
