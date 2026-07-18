@@ -3,6 +3,7 @@ package com.yagiz.skinpowers;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -131,7 +132,7 @@ public final class SkinPowersCommands {
         );
     }
 
-    private static int startWorldEvent(CommandSourceStack source, String eventName) {
+    private static int startWorldEvent(CommandSourceStack source, String eventName) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         if (!WorldEventSystem.startNearPlayer(player, eventName)) {
             source.sendFailure(Component.literal("Dünya olayı başlatılamadı. " + WorldEventSystem.status()));
