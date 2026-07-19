@@ -6,7 +6,9 @@ public enum PowerClass {
     FLIGHT("Kadim Ejderha"),
     FIRE("Ateş"),
     NATURE("Doğa"),
-    ANOMALY("Anomali");
+    ANOMALY("Anomali"),
+    MAGNETIC("Manyetik"),
+    SAND("Kum");
 
     private final String displayName;
 
@@ -24,6 +26,8 @@ public enum PowerClass {
         // 1.0.3 ve önceki kayıtlardaki Zaman sınıfı, 1.0.4'te Anomaliye taşınır.
         if (normalized.equals("TIME") || normalized.equals("ZAMAN")) return ANOMALY;
         if (normalized.equals("DRAGON") || normalized.equals("EJDERHA") || normalized.equals("KADIM_EJDERHA")) return FLIGHT;
+        if (normalized.equals("MAGNET") || normalized.equals("MANYETIK") || normalized.equals("MANYETİK")) return MAGNETIC;
+        if (normalized.equals("KUM") || normalized.equals("SAND") || normalized.equals("COL")) return SAND;
         try {
             return PowerClass.valueOf(normalized);
         } catch (IllegalArgumentException ignored) {

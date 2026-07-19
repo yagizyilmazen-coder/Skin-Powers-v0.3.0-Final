@@ -11,12 +11,14 @@ public final class HudOverlay {
 
     public static void extract(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || ClientState.powerClass() == PowerClass.NONE) return;
+        if (client.player == null) return;
 
         int screenWidth = client.getWindow().getGuiScaledWidth();
         int screenHeight = client.getWindow().getGuiScaledHeight();
-        PowerClass powerClass = ClientState.powerClass();
         ClientConfig config = ClientConfig.get();
+        drawSandScreenOverlay(graphics, screenWidth, screenHeight);
+        if (ClientState.powerClass() == PowerClass.NONE) return;
+        PowerClass powerClass = ClientState.powerClass();
 
         drawShakeOverlay(graphics, screenWidth, screenHeight, config);
         drawCastOverlay(graphics, screenWidth, screenHeight, config);
@@ -39,6 +41,8 @@ public final class HudOverlay {
             case FIRE -> 0xFFFFA826;
             case NATURE -> 0xFF67D96E;
             case ANOMALY -> 0xFFB65CFF;
+            case MAGNETIC -> 0xFFB8C5D1;
+            case SAND -> 0xFFE0B85A;
             default -> 0xFFBFC9D2;
         };
 
@@ -100,6 +104,8 @@ public final class HudOverlay {
                 }
                 yield ClientState.copiedPowerName().isBlank() ? "?: Hamle bekleniyor" : "?: " + ClientState.copiedPowerName();
             }
+            case MAGNETIC -> ClientState.selectedPower() == 4 ? "Metal Fırtınası: R ile hazırla/fırlat" : "Metal alanı dengede";
+            case SAND -> ClientState.sandScreenTicks() > 0 ? "Görüşte kum: suya girerek temizle" : "Çöl akışı hazır";
             default -> "";
         };
         int statusY = Math.min(y + panelHeight - 11, y + 40);
@@ -214,6 +220,33 @@ public final class HudOverlay {
         graphics.text(client.font, fitted, left + (width - client.font.width(fitted)) / 2, top + 5, 0xFFF0E8FF, false);
     }
 
+    private static void drawSandScreenOverlay(GuiGraphicsExtractor graphics, int width, int height) {
+        int ticks = ClientState.sandScreenTicks();
+        if (ticks <= 0) return;
+        float fade = ticks < 20 ? ticks / 20.0F : 1.0F;
+        int baseAlpha = Math.max(18, Math.round(72.0F * fade));
+        graphics.fill(0, 0, width, height, (baseAlpha << 24) | 0x00C99745);
+        int grains = Math.max(24, Math.min(90, (width * height) / 4200));
+        int seed = ticks * 1103515245 + width * 31 + height;
+        for (int i = 0; i < grains; i++) {
+            seed = seed * 1664525 + 1013904223;
+            int x = Math.floorMod(seed, Math.max(1, width));
+            seed = seed * 1664525 + 1013904223;
+            int y = Math.floorMod(seed, Math.max(1, height));
+            int size = 2 + Math.floorMod(seed >>> 8, 7);
+            int alpha = Math.max(28, Math.round((70 + Math.floorMod(seed >>> 16, 70)) * fade));
+            int rgb = (i % 3 == 0) ? 0x00E6C36C : (i % 3 == 1 ? 0x00C49343 : 0x00F2D886);
+            graphics.fill(x, y, Math.min(width, x + size + 3), Math.min(height, y + size), (alpha << 24) | rgb);
+        }
+        int edgeAlpha = Math.max(30, Math.round(145.0F * fade));
+        int edge = Math.max(10, Math.min(30, width / 18));
+        int edgeColor = (edgeAlpha << 24) | 0x00B17B32;
+        graphics.fill(0, 0, width, edge, edgeColor);
+        graphics.fill(0, height - edge, width, height, edgeColor);
+        graphics.fill(0, edge, edge, height - edge, edgeColor);
+        graphics.fill(width - edge, edge, width, height - edge, edgeColor);
+    }
+
     private static void drawCastOverlay(GuiGraphicsExtractor graphics, int width, int height, ClientConfig config) {
         if (ClientState.castPulseTicks() <= 0 || config.glowPercent() <= 0 || config.performanceMode()) return;
         PowerClass powerClass = ClientState.castPulseClass();
@@ -223,6 +256,8 @@ public final class HudOverlay {
             case FIRE -> 0x00FF8A18;
             case NATURE -> 0x0067D96E;
             case ANOMALY -> 0x005CE5E5;
+            case MAGNETIC -> 0x00B8C5D1;
+            case SAND -> 0x00E0B85A;
             default -> 0x00FFFFFF;
         };
         float fade = Math.min(1.0F, ClientState.castPulseTicks() / 8.0F);

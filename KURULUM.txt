@@ -1,18 +1,25 @@
-SKIN POWERS v1.1.1 KÜÇÜK GÜNCELLEME
+SKIN POWERS v1.2.0 KÜÇÜK GÜNCELLEME
 
-1. ZIP'e sağ tıklayın ve Tümünü Ayıkla seçin.
+Bu paket çalışan Skin Powers v1.1.1 tam projesinin üzerine uygulanır.
+
+KURULUM
+1. ZIP dosyasına sağ tıklayın ve "Tümünü Ayıkla" seçin.
 2. Ayıklanan klasördeki bütün dosya ve klasörleri kopyalayın.
-3. GitHub Desktop > Repository > Show in Explorer seçin.
-4. Proje klasörüne yapıştırın.
-5. Hedefteki dosyaları değiştir seçin.
+3. GitHub Desktop'ta Repository > Show in Explorer seçin.
+4. Açılan proje klasörüne yapıştırın.
+5. Sorulduğunda "Hedefteki dosyaları değiştir" seçeneğini seçin.
 6. GitHub Desktop Summary:
-   1.1.1 skin tarama ve görünür büyü güncellemesi
-7. Commit to main ve Push origin yapın.
-8. GitHub Actions yeşil olunca skinpowers-1.1.1.jar artifact'ını kullanın.
+   1.2.0 Manyetik ve Kum sınıfları
+7. Commit to main ve ardından Push origin yapın.
+8. GitHub Actions yeşil olduğunda artifact içindeki skinpowers-1.2.0.jar dosyasını kullanın.
 
-ÖNEMLİ DEĞİŞİKLİKLER
-- Skin tarama üç kez yeniden denenir ve oyuncu adı fallback'i kullanır.
-- Skin alınamazsa sahte Steve karakteri çizilmez.
-- Büyülü kitaplar survival sandık ganimetlerinde ve kütüphaneci takaslarında bulunabilir.
-- Meteor ve diğer aktif büyüler görünür eşya/blok gövdeleri kullanır.
-- Antik Çöküş ve Kor Birikimi güçlendirildi.
+BU SÜRÜM
+- 6. sınıf: Manyetik
+- 7. sınıf: Kum
+- Kum saldırılarının ana gövdeleri gerçek kum ve kumtaşı modelleridir.
+- Kum ekran etkisi 4 saniye sürer veya oyuncu suya girince hemen temizlenir.
+- Warden Derinlik Pususu sırasında zırh ve eldeki eşyalar da gizlenir.
+- Proje denetimi en fazla 50 gruplu kontrol çalıştırır.
+
+GitHub Desktop'ta yaklaşık 26 yeni/değişmiş dosya görünmesi normaldir.
+Kırmızı eksiyle silinmiş dosya görünmemelidir.

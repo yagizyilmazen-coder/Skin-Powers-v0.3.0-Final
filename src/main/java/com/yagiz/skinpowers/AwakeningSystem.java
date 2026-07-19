@@ -138,6 +138,7 @@ public final class AwakeningSystem {
                 }
                 if (now % 18L == 0L) pulseEnemies(player, level, 9.0, 7.0F, 0.8, 0.35, ParticleTypes.WITCH);
             }
+            case MAGNETIC, SAND -> ExpansionPowerSystem.tickAwakening(player, data, level, now);
             case FLIGHT -> {
                 if (!player.isCreative() && !player.isSpectator() && !player.getAbilities().mayfly) {
                     player.getAbilities().mayfly = true;
@@ -177,6 +178,10 @@ public final class AwakeningSystem {
     }
 
     private static void emitFinalPulse(ServerPlayer player, PlayerPowerData data, ServerLevel level, PowerClass powerClass) {
+        if (powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.SAND) {
+            ExpansionPowerSystem.finishAwakening(player, level, powerClass);
+            return;
+        }
         double radius = powerClass == PowerClass.ANOMALY || powerClass == PowerClass.FLIGHT ? 13.0 : 11.0;
         for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(radius))) {
             if (target == player || PowerSystem.isProtectedAlly(player, target)) continue;
@@ -221,6 +226,8 @@ public final class AwakeningSystem {
             case NATURE -> ParticleTypes.HAPPY_VILLAGER;
             case ANOMALY -> ParticleTypes.WITCH;
             case FLIGHT -> ParticleTypes.REVERSE_PORTAL;
+            case MAGNETIC -> ParticleTypes.CRIT;
+            case SAND -> ParticleTypes.POOF;
             default -> ParticleTypes.END_ROD;
         };
         level.sendParticles(particle, center.x, center.y, center.z, count, 1.25, 1.15, 1.25, 0.055);
@@ -233,6 +240,8 @@ public final class AwakeningSystem {
             case NATURE -> "Kadim Orman";
             case ANOMALY -> "Sistem Çökmesi";
             case FLIGHT -> "Mor Kıyamet";
+            case MAGNETIC -> "Manyetik Çekirdek";
+            case SAND -> "Çölün Kalbi";
             default -> "Uyanış";
         };
     }
@@ -244,6 +253,8 @@ public final class AwakeningSystem {
             case NATURE -> 1.15F;
             case ANOMALY -> 0.55F;
             case FLIGHT -> 0.72F;
+            case MAGNETIC -> 0.48F;
+            case SAND -> 0.88F;
             default -> 1.0F;
         };
     }

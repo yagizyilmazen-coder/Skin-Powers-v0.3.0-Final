@@ -57,6 +57,8 @@ public final class SkinPowersClient implements ClientModInitializer {
             context.client().execute(() -> {
                 if ("SHAKE".equalsIgnoreCase(payload.effect())) {
                     ClientState.startShake(payload.strength(), payload.durationTicks());
+                } else if ("SAND_SCREEN".equalsIgnoreCase(payload.effect())) {
+                    ClientState.startSandScreen(payload.durationTicks());
                 } else if (payload.effect() != null && payload.effect().startsWith("CAST_")) {
                     ClientState.startCastPulse(payload.effect().substring("CAST_".length()), payload.strength(), payload.durationTicks());
                 }
@@ -73,6 +75,7 @@ public final class SkinPowersClient implements ClientModInitializer {
             removePreviousShake(client);
             ClientState.clientTick();
             if (client.player == null || client.level == null) return;
+            if (client.player.isInWater()) ClientState.clearSandScreen();
 
             applyScreenShake(client);
 

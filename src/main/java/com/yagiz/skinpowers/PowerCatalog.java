@@ -5,6 +5,7 @@ public final class PowerCatalog {
     public static final int[] NATURE_XP_COSTS = {10, 20, 30, 40, 50};
     public static final int[] DRAGON_XP_COSTS = {10, 20, 30, 40, 55, 70};
     public static final int[] ANOMALY_XP_COSTS = {10, 20, 30, 40, 50, 70};
+    public static final int[] EXPANSION_XP_COSTS = {10, 20, 30, 40, 55, 70};
     public static final int WARDEN_ANCIENT_CHARGE_XP = 70;
 
     private static final String[][] NAMES = {
@@ -13,7 +14,9 @@ public final class PowerCatalog {
         {"Kuyruk Kasırgası", "Ejderha Nefesi", "Kadim Pullar", "Avcı Pençesi", "Kadim Kükreme", "Ejderha Hükümdarı"},
         {"Ateş Bağışıklığı", "Alevli Yakın Dövüş", "Ateş Çemberi", "Cehennem Küresi", "Meteor Yağmuru", "-"},
         {"Doğanın Canı", "Dikenli Tohum", "Sarmaşık Kapanı", "Yaşam Ağacı", "Kadim Orman Hükmü", "-"},
-        {"Kırık Adım", "Tersine Çevir", "?", "Hasar Mevcut Değil", "Varlıktan Çıkar", "404: Gerçeklik Bulunamadı"}
+        {"Kırık Adım", "Tersine Çevir", "?", "Hasar Mevcut Değil", "Varlıktan Çıkar", "404: Gerçeklik Bulunamadı"},
+        {"Manyetik Çekim", "Kutup İtişi", "Demir Yumruk", "Metal Fırtınası", "Ray Topu", "Manyetik Kafes"},
+        {"Kum Mermisi", "Kum Dalgası", "Çöl Aynası", "Kum Zırhı", "Kum Mezarı", "Kum Devleri"}
     };
 
     private static final String[][] DESCRIPTIONS = {
@@ -22,7 +25,7 @@ public final class PowerCatalog {
             "Uzun süre Güç, Direnç ve soğurma kazanırsın.",
             "Geniş alandaki düşmanları ezer, savurur ve zayıflatır.",
             "Önündeki hedeflere yüksek hasarlı sonik enerji yollar.",
-            "Yer altına çekilirsin; tekrar kullandığında veya süre dolduğunda dört gerçek 3B sculk koluyla yüzeye saldırırsın.",
+            "Yer altına çekilirsin; karakterin, zırhın ve eldeki eşyaların tamamen kaybolur. Tekrar kullandığında dört gerçek 3B sculk koluyla yüzeye saldırırsın.",
             "Güç, direnç, yenilenme ve hasar aurası kazandırır.",
             "Dört sculk kolu hedefe Antik Şehir enerjisi aktarır; çömelerek kendine uygulayabilirsin."
         },
@@ -57,13 +60,30 @@ public final class PowerCatalog {
             "Moblar, oyuncular, mermiler ve patlamalar dâhil gelen hasarı depolar; V ile geçici kırmızı kalbe, X ile tam hasara dönüştürür.",
             "Hedefi kısa süre gerçeklikten siler; geri döndüğünde merkezde çöken bir bozulma patlaması oluşturur.",
             "Saldırıları ve mermileri reddeden geniş bir alan açar; hasarı geri yollar, cooldownları hızlandırır ve ölümü bir kez iptal eder."
+        },
+        {
+            "Nişangâhtaki hedefi demir ve bakırdan oluşan görünür manyetik zincirle kendine çeker; metal zırh daha güçlü etkilenir.",
+            "Gerçek demir blok halkaları dışarı açılır; düşmanları iter ve mermileri sahibine geri çevirir.",
+            "Demir blok ve örsten oluşan dev bir yumruk ileri uçar, hedefi ezer ve çevresini savurur.",
+            "Etrafında dönen gerçek metal parçaları hazırlar; tekrar R ile nişangâha toplu hâlde fırlatılır.",
+            "Demir çekirdekli yüksek hızlı bir ray mermisi birden fazla hedefi delerek geçer.",
+            "Hedefi hareket eden demir parmaklık ve zincir halkalarına kapatır; süre sonunda kafes çöker."
+        },
+        {
+            "Gerçek kum ve kumtaşı parçalarından oluşan sıkıştırılmış mermi fırlatır; patlayınca hedefin ekranını 4 saniye kum kaplar.",
+            "Minecraft kum ve kumtaşı blok gövdelerinden oluşan geniş dalga ilerler; hedefleri sürükler ve görüşlerini kumla kaplar.",
+            "İki gerçek kumtaşı heykeli oluşturur; gelen ilk saldırıları heykellere aktararak kaçış sağlar.",
+            "Oyuncunun çevresinde dönen gerçek kum ve kumtaşı kabuğu darbe aldıkça parça parça kırılır.",
+            "Hedefin çevresinde kumtaşı duvarları yükselir; hedef suya girene veya süre bitene kadar gömülür.",
+            "Kum ve kumtaşından oluşan iki dev kol hedefi yakalar, havaya kaldırır ve yere çarpar."
         }
     };
 
     private PowerCatalog() {}
 
     public static int maxLevel(PowerClass powerClass) {
-        return powerClass == PowerClass.WARDEN || powerClass == PowerClass.FLIGHT || powerClass == PowerClass.ANOMALY ? 6 : 5;
+        return powerClass == PowerClass.WARDEN || powerClass == PowerClass.FLIGHT || powerClass == PowerClass.ANOMALY
+            || powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.SAND ? 6 : 5;
     }
 
     public static String powerName(PowerClass powerClass, int oneBasedLevel) {
@@ -85,6 +105,7 @@ public final class PowerCatalog {
         if (powerClass == PowerClass.WARDEN && level == 6) return WARDEN_ANCIENT_CHARGE_XP;
         if (powerClass == PowerClass.ANOMALY) return ANOMALY_XP_COSTS[level - 1];
         if (powerClass == PowerClass.FLIGHT) return DRAGON_XP_COSTS[level - 1];
+        if (powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.SAND) return EXPANSION_XP_COSTS[level - 1];
         int[] costs = powerClass == PowerClass.NATURE ? NATURE_XP_COSTS : XP_COSTS;
         return costs[level - 1];
     }
@@ -95,6 +116,8 @@ public final class PowerCatalog {
             case FLIGHT -> 2;
             case FIRE -> 4;
             case NATURE -> 3;
+            case MAGNETIC -> 4;
+            case SAND -> 2;
             default -> 0;
         };
     }
@@ -105,6 +128,8 @@ public final class PowerCatalog {
             case FLIGHT -> 5;
             case FIRE -> 5;
             case NATURE -> 2;
+            case MAGNETIC -> 5;
+            case SAND -> 6;
             default -> 0;
         };
     }
@@ -115,6 +140,8 @@ public final class PowerCatalog {
             case FLIGHT -> "Mor Ejderha Fırtınası";
             case FIRE -> "Cehennem Felaketi";
             case NATURE -> "Diken Ormanı";
+            case MAGNETIC -> "Kutup Kıyameti";
+            case SAND -> "Çöl Ezicisi";
             default -> "-";
         };
     }

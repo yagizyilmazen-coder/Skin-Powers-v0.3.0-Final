@@ -27,7 +27,7 @@ import java.util.concurrent.Executors;
 
 /** Gerçek skin piksellerini analiz eder; uydurma eşit puan üretmez. */
 public final class SkinAnalyzer {
-    private static final int CLASS_COUNT = 5;
+    private static final int CLASS_COUNT = 7;
     private static final int[][] WARDEN_COLORS = {
         {6, 12, 18}, {17, 29, 48}, {31, 26, 67}, {63, 27, 88}, {15, 61, 78}, {25, 126, 132}
     };
@@ -43,6 +43,14 @@ public final class SkinAnalyzer {
     private static final int[][] ANOMALY_COLORS = {
         {12, 3, 20}, {52, 12, 82}, {116, 38, 170}, {182, 92, 255},
         {69, 220, 224}, {234, 75, 99}, {238, 240, 248}
+    };
+    private static final int[][] MAGNETIC_COLORS = {
+        {38, 43, 48}, {72, 82, 91}, {118, 132, 143}, {181, 193, 202},
+        {166, 91, 48}, {205, 123, 63}, {116, 31, 28}
+    };
+    private static final int[][] SAND_COLORS = {
+        {232, 210, 152}, {216, 184, 106}, {193, 151, 73}, {151, 105, 54},
+        {239, 221, 170}, {181, 126, 67}, {220, 164, 78}
     };
 
     private static final java.util.concurrent.ConcurrentHashMap<UUID, CachedResult> CACHE = new java.util.concurrent.ConcurrentHashMap<>();
@@ -112,7 +120,7 @@ public final class SkinAnalyzer {
             if (skinUrl == null) return Result.unavailable();
             HttpRequest request = HttpRequest.newBuilder(URI.create(skinUrl))
                 .timeout(Duration.ofSeconds(12))
-                .header("User-Agent", "SkinPowers/1.1.1")
+                .header("User-Agent", "SkinPowers/1.2.0")
                 .GET()
                 .build();
             HttpResponse<byte[]> response = sendBytesWithRetry(request, 3);
@@ -135,6 +143,8 @@ public final class SkinAnalyzer {
         int cyanPixels = 0;
         int redGlitchPixels = 0;
         int whitePixels = 0;
+        int metallicPixels = 0;
+        int sandPixels = 0;
         Map<Integer, Integer> quantized = new HashMap<>();
 
         int width = image.getWidth();
@@ -172,6 +182,8 @@ public final class SkinAnalyzer {
                 if (hue >= 172 && hue <= 196 && saturation > 0.35 && max > 0.42) cyanPixels++;
                 if ((hue <= 12 || hue >= 348) && saturation > 0.55 && max > 0.55) redGlitchPixels++;
                 if (max > 0.82 && saturation < 0.16) whitePixels++;
+                if (saturation < 0.24 && max > 0.18 && max < 0.86 || hue >= 12.0 && hue <= 32.0 && saturation > 0.30 && max > 0.32) metallicPixels++;
+                if (hue >= 28.0 && hue <= 58.0 && saturation > 0.16 && saturation < 0.72 && max > 0.38) sandPixels++;
 
                 int qr = (red / 24) * 24;
                 int qg = (green / 24) * 24;
@@ -194,6 +206,9 @@ public final class SkinAnalyzer {
             + (whitePixels > counted * 0.012 ? 1 : 0);
         double diversityBonus = Math.max(0, activeGroups - 1) * 0.035;
         totals[4] += (pairFraction * 2.8 + diversityBonus) * weightedCount;
+        // Manyetik, metalik gri + bakır/koyu kırmızı birlikteliğini; Kum ise bej/altın/kahverengi paleti ödüllendirir.
+        totals[5] += Math.min(0.32, metallicPixels / (double) counted * 0.72) * weightedCount;
+        totals[6] += Math.min(0.34, sandPixels / (double) counted * 0.78) * weightedCount;
 
         double sum = 0.0;
         for (int i = 0; i < totals.length; i++) {
@@ -231,6 +246,8 @@ public final class SkinAnalyzer {
         double fire = nearestSimilarity(r, g, b, FIRE_COLORS, 66.0);
         double nature = nearestSimilarity(r, g, b, NATURE_COLORS, 68.0);
         double anomaly = nearestSimilarity(r, g, b, ANOMALY_COLORS, 54.0) * 0.72;
+        double magnetic = nearestSimilarity(r, g, b, MAGNETIC_COLORS, 62.0) * 0.86;
+        double sand = nearestSimilarity(r, g, b, SAND_COLORS, 58.0) * 0.90;
 
         double max = Math.max(r, Math.max(g, b)) / 255.0;
         double min = Math.min(r, Math.min(g, b)) / 255.0;
@@ -247,8 +264,15 @@ public final class SkinAnalyzer {
         if (hue >= 174.0 && hue <= 194.0 && saturation > 0.48 && max > 0.48) anomaly = Math.max(anomaly, 0.64);
         if ((hue <= 10.0 || hue >= 350.0) && saturation > 0.68 && max > 0.62) anomaly = Math.max(anomaly, 0.57);
         if (max < 0.15 || max > 0.88 && saturation < 0.10) anomaly = Math.min(anomaly, 0.38);
+        if (saturation < 0.22 && max > 0.20 && max < 0.82) magnetic = Math.max(magnetic, 0.67);
+        if (hue >= 12.0 && hue <= 30.0 && saturation > 0.28 && max > 0.30) magnetic = Math.max(magnetic, 0.62);
+        if (hue >= 30.0 && hue <= 58.0 && saturation > 0.16 && saturation < 0.70 && max > 0.40) sand = Math.max(sand, 0.76);
+        if (max < 0.16 || saturation < 0.06 && max > 0.88) {
+            magnetic *= 0.72;
+            sand *= 0.55;
+        }
 
-        return new double[]{clamp01(warden), clamp01(flight), clamp01(fire), clamp01(nature), clamp01(anomaly)};
+        return new double[]{clamp01(warden), clamp01(flight), clamp01(fire), clamp01(nature), clamp01(anomaly), clamp01(magnetic), clamp01(sand)};
     }
 
     private static String normalizeSkinUrl(String url) {
@@ -302,7 +326,7 @@ public final class SkinAnalyzer {
         if (profileName == null || profileName.isBlank() || !profileName.matches("[A-Za-z0-9_]{1,16}")) return null;
         try {
             HttpRequest nameRequest = HttpRequest.newBuilder(URI.create("https://api.mojang.com/users/profiles/minecraft/" + profileName))
-                .timeout(Duration.ofSeconds(10)).header("User-Agent", "SkinPowers/1.1.1").GET().build();
+                .timeout(Duration.ofSeconds(10)).header("User-Agent", "SkinPowers/1.2.0").GET().build();
             HttpResponse<String> nameResponse = sendStringWithRetry(nameRequest, 3);
             if (nameResponse == null || nameResponse.statusCode() < 200 || nameResponse.statusCode() >= 300 || nameResponse.body().isBlank()) return null;
             JsonObject profileJson = JsonParser.parseString(nameResponse.body()).getAsJsonObject();
@@ -319,7 +343,7 @@ public final class SkinAnalyzer {
     private static String findSkinUrlForUuid(UUID profileId, HttpClient client) throws Exception {
         String compactUuid = profileId.toString().replace("-", "");
         HttpRequest request = HttpRequest.newBuilder(URI.create("https://sessionserver.mojang.com/session/minecraft/profile/" + compactUuid + "?unsigned=false"))
-            .timeout(Duration.ofSeconds(10)).header("User-Agent", "SkinPowers/1.1.1").GET().build();
+            .timeout(Duration.ofSeconds(10)).header("User-Agent", "SkinPowers/1.2.0").GET().build();
         HttpResponse<String> response = sendStringWithRetry(request, 2);
         if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) return null;
         JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();

@@ -332,6 +332,7 @@ public final class AnomalySystem {
             case FLIGHT -> power >= 1 && power <= 6;
             case FIRE -> power >= 3 && power <= 5;
             case NATURE -> power >= 2 && power <= 5;
+            case MAGNETIC, SAND -> power >= 1 && power <= 6;
             default -> false;
         };
     }

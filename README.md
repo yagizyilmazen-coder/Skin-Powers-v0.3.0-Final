@@ -1,6 +1,23 @@
-# Skin Powers 1.1.1
+# Skin Powers 1.2.0
 
 Minecraft 26.1.2 için Fabric güç modu. Oyuncunun skin renklerini inceleyerek Warden, Kadim Ejderha, Ateş, Doğa ve Anomali sınıflarını önerir.
+
+## 1.2.0 — Manyetik ve Kum
+
+Yeni sınıflar:
+
+- **Manyetik:** çekme-itme, metal yumruk, metal fırtınası, ray topu ve manyetik kafes.
+- **Kum:** gerçek Minecraft kum/kumtaşı gövdeli mermi, dalga, aynalar, zırh, mezar ve dev kollar.
+- Kumla vurulan oyuncunun ekranı 4 saniye kumla kaplanır; suya girince hemen temizlenir.
+- Warden Derinlik Pususu artık zırhı ve eldeki eşyaları da güvenli biçimde gizler.
+
+Sınıf test komutları:
+
+```text
+/skinpower degistir manyetik
+/skinpower degistir kum
+```
+
 
 ## Temel özellikler
 - Beş sınıf ve her sınıf için altı güç seviyesi.

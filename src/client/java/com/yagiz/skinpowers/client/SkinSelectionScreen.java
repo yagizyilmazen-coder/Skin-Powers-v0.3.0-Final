@@ -10,19 +10,19 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 
 public final class SkinSelectionScreen extends Screen {
-    private static final String[] TITLES = {"WARDEN", "KADİM EJDERHA", "ATEŞ", "DOĞA", "ANOMALİ"};
-    private static final String[] SUBTITLES = {"Derinliğin gücü", "Mor kıyametin kanatları", "Alevin hâkimiyeti", "Ormanın yaşamı", "Gerçekliğin hatası"};
-    private static final PowerClass[] CLASSES = {PowerClass.WARDEN, PowerClass.FLIGHT, PowerClass.FIRE, PowerClass.NATURE, PowerClass.ANOMALY};
-    private static final int[] TOP_COLORS = {0xFF07111C, 0xFF08020F, 0xFF5B0B08, 0xFF102B13, 0xFF05010B};
-    private static final int[] BOTTOM_COLORS = {0xFF16384B, 0xFF451070, 0xFFFF6B18, 0xFF4C8B3C, 0xFF291248};
-    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFCE72FF, 0xFFFFC22E, 0xFF74E36D, 0xFFB65CFF};
+    private static final String[] TITLES = {"WARDEN", "KADİM EJDERHA", "ATEŞ", "DOĞA", "ANOMALİ", "MANYETİK", "KUM"};
+    private static final String[] SUBTITLES = {"Derinliğin gücü", "Mor kıyametin kanatları", "Alevin hâkimiyeti", "Ormanın yaşamı", "Gerçekliğin hatası", "Metalin kutupları", "Çölün şekillenen gücü"};
+    private static final PowerClass[] CLASSES = {PowerClass.WARDEN, PowerClass.FLIGHT, PowerClass.FIRE, PowerClass.NATURE, PowerClass.ANOMALY, PowerClass.MAGNETIC, PowerClass.SAND};
+    private static final int[] TOP_COLORS = {0xFF07111C, 0xFF08020F, 0xFF5B0B08, 0xFF102B13, 0xFF05010B, 0xFF121820, 0xFF4C2F13};
+    private static final int[] BOTTOM_COLORS = {0xFF16384B, 0xFF451070, 0xFFFF6B18, 0xFF4C8B3C, 0xFF291248, 0xFF586875, 0xFFD2A34D};
+    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFCE72FF, 0xFFFFC22E, 0xFF74E36D, 0xFFB65CFF, 0xFFC5D2DE, 0xFFFFD273};
 
     private final long openedAt = Util.getMillis();
     private SkinAnalyzer.Result result = SkinAnalyzer.Result.unavailable();
     private boolean analysisFinished;
     private int selectedIndex = -1;
     private long selectedAt;
-    private final Button[] selectButtons = new Button[5];
+    private final Button[] selectButtons = new Button[CLASSES.length];
     private CardLayout cachedLayout;
     private int cachedLayoutWidth = -1;
     private int cachedLayoutHeight = -1;
@@ -185,6 +185,8 @@ public final class SkinSelectionScreen extends Screen {
             case 2 -> drawLavaCave(graphics, x, y, w, artBottom - y, now);
             case 3 -> drawForest(graphics, x, y, w, artBottom - y, now);
             case 4 -> drawAnomalyGlitch(graphics, x, y, w, artBottom - y, now);
+            case 5 -> drawMagneticForge(graphics, x, y, w, artBottom - y, now);
+            case 6 -> drawDesertTemple(graphics, x, y, w, artBottom - y, now);
             default -> { }
         }
         graphics.disableScissor();
@@ -419,6 +421,47 @@ public final class SkinSelectionScreen extends Screen {
         g.fill(cx + 7, cy - 2 + bob, cx + 14, cy + 2 + bob, 0xFFB5E56A);
         g.fill(cx - 2, cy - 14 + bob, cx + 2, cy - 7 + bob, 0xFFB5E56A);
         g.fill(cx - 2, cy + 7 + bob, cx + 2, cy + 14 + bob, 0xFFB5E56A);
+    }
+
+    private void drawMagneticForge(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
+        g.fillGradient(x, y, x + w, y + h, 0xFF10161D, 0xFF52606B);
+        int ground = y + h - 15;
+        g.fill(x, ground, x + w, y + h, 0xFF161B20);
+        int cx = x + w / 2;
+        int cy = y + Math.max(32, h / 2);
+        int pulse = 130 + (int) ((Math.sin(now / 180.0) + 1.0) * 52.0);
+        // İki kutuplu gerçek metal çekirdek ve bakır sargılar.
+        g.fill(cx - 20, cy - 9, cx - 4, cy + 9, 0xFFB7C2CB);
+        g.fill(cx + 4, cy - 9, cx + 20, cy + 9, 0xFF707D88);
+        g.fill(cx - 4, cy - 13, cx + 4, cy + 13, withAlpha(0xFFD47E3F, pulse));
+        for (int i = 0; i < 4; i++) {
+            int orbit = (int) Math.round(Math.sin(now / 210.0 + i * 1.57) * Math.max(7, w / 5.5));
+            int oy = cy + (int) Math.round(Math.cos(now / 210.0 + i * 1.57) * 12.0);
+            g.fill(cx + orbit - 3, oy - 3, cx + orbit + 3, oy + 3, i % 2 == 0 ? 0xFFC4D0D9 : 0xFFC6793C);
+        }
+        g.fill(x + 5, y + 8, x + 8, ground, 0x554ED6FF);
+        g.fill(x + w - 8, y + 8, x + w - 5, ground, 0x55FF6E4A);
+    }
+
+    private void drawDesertTemple(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
+        g.fillGradient(x, y, x + w, y + h, 0xFF6C431B, 0xFFE0B55D);
+        int ground = y + h - 14;
+        g.fill(x, ground, x + w, y + h, 0xFFD6AA51);
+        // Kumtaşı tapınak: Minecraft kum/kumtaşı bloklarını çağrıştıran kare gövdeler.
+        int cx = x + w / 2;
+        int templeW = Math.max(24, w / 2);
+        int left = cx - templeW / 2;
+        g.fill(left, ground - 28, left + templeW, ground, 0xFFE7CF8A);
+        g.fill(left + 5, ground - 39, left + templeW - 5, ground - 28, 0xFFF1DB9B);
+        g.fill(cx - 5, ground - 23, cx + 5, ground, 0xFF76502A);
+        int drift = ClientConfig.get().animatedBackgrounds() ? (int) ((now / 55L) % Math.max(1, w + 22)) : 0;
+        for (int i = 0; i < 7; i++) {
+            int sx = x + ((i * 23 + drift) % (w + 18)) - 9;
+            int sy = y + 12 + (i * 13) % Math.max(18, h - 34);
+            g.fill(sx, sy, sx + 7, sy + 5, i % 2 == 0 ? 0xFFDDB96B : 0xFFEAD28C);
+        }
+        int wave = (int) Math.round(Math.sin(now / 190.0) * 3.0);
+        g.fill(x + 4, ground - 7 + wave, x + w - 4, ground - 2 + wave, 0x99F3D27C);
     }
 
     private void drawAnomalyGlitch(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {

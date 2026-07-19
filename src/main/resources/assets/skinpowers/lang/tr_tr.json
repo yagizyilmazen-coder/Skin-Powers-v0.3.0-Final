@@ -14,8 +14,8 @@
   "class.skinpowers.fire": "ATEŞ",
   "class.skinpowers.nature": "DOĞA",
   "modmenu.nameTranslation.skinpowers": "Skin Powers",
-  "modmenu.descriptionTranslation.skinpowers": "Skin renklerinden Warden, Kadim Ejderha, Ateş, Doğa ve Anomali güçleri seç.",
-  "modmenu.summaryTranslation.skinpowers": "Skin tabanlı beş güç sınıfı ve Anomali gerçeklik güçleri.",
+  "modmenu.descriptionTranslation.skinpowers": "Skin renklerinden Warden, Kadim Ejderha, Ateş, Doğa, Anomali, Manyetik ve Kum güçlerini seç.",
+  "modmenu.summaryTranslation.skinpowers": "Skin tabanlı yedi güç sınıfı, Uyanış ve sınıf büyüleri.",
   "key.skinpowers.combo": "Kombo Modu",
   "class.skinpowers.anomaly": "ANOMALİ",
   "key.skinpowers.anomaly_health": "Anomali: depolanan hasarı kalbe çevir",
@@ -41,5 +41,7 @@
   "enchantment.skinpowers.ejderha_pencesi": "Ejderha Pençesi",
   "enchantment.skinpowers.mor_kanat": "Mor Kanat",
   "enchantment.skinpowers.kadim_pullar": "Kadim Pullar",
-  "enchantment.skinpowers.mor_nefes": "Mor Nefes"
+  "enchantment.skinpowers.mor_nefes": "Mor Nefes",
+  "class.skinpowers.magnetic": "MANYETİK",
+  "class.skinpowers.sand": "KUM"
 }

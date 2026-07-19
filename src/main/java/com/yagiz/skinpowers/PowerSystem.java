@@ -30,6 +30,7 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -132,6 +133,7 @@ public final class PowerSystem {
         tickWardenAmbushes(server);
         tickWardenArmSegments();
         tickWardenArmStrikes();
+        ExpansionPowerSystem.tickServer(server);
         AnomalySystem.tickServer(server);
         AncientChargeSystem.tick(server);
         PowerCollisionSystem.tick(server);
@@ -158,6 +160,7 @@ public final class PowerSystem {
             case FLIGHT -> tickFlight(player, data, level, now);
             case FIRE -> tickFire(player, data, level, now);
             case NATURE -> tickNature(player, data, level, now);
+            case MAGNETIC, SAND -> ExpansionPowerSystem.tickPlayer(player, data, level, now);
             case ANOMALY -> {
                 AnomalySystem.tickPlayer(player, data, level, now);
                 tickBorrowedClassEffects(player, data, level, now);
@@ -484,6 +487,8 @@ public final class PowerSystem {
             case FLIGHT -> useFlight(player, data, power, now, normalCharged);
             case FIRE -> useFire(player, data, power, now, normalCharged, comboStarter);
             case NATURE -> useNature(player, data, power, now, normalCharged, comboStarter);
+            case MAGNETIC -> ExpansionPowerSystem.useMagnetic(player, data, power, now, normalCharged);
+            case SAND -> ExpansionPowerSystem.useSand(player, data, power, now, normalCharged);
             case ANOMALY -> AnomalySystem.use(player, data, power, now, normalCharged);
             default -> false;
         };
@@ -638,6 +643,10 @@ public final class PowerSystem {
             player.sendSystemMessage(Component.literal("Doğa sınıfındaki güçler R ile veya otomatik olarak çalışır."));
         } else if (data.powerClass() == PowerClass.ANOMALY) {
             player.sendSystemMessage(Component.literal("Anomali: güçleri R ile kullan. Hasar seçimi hazırken V kalbe, X hedefe dönüştürür."));
+        } else if (data.powerClass() == PowerClass.MAGNETIC) {
+            player.sendSystemMessage(Component.literal("Manyetik güçleri R ile kullan. Metal Fırtınasını ikinci R basışıyla fırlat."));
+        } else if (data.powerClass() == PowerClass.SAND) {
+            player.sendSystemMessage(Component.literal("Kum güçleri R ile kullan. Kum görüş etkisi 4 saniye veya suya girene kadar sürer."));
         }
         if (changed) {
             PlayerDataStore.markDirty();
@@ -760,8 +769,10 @@ public final class PowerSystem {
     private static void beginWardenAmbush(ServerPlayer player, PlayerPowerData data, ServerLevel level,
                                           long now, int stage, boolean charged) {
         long duration = charged ? 110L : 80L;
+        Map<EquipmentSlot, ItemStack> hiddenEquipment = hideAmbushEquipment(player);
         WARDEN_AMBUSHES.put(player.getUUID(), new WardenAmbushState(
-            level, player.getUUID(), player.position(), now, now + duration, stage, charged, player.isInvisible()));
+            level, player.getUUID(), player.position(), now, now + duration, stage, charged,
+            player.isInvisible(), hiddenEquipment, new ArrayList<>()));
         data.setWardenHuntUntil(now + duration);
         player.setInvisible(true);
         player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, (int) duration + 10, 3, false, false, true));
@@ -789,6 +800,7 @@ public final class PowerSystem {
                 continue;
             }
             player.setInvisible(true);
+            keepAmbushEquipmentHidden(player, state);
             player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 8, 3, false, false, true));
             player.addEffect(new MobEffectInstance(MobEffects.SPEED, 8, state.charged ? 3 : 2, false, false, true));
             player.fallDistance = 0.0F;
@@ -863,10 +875,66 @@ public final class PowerSystem {
     }
 
     private static void restoreAfterAmbush(ServerPlayer player, WardenAmbushState state) {
+        restoreAmbushEquipment(player, state.hiddenEquipment, state.hiddenExtraItems);
         player.setInvisible(state.wasInvisible);
         player.removeEffect(MobEffects.SPEED);
         player.removeEffect(MobEffects.RESISTANCE);
         player.fallDistance = 0.0F;
+    }
+
+    private static Map<EquipmentSlot, ItemStack> hideAmbushEquipment(ServerPlayer player) {
+        Map<EquipmentSlot, ItemStack> saved = new EnumMap<>(EquipmentSlot.class);
+        for (EquipmentSlot slot : new EquipmentSlot[]{
+            EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET,
+            EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND
+        }) {
+            ItemStack stack = player.getItemBySlot(slot);
+            saved.put(slot, stack.copy());
+            player.setItemSlot(slot, ItemStack.EMPTY);
+        }
+        return saved;
+    }
+
+    private static void keepAmbushEquipmentHidden(ServerPlayer player, WardenAmbushState state) {
+        for (EquipmentSlot slot : new EquipmentSlot[]{
+            EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET,
+            EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND
+        }) {
+            ItemStack visible = player.getItemBySlot(slot);
+            if (visible.isEmpty()) continue;
+            state.hiddenExtraItems.add(visible.copy());
+            player.setItemSlot(slot, ItemStack.EMPTY);
+        }
+    }
+
+    private static void restoreAmbushEquipment(ServerPlayer player, Map<EquipmentSlot, ItemStack> saved,
+                                                List<ItemStack> hiddenExtraItems) {
+        if (saved == null || saved.isEmpty()) return;
+        for (Map.Entry<EquipmentSlot, ItemStack> entry : saved.entrySet()) {
+            ItemStack stack = entry.getValue();
+            if (stack == null || stack.isEmpty()) continue;
+            EquipmentSlot slot = entry.getKey();
+            if (player.getItemBySlot(slot).isEmpty()) {
+                player.setItemSlot(slot, stack.copy());
+            } else {
+                ItemStack copy = stack.copy();
+                if (!player.getInventory().add(copy) && !copy.isEmpty()) player.drop(copy, false, false);
+            }
+        }
+        if (hiddenExtraItems != null) {
+            for (ItemStack extra : hiddenExtraItems) {
+                if (extra == null || extra.isEmpty()) continue;
+                ItemStack copy = extra.copy();
+                if (!player.getInventory().add(copy) && !copy.isEmpty()) player.drop(copy, false, false);
+            }
+            hiddenExtraItems.clear();
+        }
+    }
+
+    public static void handleDisconnect(ServerPlayer player) {
+        WardenAmbushState state = WARDEN_AMBUSHES.remove(player.getUUID());
+        if (state != null) restoreAfterAmbush(player, state);
+        ExpansionPowerSystem.handleDisconnect(player);
     }
 
     private static void spawnBurrowCore(ServerLevel level, ServerPlayer player, long now, long duration) {
@@ -1331,6 +1399,22 @@ public final class PowerSystem {
                 }
                 yield used;
             }
+            case MAGNETIC -> {
+                boolean used = ExpansionPowerSystem.useMagnetic(player, data, 5, now, true);
+                if (used) {
+                    data.setCooldown(5, now, Math.max(480, 680 - stage * 40));
+                    player.sendSystemMessage(Component.literal("KUTUP KIYAMETİ!"));
+                }
+                yield used;
+            }
+            case SAND -> {
+                boolean used = ExpansionPowerSystem.useSand(player, data, 6, now, true);
+                if (used) {
+                    data.setCooldown(6, now, Math.max(900, 1200 - stage * 65));
+                    player.sendSystemMessage(Component.literal("ÇÖL EZİCİSİ!"));
+                }
+                yield used;
+            }
             case ANOMALY -> false;
             default -> false;
         };
@@ -1345,6 +1429,7 @@ public final class PowerSystem {
             case FLIGHT -> useFlight(player, data, copiedPower, now, charged);
             case FIRE -> useFire(player, data, copiedPower, now, charged, false);
             case NATURE -> useNature(player, data, copiedPower, now, charged, false);
+            case MAGNETIC, SAND -> ExpansionPowerSystem.executeCopiedPower(player, data, copiedClass, copiedPower, now, charged);
             default -> false;
         };
     }
@@ -2625,6 +2710,7 @@ public final class PowerSystem {
 
     /** Güç çarpışmasında kaybeden oyuncunun havada/zeminde devam eden saldırılarını güvenle temizler. */
     public static void cancelActiveOffense(UUID ownerId) {
+        ExpansionPowerSystem.cancelOwner(ownerId);
         Iterator<PendingMeteor> meteorIterator = METEORS.iterator();
         while (meteorIterator.hasNext()) {
             PendingMeteor meteor = meteorIterator.next();
@@ -3236,7 +3322,9 @@ public final class PowerSystem {
 
 
     private record WardenAmbushState(ServerLevel level, UUID playerId, Vec3 origin, long startTick,
-                                     long endTick, int stage, boolean charged, boolean wasInvisible) {}
+                                     long endTick, int stage, boolean charged, boolean wasInvisible,
+                                     Map<EquipmentSlot, ItemStack> hiddenEquipment,
+                                     List<ItemStack> hiddenExtraItems) {}
     private record WardenArmSegment(ServerLevel level, UUID entityId, UUID targetId, Vec3 start, Vec3 fixedEnd,
                                     long startTick, long endTick, int segmentIndex, int segmentCount,
                                     double sideCurve, double lift) {}

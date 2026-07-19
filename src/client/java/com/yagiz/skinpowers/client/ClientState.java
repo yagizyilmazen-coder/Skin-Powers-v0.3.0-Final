@@ -44,6 +44,7 @@ public final class ClientState {
     private static int castPulseTicks;
     private static float castPulseStrength;
     private static String castPulseClass = "NONE";
+    private static int sandScreenTicks;
 
     private ClientState() {}
 
@@ -107,6 +108,14 @@ public final class ClientState {
         castPulseTicks = Math.max(castPulseTicks, Math.max(1, durationTicks));
     }
 
+    public static void startSandScreen(int durationTicks) {
+        sandScreenTicks = Math.max(sandScreenTicks, Math.max(0, durationTicks));
+    }
+
+    public static void clearSandScreen() {
+        sandScreenTicks = 0;
+    }
+
     public static void clientTick() {
         if (cooldownTicks > 0) cooldownTicks--;
         if (temporaryElytraTicks > 0) temporaryElytraTicks--;
@@ -121,6 +130,7 @@ public final class ClientState {
         if (dragonScalesTicks > 0) dragonScalesTicks--;
         if (dragonFormTicks > 0) dragonFormTicks--;
         if (classAwakeningTicks > 0) classAwakeningTicks--;
+        if (sandScreenTicks > 0) sandScreenTicks--;
         if (comboTicks <= 0) { comboName = ""; comboNextPowerName = ""; }
         if (ancientChargeTicks <= 0) ancientChargeAvailable = false;
         if (castPulseTicks > 0) {
@@ -171,6 +181,7 @@ public final class ClientState {
         castPulseTicks = 0;
         castPulseStrength = 0.0F;
         castPulseClass = "NONE";
+        sandScreenTicks = 0;
     }
 
     public static PowerClass powerClass() { return powerClass; }
@@ -209,6 +220,7 @@ public final class ClientState {
     public static int castPulseTicks() { return castPulseTicks; }
     public static float castPulseStrength() { return castPulseStrength; }
     public static PowerClass castPulseClass() { return PowerClass.safeValueOf(castPulseClass); }
+    public static int sandScreenTicks() { return sandScreenTicks; }
 
     public static int masteryUses(int level) {
         return masteryUses[Math.max(0, Math.min(5, level - 1))];

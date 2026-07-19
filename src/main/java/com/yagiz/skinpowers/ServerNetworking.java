@@ -31,6 +31,7 @@ public final class ServerNetworking {
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> sync(handler.player));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            PowerSystem.handleDisconnect(handler.player);
             AnomalySystem.handleDisconnect(handler.player);
         });
     }
@@ -158,6 +159,11 @@ public final class ServerNetworking {
             if (player.position().distanceToSqr(center) > radiusSquared) continue;
             ServerPlayNetworking.send(player, new ClientEffectPayload("CAST_" + powerClass.name(), strength, duration));
         }
+    }
+
+    public static void sendSandScreen(ServerPlayer player, int durationTicks) {
+        if (player == null || durationTicks <= 0) return;
+        ServerPlayNetworking.send(player, new ClientEffectPayload("SAND_SCREEN", 1.0F, durationTicks));
     }
 
     public static void sendScreenShake(ServerLevel level, Vec3 center, double radius, float strength, int durationTicks) {
