@@ -1,4 +1,4 @@
-# Skin Powers 1.2.0 Özellik Durumu
+# Skin Powers 1.2.1 Özellik Durumu
 
 - 7 oynanabilir sınıf: Warden, Kadim Ejderha, Ateş, Doğa, Anomali, Manyetik ve Kum.
 - Manyetik ve Kum sınıflarında 6'şar aktif güç, kombo ve ayrı Uyanış Formu bulunur.

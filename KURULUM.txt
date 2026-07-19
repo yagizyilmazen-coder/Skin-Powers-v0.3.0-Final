@@ -1,18 +1,24 @@
-SKIN POWERS v1.2.0 FIX2 — TEK DOSYA DÜZELTMESİ
+SKIN POWERS v1.2.1 — MANYETİK VE KUM DENGE GÜNCELLEMESİ
 
-Bu paket GitHub Actions'taki son 4 derleme hatasını düzeltir.
+Bu paket çalışan v1.2.0 FIX2 tam projesinin üzerine uygulanır.
 
 KURULUM
 1. ZIP'e sağ tıklayın ve Tümünü Ayıkla seçin.
-2. Ayıklanan klasördeki src ve tools klasörlerini kopyalayın.
+2. Ayıklanan klasördeki bütün dosya ve klasörleri kopyalayın.
 3. GitHub Desktop > Repository > Show in Explorer seçin.
 4. Açılan proje klasörüne yapıştırın.
 5. Hedefteki dosyaları değiştir seçin.
-6. GitHub Desktop'ta ana değişiklikler:
-   - src/main/java/com/yagiz/skinpowers/ExpansionPowerSystem.java
-   - tools/verify_project.py
-7. Summary:
-   1.2.0 FIX2 zincir sabiti derleme düzeltmesi
-8. Commit to main ve Push origin yapın.
+6. Summary:
+   1.2.1 Manyetik ve Kum denge güncellemesi
+7. Commit to main ve Push origin yapın.
+8. Actions yeşil olunca skinpowers-1.2.1.jar artifact'ını kullanın.
 
-Doğa sınıfına veya güç dengesine dokunulmadı.
+DÜZELTİLENLER
+- Manyetik Çekim çok daha güçlü ve sürekli çekiyor.
+- Metal Fırtınası daha büyük, hasarlı ve final patlamalı.
+- Ray Topu daha büyük, görünür, hızlı ve güçlü.
+- Kum Dalgası iki sıralı büyük kum/kumtaşı duvarı.
+- Çöl Aynası heykelleri 15 parçalı tam gövdeli muhafızlar.
+- Kum Zırhı ve Kum Mezarı yumuşak takip ediyor.
+- Ölünce bütün bağlı kum/metal gövdeleri temizleniyor.
+- Kum Devleri ciddi biçimde güçlendirildi.

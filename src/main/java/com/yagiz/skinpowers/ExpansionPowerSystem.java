@@ -34,7 +34,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 1.2.0: Manyetik ve Kum sınıflarının yüksek kaliteli, gerçek eşya/blok gövdeli güçleri.
+ * 1.2.1: Manyetik ve Kum dengelemesi, yumuşak görsel takip ve ölüm temizliği.
  * Parçacıklar yalnızca darbe/patlama vurgusudur; ana modeller ItemEntity gövdeleridir.
  */
 public final class ExpansionPowerSystem {
@@ -42,6 +42,7 @@ public final class ExpansionPowerSystem {
     private static final List<MovingAttack> MOVING_ATTACKS = new ArrayList<>();
     private static final List<SandWave> SAND_WAVES = new ArrayList<>();
     private static final List<MagneticCage> MAGNETIC_CAGES = new ArrayList<>();
+    private static final List<MagneticPull> MAGNETIC_PULLS = new ArrayList<>();
     private static final List<SandGrave> SAND_GRAVES = new ArrayList<>();
     private static final List<SandGiantArm> SAND_GIANT_ARMS = new ArrayList<>();
     private static final Map<UUID, MagneticStorm> MAGNETIC_STORMS = new HashMap<>();
@@ -54,6 +55,7 @@ public final class ExpansionPowerSystem {
     public static void tickServer(MinecraftServer server) {
         tickStaticVisuals();
         tickMovingAttacks();
+        tickMagneticPulls(server);
         tickSandWaves();
         tickMagneticStorms(server);
         tickMagneticCages(server);
@@ -91,26 +93,29 @@ public final class ExpansionPowerSystem {
         int stage = data.masteryStage(power);
         switch (power) {
             case 1 -> {
-                LivingEntity target = findTarget(player, 14.0 + stage, 1.8);
+                LivingEntity target = findTarget(player, 18.0 + stage * 1.5, 2.2);
                 if (target == null) {
                     player.sendSystemMessage(Component.literal("Manyetik Çekim için nişangâhında bir hedef olmalı."));
                     return false;
                 }
+                MAGNETIC_PULLS.removeIf(pullState -> pullState.ownerId.equals(player.getUUID()));
                 Vec3 start = player.getEyePosition().add(player.getLookAngle().normalize().scale(0.6));
                 Vec3 end = target.getEyePosition();
-                spawnLine(level, start, end, new Item[]{Items.IRON_NUGGET, Items.IRON_INGOT, Items.COPPER_INGOT}, 12, now + 22L, 0.35);
+                spawnLine(level, start, end, new Item[]{Items.IRON_NUGGET, Items.IRON_INGOT, Items.COPPER_INGOT, Items.REDSTONE}, 18, now + 30L, 0.48);
                 int metal = metalArmorPieces(target);
-                double pull = 1.05 + stage * 0.12 + metal * 0.18 + (awakened ? 0.55 : 0.0);
-                Vec3 toward = player.position().add(0.0, 0.7, 0.0).subtract(target.position());
+                double initialPull = 1.75 + stage * 0.20 + metal * 0.30 + (awakened ? 0.85 : 0.0);
+                Vec3 toward = player.position().add(0.0, 0.85, 0.0).subtract(target.position());
                 if (toward.lengthSqr() > 0.001) {
-                    toward = toward.normalize().scale(pull);
-                    target.setDeltaMovement(toward.x, Math.max(0.25, toward.y + 0.18), toward.z);
+                    Vec3 impulse = toward.normalize().scale(initialPull);
+                    target.setDeltaMovement(impulse.x, Math.max(0.34, impulse.y + 0.24), impulse.z);
                     target.hurtMarked = true;
                 }
-                target.hurtServer(level, level.damageSources().playerAttack(player), 5.0F + stage + metal * 0.7F);
-                level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW.value(), SoundSource.PLAYERS, 0.9F, 0.55F);
-                ServerNetworking.sendScreenShake(level, target.position(), 18.0, 0.45F, 7);
-                data.setCooldown(1, now, Math.max(150, 240 - stage * 20));
+                MAGNETIC_PULLS.add(new MagneticPull(level, player.getUUID(), target.getUUID(), now,
+                    now + (awakened ? 18L : 14L), stage, metal, awakened));
+                target.hurtServer(level, level.damageSources().playerAttack(player), 7.0F + stage * 1.35F + metal);
+                level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW.value(), SoundSource.PLAYERS, 1.15F, 0.48F);
+                ServerNetworking.sendScreenShake(level, target.position(), 22.0, 0.72F, 9);
+                data.setCooldown(1, now, Math.max(135, 220 - stage * 18));
                 return true;
             }
             case 2 -> {
@@ -154,8 +159,8 @@ public final class ExpansionPowerSystem {
                     return false;
                 }
                 List<UUID> ids = spawnVisualItems(level, player.position().add(0.0, 1.0, 0.0),
-                    new Item[]{Items.IRON_INGOT, Items.COPPER_INGOT, Items.IRON_NUGGET, Items.IRON_BARS}, 12, true);
-                MAGNETIC_STORMS.put(player.getUUID(), new MagneticStorm(level, player.getUUID(), ids, now, now + 180L, stage));
+                    new Item[]{Items.IRON_INGOT, Items.COPPER_INGOT, Items.IRON_NUGGET, Items.IRON_BARS, Items.LODESTONE, Items.REDSTONE}, awakened ? 32 : 26, true);
+                MAGNETIC_STORMS.put(player.getUUID(), new MagneticStorm(level, player.getUUID(), ids, now, now + (awakened ? 220L : 190L), stage));
                 data.setCooldown(4, now, 1);
                 player.sendSystemMessage(Component.literal("Metal Fırtınası hazır. Tekrar R ile nişangâhına fırlat."));
                 level.playSound(null, player.blockPosition(), SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.PLAYERS, 0.9F, 1.45F);
@@ -163,15 +168,15 @@ public final class ExpansionPowerSystem {
             }
             case 5 -> {
                 Vec3 start = player.getEyePosition().add(player.getLookAngle().normalize().scale(1.0));
-                Vec3 velocity = player.getLookAngle().normalize().scale(1.75 + stage * 0.10 + (awakened ? 0.32 : 0.0));
+                Vec3 velocity = player.getLookAngle().normalize().scale(2.18 + stage * 0.12 + (awakened ? 0.42 : 0.0));
                 MOVING_ATTACKS.add(createMovingAttack(level, player.getUUID(), MovingType.RAILGUN,
-                    start, velocity, now + 42L, 14.0F + stage * 2.1F, 1.25 + stage * 0.08, 4,
-                    new Item[]{Items.IRON_BLOCK, Items.REDSTONE, Items.COPPER_INGOT, Items.IRON_NUGGET}, 9));
-                spawnLine(level, start, start.add(player.getLookAngle().normalize().scale(3.0)),
-                    new Item[]{Items.REDSTONE, Items.IRON_NUGGET}, 8, now + 12L, 0.05);
-                level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.2F, 1.55F);
-                ServerNetworking.sendScreenShake(level, player.position(), 22.0, 0.82F, 8);
-                data.setCooldown(5, now, Math.max(560, 780 - stage * 45));
+                    start, velocity, now + 52L, 24.0F + stage * 3.0F, 1.58 + stage * 0.10, 6,
+                    new Item[]{Items.IRON_BLOCK, Items.LODESTONE, Items.REDSTONE, Items.COPPER_INGOT, Items.IRON_NUGGET}, awakened ? 20 : 16));
+                spawnLine(level, start, start.add(player.getLookAngle().normalize().scale(5.5)),
+                    new Item[]{Items.REDSTONE, Items.IRON_NUGGET, Items.COPPER_INGOT}, 16, now + 16L, 0.08);
+                level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.4F, 1.38F);
+                ServerNetworking.sendScreenShake(level, player.position(), 28.0, 1.05F, 11);
+                data.setCooldown(5, now, Math.max(520, 740 - stage * 42));
                 return true;
             }
             case 6 -> {
@@ -211,9 +216,9 @@ public final class ExpansionPowerSystem {
             case 2 -> {
                 Vec3 direction = horizontal(player.getLookAngle()).normalize();
                 Vec3 start = ground(level, player.position().add(direction.scale(1.2)));
-                List<UUID> ids = spawnVisualItems(level, start.add(0.0, 0.45, 0.0), sandItems(), awakened ? 11 : 8, false);
+                List<UUID> ids = spawnVisualItems(level, start.add(0.0, 0.55, 0.0), sandItems(), awakened ? 26 : 20, false);
                 SAND_WAVES.add(new SandWave(level, player.getUUID(), ids, start, direction, now,
-                    now + (awakened ? 34L : 28L), stage, awakened));
+                    now + (awakened ? 40L : 34L), stage, awakened));
                 level.playSound(null, player.blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.7F, 1.45F);
                 data.setCooldown(2, now, Math.max(230, 360 - stage * 28));
                 return true;
@@ -237,7 +242,7 @@ public final class ExpansionPowerSystem {
                 SandArmor previous = SAND_ARMORS.remove(player.getUUID());
                 if (previous != null) discardAll(previous.level, previous.ids);
                 int charges = 4 + (stage >= 2 ? 1 : 0) + (awakened ? 2 : 0);
-                List<UUID> ids = spawnVisualItems(level, player.position().add(0.0, 1.0, 0.0), sandItems(), charges * 2, false);
+                List<UUID> ids = spawnVisualItems(level, player.position().add(0.0, 1.0, 0.0), sandItems(), charges * 3, false);
                 SAND_ARMORS.put(player.getUUID(), new SandArmor(level, player.getUUID(), ids, now + (awakened ? 300L : 220L), charges));
                 player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, awakened ? 300 : 220, 0, false, false, true));
                 level.playSound(null, player.blockPosition(), SoundEvents.SHIELD_BLOCK.value(), SoundSource.PLAYERS, 1.0F, 0.82F);
@@ -250,7 +255,7 @@ public final class ExpansionPowerSystem {
                     player.sendSystemMessage(Component.literal("Kum Mezarı için nişangâhında bir hedef olmalı."));
                     return false;
                 }
-                List<UUID> ids = spawnVisualItems(level, target.position().add(0.0, 0.45, 0.0), sandItems(), awakened ? 18 : 14, false);
+                List<UUID> ids = spawnVisualItems(level, target.position().add(0.0, 0.45, 0.0), sandItems(), awakened ? 28 : 22, false);
                 SAND_GRAVES.add(new SandGrave(level, player.getUUID(), target.getUUID(), ids, target.position(), now,
                     now + (awakened ? 110L : 82L), stage, awakened));
                 if (target instanceof ServerPlayer targetPlayer) ServerNetworking.sendSandScreen(targetPlayer, 80);
@@ -266,12 +271,12 @@ public final class ExpansionPowerSystem {
                 for (int arm = 0; arm < 2; arm++) {
                     Vec3 side = new Vec3(-player.getLookAngle().z, 0.0, player.getLookAngle().x).normalize().scale(arm == 0 ? -3.2 : 3.2);
                     Vec3 start = ground(level, impact.add(side)).add(0.0, 0.4, 0.0);
-                    List<UUID> ids = spawnVisualItems(level, start, sandItems(), awakened ? 12 : 9, false);
+                    List<UUID> ids = spawnVisualItems(level, start, sandItems(), awakened ? 24 : 18, false);
                     SAND_GIANT_ARMS.add(new SandGiantArm(level, player.getUUID(), target == null ? null : target.getUUID(), ids,
-                        start, impact.add(0.0, 1.0, 0.0), now + arm * 7L, now + 24L + arm * 7L, arm, stage, awakened));
+                        start, impact.add(0.0, 1.0, 0.0), now + arm * 9L, now + 34L + arm * 9L, arm, stage, awakened));
                 }
                 level.playSound(null, BlockPos.containing(impact), SoundEvents.WITHER_SPAWN, SoundSource.PLAYERS, 0.9F, 1.45F);
-                data.setCooldown(6, now, Math.max(1050, 1450 - stage * 80));
+                data.setCooldown(6, now, Math.max(960, 1340 - stage * 72));
                 return true;
             }
             default -> {
@@ -421,6 +426,22 @@ public final class ExpansionPowerSystem {
             discardAll(wave.level, wave.ids);
             return true;
         });
+        MAGNETIC_PULLS.removeIf(pull -> pull.ownerId.equals(ownerId));
+        MAGNETIC_CAGES.removeIf(cage -> {
+            if (!cage.ownerId.equals(ownerId)) return false;
+            discardAll(cage.level, cage.ids);
+            return true;
+        });
+        SAND_GRAVES.removeIf(grave -> {
+            if (!grave.ownerId.equals(ownerId)) return false;
+            discardAll(grave.level, grave.ids);
+            return true;
+        });
+        SAND_GIANT_ARMS.removeIf(arm -> {
+            if (!arm.ownerId.equals(ownerId)) return false;
+            discardAll(arm.level, arm.ids);
+            return true;
+        });
     }
 
     public static void clearAll() {
@@ -440,6 +461,7 @@ public final class ExpansionPowerSystem {
         MOVING_ATTACKS.clear();
         SAND_WAVES.clear();
         MAGNETIC_CAGES.clear();
+        MAGNETIC_PULLS.clear();
         SAND_GRAVES.clear();
         SAND_GIANT_ARMS.clear();
         MAGNETIC_STORMS.clear();
@@ -458,9 +480,9 @@ public final class ExpansionPowerSystem {
             if (entity != null) entity.setPos(center.x, center.y, center.z);
         }
         MOVING_ATTACKS.add(new MovingAttack(storm.level, player.getUUID(), MovingType.METAL_STORM, storm.ids,
-            center, player.getLookAngle().normalize().scale(1.05 + storm.stage * 0.06 + (awakened ? 0.25 : 0.0)),
-            now + 52L, 13.0F + storm.stage * 1.8F, 3.0 + storm.stage * 0.15, 5));
-        data.setCooldown(4, now, Math.max(430, 620 - storm.stage * 40));
+            center, player.getLookAngle().normalize().scale(1.28 + storm.stage * 0.07 + (awakened ? 0.30 : 0.0)),
+            now + 64L, 20.0F + storm.stage * 2.8F, 4.15 + storm.stage * 0.18, 8));
+        data.setCooldown(4, now, Math.max(400, 590 - storm.stage * 38));
         player.sendSystemMessage(Component.literal("Metal Fırtınası fırlatıldı!"));
         storm.level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW.value(), SoundSource.PLAYERS, 1.1F, 0.72F);
         PlayerDataStore.markDirty();
@@ -481,12 +503,14 @@ public final class ExpansionPowerSystem {
             MovingAttack attack = iterator.next();
             long now = attack.level.getGameTime();
             ServerPlayer owner = attack.level.getServer().getPlayerList().getPlayer(attack.ownerId);
-            if (owner == null || now >= attack.expireTick) {
+            if (owner == null || !owner.isAlive() || now >= attack.expireTick) {
+                if (owner != null && owner.isAlive() && attack.type == MovingType.METAL_STORM) impactMovingAttack(owner, attack, null);
                 if (attack.type == MovingType.SAND_SHOT) burstSand(attack.level, attack.center, attack.radius, 22);
                 discardAll(attack.level, attack.ids);
                 iterator.remove();
                 continue;
             }
+            Vec3 previous = attack.center;
             Vec3 next = attack.center.add(attack.velocity);
             BlockState state = attack.level.getBlockState(BlockPos.containing(next));
             if (!state.isAir() && state.getFluidState().isEmpty()) {
@@ -496,7 +520,11 @@ public final class ExpansionPowerSystem {
                 continue;
             }
             attack.center = next;
-            positionCluster(attack.level, attack.ids, attack.center, now, attack.type == MovingType.RAILGUN ? 0.42 : 0.72);
+            if (attack.type == MovingType.RAILGUN) {
+                spawnLine(attack.level, previous, next, new Item[]{Items.REDSTONE, Items.IRON_NUGGET, Items.COPPER_INGOT}, 3, now + 6L, 0.02);
+            }
+            positionCluster(attack.level, attack.ids, attack.center, now,
+                attack.type == MovingType.RAILGUN ? 0.68 : attack.type == MovingType.METAL_STORM ? 1.25 : 0.72);
 
             AABB hitBox = new AABB(attack.center, attack.center).inflate(attack.radius);
             for (LivingEntity target : attack.level.getEntitiesOfClass(LivingEntity.class, hitBox)) {
@@ -529,8 +557,34 @@ public final class ExpansionPowerSystem {
         } else {
             if (directTarget != null) {
                 directTarget.hurtServer(attack.level, attack.level.damageSources().playerAttack(owner), attack.damage);
-                Vec3 push = horizontal(attack.velocity).normalize().scale(attack.type == MovingType.RAILGUN ? 1.5 : 1.05);
-                directTarget.push(push.x, attack.type == MovingType.IRON_FIST ? 0.72 : 0.38, push.z);
+                double force = attack.type == MovingType.RAILGUN ? 2.15 : attack.type == MovingType.METAL_STORM ? 1.35 : 1.05;
+                Vec3 push = horizontal(attack.velocity).normalize().scale(force);
+                directTarget.push(push.x, attack.type == MovingType.IRON_FIST ? 0.72 : attack.type == MovingType.METAL_STORM ? 0.65 : 0.42, push.z);
+            }
+            if (attack.type == MovingType.RAILGUN && directTarget != null) {
+                for (LivingEntity target : attack.level.getEntitiesOfClass(LivingEntity.class,
+                    new AABB(attack.center, attack.center).inflate(3.2))) {
+                    if (target == owner || target == directTarget || PowerSystem.isProtectedAlly(owner, target)) continue;
+                    target.hurtServer(attack.level, attack.level.damageSources().playerAttack(owner), attack.damage * 0.28F);
+                    Vec3 push = horizontal(target.position().subtract(attack.center));
+                    if (push.lengthSqr() > 0.001) target.push(push.normalize().x * 0.8, 0.28, push.normalize().z * 0.8);
+                }
+            }
+            if (attack.type == MovingType.METAL_STORM) {
+                double blastRadius = directTarget == null ? attack.radius + 2.8 : attack.radius + 1.1;
+                float blastDamage = directTarget == null ? attack.damage * 0.78F : attack.damage * 0.42F;
+                for (LivingEntity target : attack.level.getEntitiesOfClass(LivingEntity.class,
+                    new AABB(attack.center, attack.center).inflate(blastRadius))) {
+                    if (target == owner || target == directTarget || PowerSystem.isProtectedAlly(owner, target)) continue;
+                    target.hurtServer(attack.level, attack.level.damageSources().playerAttack(owner), blastDamage);
+                    Vec3 pull = attack.center.subtract(target.position());
+                    if (pull.lengthSqr() > 0.001) target.setDeltaMovement(target.getDeltaMovement().scale(0.25).add(pull.normalize().scale(0.72)));
+                    target.hurtMarked = true;
+                }
+                spawnVisibleRing(attack.level, attack.center, new Item[]{Items.IRON_BLOCK, Items.COPPER_BLOCK, Items.IRON_BARS, Items.LODESTONE},
+                    directTarget == null ? 24 : 14, directTarget == null ? 4.2 : 2.8, attack.level.getGameTime() + 20L, 0.38);
+                attack.level.playSound(null, BlockPos.containing(attack.center), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS,
+                    directTarget == null ? 1.35F : 0.9F, 0.72F);
             }
             if (attack.type == MovingType.IRON_FIST) {
                 for (LivingEntity target : attack.level.getEntitiesOfClass(LivingEntity.class,
@@ -547,13 +601,45 @@ public final class ExpansionPowerSystem {
         }
     }
 
+    private static void tickMagneticPulls(MinecraftServer server) {
+        Iterator<MagneticPull> iterator = MAGNETIC_PULLS.iterator();
+        while (iterator.hasNext()) {
+            MagneticPull pull = iterator.next();
+            ServerPlayer owner = server.getPlayerList().getPlayer(pull.ownerId);
+            Entity raw = pull.level.getEntity(pull.targetId);
+            long now = pull.level.getGameTime();
+            if (owner == null || !owner.isAlive() || owner.level() != pull.level
+                || !(raw instanceof LivingEntity target) || !target.isAlive() || now >= pull.endTick) {
+                iterator.remove();
+                continue;
+            }
+            Vec3 destination = owner.position().add(0.0, 0.85, 0.0);
+            Vec3 toward = destination.subtract(target.position());
+            double distance = toward.length();
+            if (distance <= 1.75) {
+                target.setDeltaMovement(target.getDeltaMovement().scale(0.20));
+                target.hurtMarked = true;
+                iterator.remove();
+                continue;
+            }
+            double strength = 0.92 + pull.stage * 0.10 + pull.metalPieces * 0.16 + (pull.awakened ? 0.38 : 0.0);
+            Vec3 motion = toward.normalize().scale(Math.min(strength, Math.max(0.72, distance * 0.18)));
+            target.setDeltaMovement(target.getDeltaMovement().scale(0.12).add(motion.x, Math.max(0.18, motion.y + 0.10), motion.z));
+            target.hurtMarked = true;
+            if (now % 3L == 0L) {
+                pull.level.sendParticles(ParticleTypes.CRIT, target.getX(), target.getY() + 0.9, target.getZ(),
+                    7, 0.35, 0.55, 0.35, 0.04);
+            }
+        }
+    }
+
     private static void tickSandWaves() {
         Iterator<SandWave> iterator = SAND_WAVES.iterator();
         while (iterator.hasNext()) {
             SandWave wave = iterator.next();
             long now = wave.level.getGameTime();
             ServerPlayer owner = wave.level.getServer().getPlayerList().getPlayer(wave.ownerId);
-            if (owner == null || now >= wave.endTick) {
+            if (owner == null || !owner.isAlive() || now >= wave.endTick) {
                 discardAll(wave.level, wave.ids);
                 iterator.remove();
                 continue;
@@ -561,19 +647,24 @@ public final class ExpansionPowerSystem {
             double elapsed = now - wave.startTick;
             Vec3 center = ground(wave.level, wave.start.add(wave.direction.scale(elapsed * (wave.awakened ? 0.82 : 0.68))));
             Vec3 right = new Vec3(-wave.direction.z, 0.0, wave.direction.x);
+            int rows = 2;
+            int columns = Math.max(1, (int) Math.ceil(wave.ids.size() / (double) rows));
             for (int i = 0; i < wave.ids.size(); i++) {
                 Entity entity = wave.level.getEntity(wave.ids.get(i));
                 if (entity == null) continue;
-                double side = (i - (wave.ids.size() - 1) / 2.0) * 0.72;
-                double crest = Math.max(0.0, 1.35 - Math.abs(side) * 0.18) + Math.sin(now * 0.48 + i) * 0.16;
-                Vec3 pos = center.add(right.scale(side)).add(0.0, 0.35 + crest, 0.0);
-                entity.setPos(pos.x, pos.y, pos.z);
+                int row = i % rows;
+                int column = i / rows;
+                double side = (column - (columns - 1) / 2.0) * 0.86;
+                double crest = Math.max(0.0, 2.25 - Math.abs(side) * 0.16) + Math.sin(now * 0.42 + i) * 0.20;
+                Vec3 pos = center.add(right.scale(side)).add(wave.direction.scale(-row * 0.95))
+                    .add(0.0, 0.42 + crest - row * 0.28, 0.0);
+                moveVisualSmoothly(entity, pos, 0.82, 1.55);
             }
             AABB box = new AABB(center, center).inflate(3.6 + wave.stage * 0.25, 2.3, 3.6 + wave.stage * 0.25);
             for (LivingEntity target : wave.level.getEntitiesOfClass(LivingEntity.class, box)) {
                 if (target == owner || PowerSystem.isProtectedAlly(owner, target) || !wave.hitTargets.add(target.getUUID())) continue;
-                target.hurtServer(wave.level, wave.level.damageSources().playerAttack(owner), 8.0F + wave.stage * 1.3F);
-                target.push(wave.direction.x * (1.1 + wave.stage * 0.12), 0.48, wave.direction.z * (1.1 + wave.stage * 0.12));
+                target.hurtServer(wave.level, wave.level.damageSources().playerAttack(owner), 10.5F + wave.stage * 1.55F);
+                target.push(wave.direction.x * (1.35 + wave.stage * 0.14), 0.62, wave.direction.z * (1.35 + wave.stage * 0.14));
                 target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 50, 1, false, true, true));
                 if (target instanceof ServerPlayer player) ServerNetworking.sendSandScreen(player, 80);
             }
@@ -587,7 +678,7 @@ public final class ExpansionPowerSystem {
             MagneticStorm storm = iterator.next();
             ServerPlayer owner = server.getPlayerList().getPlayer(storm.ownerId);
             long now = storm.level.getGameTime();
-            if (owner == null || owner.level() != storm.level) {
+            if (owner == null || !owner.isAlive() || owner.level() != storm.level) {
                 discardAll(storm.level, storm.ids);
                 iterator.remove();
                 continue;
@@ -597,7 +688,7 @@ public final class ExpansionPowerSystem {
                 launchMagneticStorm(owner, PlayerDataStore.get(owner.getUUID()), storm, now, false);
                 continue;
             }
-            positionOrbit(storm.level, storm.ids, owner.position().add(0.0, 1.05, 0.0), now, 2.0, 0.75);
+            positionOrbitSmooth(storm.level, storm.ids, owner.position().add(0.0, 1.05, 0.0), now, 2.35, 0.82, 0.72, 1.65);
             for (Projectile projectile : storm.level.getEntitiesOfClass(Projectile.class, owner.getBoundingBox().inflate(3.2))) {
                 if (projectile.getOwner() == owner) continue;
                 projectile.setDeltaMovement(projectile.getDeltaMovement().scale(0.35));
@@ -612,7 +703,7 @@ public final class ExpansionPowerSystem {
             ServerPlayer owner = server.getPlayerList().getPlayer(cage.ownerId);
             Entity raw = cage.level.getEntity(cage.targetId);
             long now = cage.level.getGameTime();
-            if (owner == null || !(raw instanceof LivingEntity target) || !target.isAlive()) {
+            if (owner == null || !owner.isAlive() || !(raw instanceof LivingEntity target) || !target.isAlive()) {
                 discardAll(cage.level, cage.ids);
                 iterator.remove();
                 continue;
@@ -651,12 +742,12 @@ public final class ExpansionPowerSystem {
             SandArmor armor = iterator.next();
             ServerPlayer owner = server.getPlayerList().getPlayer(armor.ownerId);
             long now = armor.level.getGameTime();
-            if (owner == null || owner.level() != armor.level || now >= armor.endTick || armor.charges <= 0) {
+            if (owner == null || !owner.isAlive() || owner.level() != armor.level || now >= armor.endTick || armor.charges <= 0) {
                 discardAll(armor.level, armor.ids);
                 iterator.remove();
                 continue;
             }
-            positionOrbit(armor.level, armor.ids, owner.position().add(0.0, 1.0, 0.0), now, 1.35, 0.95);
+            positionOrbitSmooth(armor.level, armor.ids, owner.position().add(0.0, 1.0, 0.0), now, 1.28, 0.92, 0.78, 1.85);
         }
     }
 
@@ -666,7 +757,7 @@ public final class ExpansionPowerSystem {
             DesertMirrors mirrors = iterator.next();
             ServerPlayer owner = server.getPlayerList().getPlayer(mirrors.ownerId);
             long now = mirrors.level.getGameTime();
-            if (owner == null || owner.level() != mirrors.level || now >= mirrors.endTick || mirrors.dodges <= 0) {
+            if (owner == null || !owner.isAlive() || owner.level() != mirrors.level || now >= mirrors.endTick || mirrors.dodges <= 0) {
                 discardAll(mirrors.level, mirrors.allIds());
                 iterator.remove();
                 continue;
@@ -684,7 +775,7 @@ public final class ExpansionPowerSystem {
             ServerPlayer owner = server.getPlayerList().getPlayer(grave.ownerId);
             Entity raw = grave.level.getEntity(grave.targetId);
             long now = grave.level.getGameTime();
-            if (owner == null || !(raw instanceof LivingEntity target) || !target.isAlive()) {
+            if (owner == null || !owner.isAlive() || !(raw instanceof LivingEntity target) || !target.isAlive()) {
                 discardAll(grave.level, grave.ids);
                 iterator.remove();
                 continue;
@@ -698,8 +789,8 @@ public final class ExpansionPowerSystem {
                 iterator.remove();
                 continue;
             }
-            grave.center = grave.center.scale(0.92).add(target.position().scale(0.08));
-            positionSandGrave(grave.level, grave.ids, grave.center, now, grave.awakened ? 2.7 : 2.15);
+            grave.center = target.position();
+            positionSandGraveSmooth(grave.level, grave.ids, grave.center, now, grave.awakened ? 2.9 : 2.35);
             target.setDeltaMovement(target.getDeltaMovement().multiply(0.12, 0.0, 0.12));
             target.hurtMarked = true;
             target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 12, 6, false, false, true));
@@ -718,7 +809,7 @@ public final class ExpansionPowerSystem {
             long now = arm.level.getGameTime();
             Entity raw = arm.targetId == null ? null : arm.level.getEntity(arm.targetId);
             Vec3 end = raw instanceof LivingEntity living && living.isAlive() ? living.getEyePosition() : arm.fixedEnd;
-            if (owner == null || now >= arm.endTick) {
+            if (owner == null || !owner.isAlive() || now >= arm.endTick) {
                 if (owner != null) impactSandGiant(owner, arm, raw instanceof LivingEntity living ? living : null, end);
                 discardAll(arm.level, arm.ids);
                 iterator.remove();
@@ -731,35 +822,37 @@ public final class ExpansionPowerSystem {
                 if (entity == null) continue;
                 double segment = (i + 1.0) / arm.ids.size();
                 double t = segment * (1.0 - Math.pow(1.0 - progress, 3.0));
-                Vec3 pos = arm.start.add(end.subtract(arm.start).scale(t));
-                double arch = Math.sin(Math.PI * t) * (2.2 + arm.armIndex * 0.35);
-                pos = pos.add(0.0, arch, 0.0);
-                entity.setPos(pos.x, pos.y, pos.z);
+                Vec3 line = end.subtract(arm.start);
+                Vec3 pos = arm.start.add(line.scale(t));
+                double arch = Math.sin(Math.PI * t) * (2.65 + arm.armIndex * 0.45);
+                Vec3 side = horizontal(new Vec3(-line.z, 0.0, line.x)).normalize().scale((i % 3 - 1) * 0.32);
+                pos = pos.add(side).add(0.0, arch + (i % 2) * 0.18, 0.0);
+                moveVisualSmoothly(entity, pos, 0.86, 1.85);
             }
         }
     }
 
     private static void impactSandGiant(ServerPlayer owner, SandGiantArm arm, LivingEntity direct, Vec3 impact) {
         if (direct != null) {
-            direct.hurtServer(arm.level, arm.level.damageSources().playerAttack(owner), 10.0F + arm.stage * 1.5F);
+            direct.hurtServer(arm.level, arm.level.damageSources().playerAttack(owner), 16.0F + arm.stage * 2.2F);
             if (arm.armIndex == 0) {
-                direct.setDeltaMovement(0.0, 1.05 + arm.stage * 0.08, 0.0);
+                direct.setDeltaMovement(0.0, 1.55 + arm.stage * 0.10, 0.0);
             } else {
-                direct.setDeltaMovement(0.0, -1.45, 0.0);
+                direct.setDeltaMovement(0.0, -2.20, 0.0);
                 if (direct instanceof ServerPlayer directPlayer) ServerNetworking.sendSandScreen(directPlayer, 80);
             }
             direct.hurtMarked = true;
         }
         if (arm.armIndex == 1 || direct == null) {
-            for (LivingEntity target : arm.level.getEntitiesOfClass(LivingEntity.class, new AABB(impact, impact).inflate(5.0 + arm.stage * 0.3))) {
+            for (LivingEntity target : arm.level.getEntitiesOfClass(LivingEntity.class, new AABB(impact, impact).inflate(7.0 + arm.stage * 0.35))) {
                 if (target == owner || PowerSystem.isProtectedAlly(owner, target)) continue;
-                target.hurtServer(arm.level, arm.level.damageSources().playerAttack(owner), 9.0F + arm.stage * 1.2F);
+                target.hurtServer(arm.level, arm.level.damageSources().playerAttack(owner), 14.0F + arm.stage * 1.8F);
                 Vec3 push = horizontal(target.position().subtract(impact));
-                if (push.lengthSqr() > 0.001) target.push(push.normalize().x * 1.2, 0.65, push.normalize().z * 1.2);
+                if (push.lengthSqr() > 0.001) target.push(push.normalize().x * 1.8, 0.92, push.normalize().z * 1.8);
                 if (target instanceof ServerPlayer player) ServerNetworking.sendSandScreen(player, 80);
             }
-            burstSand(arm.level, impact, 5.2, 80);
-            ServerNetworking.sendScreenShake(arm.level, impact, 30.0, 1.35F, 15);
+            burstSand(arm.level, impact, 7.2, 120);
+            ServerNetworking.sendScreenShake(arm.level, impact, 38.0, 1.75F, 19);
             arm.level.playSound(null, BlockPos.containing(impact), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.25F, 0.55F);
         }
     }
@@ -845,6 +938,37 @@ public final class ExpansionPowerSystem {
         }
     }
 
+    private static void positionOrbitSmooth(ServerLevel level, List<UUID> ids, Vec3 center, long now,
+                                            double radius, double height, double smoothing, double maxStep) {
+        for (int i = 0; i < ids.size(); i++) {
+            Entity entity = level.getEntity(ids.get(i));
+            if (entity == null) continue;
+            double angle = now * 0.20 + Math.PI * 2.0 * i / Math.max(1, ids.size());
+            double layer = (i % 3 - 1) * height * 0.48;
+            Vec3 target = center.add(Math.cos(angle) * radius,
+                layer + Math.sin(angle * 2.0) * 0.18,
+                Math.sin(angle) * radius);
+            moveVisualSmoothly(entity, target, smoothing, maxStep);
+        }
+    }
+
+    private static void moveVisualSmoothly(Entity entity, Vec3 target, double smoothing, double maxStep) {
+        Vec3 delta = target.subtract(entity.position());
+        double distance = delta.length();
+        if (distance > 8.0) {
+            entity.setPos(target.x, target.y, target.z);
+            entity.setDeltaMovement(Vec3.ZERO);
+            return;
+        }
+        if (distance < 0.015) {
+            entity.setDeltaMovement(Vec3.ZERO);
+            return;
+        }
+        Vec3 motion = delta.scale(smoothing);
+        if (motion.length() > maxStep) motion = motion.normalize().scale(maxStep);
+        entity.setDeltaMovement(motion);
+    }
+
     private static void positionCage(ServerLevel level, List<UUID> ids, Vec3 center, long now, double radius) {
         for (int i = 0; i < ids.size(); i++) {
             Entity entity = level.getEntity(ids.get(i));
@@ -867,25 +991,42 @@ public final class ExpansionPowerSystem {
         }
     }
 
+    private static void positionSandGraveSmooth(ServerLevel level, List<UUID> ids, Vec3 center, long now, double radius) {
+        for (int i = 0; i < ids.size(); i++) {
+            Entity entity = level.getEntity(ids.get(i));
+            if (entity == null) continue;
+            double angle = Math.PI * 2.0 * i / Math.max(1, ids.size()) + now * 0.065;
+            double height = 0.18 + (i % 5) * 0.48 + Math.sin(now * 0.18 + i) * 0.14;
+            Vec3 target = center.add(Math.cos(angle) * radius, height, Math.sin(angle) * radius);
+            moveVisualSmoothly(entity, target, 0.84, 1.75);
+        }
+    }
+
     private static List<UUID> spawnSandStatue(ServerLevel level, Vec3 base, long expireTick) {
-        List<UUID> ids = spawnVisualItems(level, base, new Item[]{Items.SANDSTONE, Items.SAND, Items.CUT_SANDSTONE}, 7, false);
+        List<UUID> ids = spawnVisualItems(level, base,
+            new Item[]{Items.CHISELED_SANDSTONE, Items.SANDSTONE, Items.CUT_SANDSTONE, Items.SMOOTH_SANDSTONE, Items.SAND}, 15, false);
         for (UUID id : ids) STATIC_VISUALS.add(new StaticVisual(level, id, expireTick));
         updateSandStatue(level, ids, base, 0L);
         return ids;
     }
 
     private static void updateSandStatue(ServerLevel level, List<UUID> ids, Vec3 base, long now) {
+        double sway = Math.sin(now * 0.12) * 0.10;
         Vec3[] offsets = {
-            new Vec3(0.0, 1.9, 0.0), new Vec3(0.0, 1.15, 0.0),
-            new Vec3(-0.52, 1.25, 0.0), new Vec3(0.52, 1.25, 0.0),
-            new Vec3(-0.25, 0.45, 0.0), new Vec3(0.25, 0.45, 0.0),
-            new Vec3(0.0, 0.95 + Math.sin(now * 0.15) * 0.08, 0.0)
+            new Vec3(0.0, 2.62, 0.0),
+            new Vec3(0.0, 2.08, 0.0), new Vec3(-0.30, 2.03, 0.0), new Vec3(0.30, 2.03, 0.0),
+            new Vec3(-0.62, 1.92, 0.0), new Vec3(0.62, 1.92, 0.0),
+            new Vec3(-0.90, 1.50 + sway, 0.0), new Vec3(0.90, 1.50 - sway, 0.0),
+            new Vec3(-0.98, 1.03 + sway, 0.0), new Vec3(0.98, 1.03 - sway, 0.0),
+            new Vec3(0.0, 1.34, 0.0),
+            new Vec3(-0.30, 0.78, 0.0), new Vec3(0.30, 0.78, 0.0),
+            new Vec3(-0.34, 0.22, 0.0), new Vec3(0.34, 0.22, 0.0)
         };
         for (int i = 0; i < ids.size() && i < offsets.length; i++) {
             Entity entity = level.getEntity(ids.get(i));
             if (entity == null) continue;
             Vec3 pos = base.add(offsets[i]);
-            entity.setPos(pos.x, pos.y, pos.z);
+            moveVisualSmoothly(entity, pos, 0.88, 1.65);
         }
     }
 
@@ -1013,6 +1154,23 @@ public final class ExpansionPowerSystem {
         private SandWave(ServerLevel level, UUID ownerId, List<UUID> ids, Vec3 start, Vec3 direction,
                          long startTick, long endTick, int stage, boolean awakened) {
             this(level, ownerId, ids, start, direction, startTick, endTick, stage, awakened, new HashSet<>());
+        }
+    }
+
+    private static final class MagneticPull {
+        private final ServerLevel level;
+        private final UUID ownerId;
+        private final UUID targetId;
+        private final long startTick;
+        private final long endTick;
+        private final int stage;
+        private final int metalPieces;
+        private final boolean awakened;
+        private MagneticPull(ServerLevel level, UUID ownerId, UUID targetId, long startTick, long endTick,
+                             int stage, int metalPieces, boolean awakened) {
+            this.level = level; this.ownerId = ownerId; this.targetId = targetId;
+            this.startTick = startTick; this.endTick = endTick; this.stage = stage;
+            this.metalPieces = metalPieces; this.awakened = awakened;
         }
     }
 

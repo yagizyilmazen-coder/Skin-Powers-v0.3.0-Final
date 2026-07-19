@@ -98,7 +98,7 @@ public final class SkinPowersSettingsScreen extends Screen {
         graphics.text(font, title, (width - font.width(title)) / 2, 18, 0xFFFFFFFF, true);
         String hint = page == 0 ? "HUD ve bildirim yerleşimi" : page == 1 ? "Kartlar, efektler ve animasyon kalitesi" : "Performans ve rahatsız edici efektleri azaltma";
         graphics.text(font, hint, (width - font.width(hint)) / 2, 31, 0xFFD7C8F2, false);
-        String signature = "Skin Powers 1.2.0 • Made by Yankalan";
+        String signature = "Skin Powers 1.2.1 • Made by Yankalan";
         graphics.text(font, signature, (width - font.width(signature)) / 2, height - 17, 0xFFB98DFF, true);
         super.extractRenderState(graphics, mouseX, mouseY, delta);
     }

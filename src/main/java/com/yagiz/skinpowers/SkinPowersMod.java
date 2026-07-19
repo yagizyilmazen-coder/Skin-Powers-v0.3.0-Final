@@ -46,6 +46,6 @@ public final class SkinPowersMod implements ModInitializer {
         ServerLivingEntityEvents.ALLOW_DEATH.register(ClassEnchantmentSystem::allowDeath);
         ServerLivingEntityEvents.ALLOW_DEATH.register(AnomalySystem::allowDeath);
 
-        LOGGER.info("Skin Powers 1.2.0 yüklendi.");
+        LOGGER.info("Skin Powers 1.2.1 yüklendi.");
     }
 }

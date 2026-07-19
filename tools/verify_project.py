@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 MAX_CHECKS = 50
 checks: list[str] = []
 errors: list[str] = []
@@ -58,7 +58,7 @@ class_enchantment = read("src/main/java/com/yagiz/skinpowers/ClassEnchantmentSys
 core_files = [
     "build.gradle", "gradle.properties", "settings.gradle", ".github/workflows/build.yml",
     "src/main/resources/fabric.mod.json", "src/main/java/com/yagiz/skinpowers/ExpansionPowerSystem.java",
-    "src/client/java/com/yagiz/skinpowers/client/SkinSelectionScreen.java", "CHANGELOG_1.2.0.md",
+    "src/client/java/com/yagiz/skinpowers/client/SkinSelectionScreen.java", "CHANGELOG_1.2.1.md",
 ]
 check("1. Temel proje dosyaları", all((ROOT / p).is_file() for p in core_files))
 check("2. Gradle sürüm numarası", f"mod_version={VERSION}" in props)
@@ -73,8 +73,8 @@ check("10. Yeni sınıflar altı seviye", "powerClass == PowerClass.MAGNETIC || 
 check("11. Oyuncu sınıf komutları", 'selfClass("manyetik"' in commands and 'selfClass("kum"' in commands)
 check("12. Yönetici sınıf komutları", 'targetClass("manyetik"' in commands and 'targetClass("kum"' in commands)
 check("13. Güç sistemi delegasyonu", contains_all(power_system, "ExpansionPowerSystem.tickServer", "ExpansionPowerSystem.useMagnetic", "ExpansionPowerSystem.useSand"))
-check("14. Manyetik gerçek gövdeler", contains_all(expansion, "Items.IRON_BLOCK", "Items.COPPER_BLOCK", "Items.ANVIL", "Items.IRON_BARS", "ItemEntity") and "Blocks.CHAIN" not in expansion and re.search(r"\\bItems\\.CHAIN\\b", expansion) is None)
-check("15. Kum gerçek gövdeler", contains_all(expansion, "Items.SAND", "Items.SANDSTONE", "Items.CUT_SANDSTONE", "Items.CHISELED_SANDSTONE"))
+check("14. Manyetik güçlendirmeleri", contains_all(expansion, "MAGNETIC_PULLS", "24.0F + stage * 3.0F", "20.0F + storm.stage * 2.8F", "MovingType.METAL_STORM") and "Blocks.CHAIN" not in expansion and re.search(r"\bItems\.CHAIN\b", expansion) is None)
+check("15. Kum görsel ve güç dengesi", contains_all(expansion, "Items.SAND", "Items.SANDSTONE", "Items.CUT_SANDSTONE", "Items.CHISELED_SANDSTONE", "positionOrbitSmooth", "positionSandGraveSmooth", "16.0F + arm.stage * 2.2F"))
 check("16. Kum parçacığı yalnızca darbe vurgusu", "Ana gövde her zaman kum/kumtaşı ItemEntity'dir" in expansion)
 check("17. Manyetik altı aktif güç", "public static boolean useMagnetic" in expansion and all(f"case {i} ->" in expansion for i in range(1, 7)))
 check("18. Kum altı aktif güç", "public static boolean useSand" in expansion and expansion.count("case 6 ->") >= 2)
@@ -90,7 +90,7 @@ check("27. Warden zırh gizleme", contains_all(power_system, "hideAmbushEquipmen
 check("28. Warden gizli eşya güvenliği", contains_all(power_system, "hiddenExtraItems", "restoreAmbushEquipment", "player.getInventory().add"))
 check("29. Warden bağlantı kesme geri yükleme", "public static void handleDisconnect" in power_system and "PowerSystem.handleDisconnect" in network)
 check("30. Yeni hasar sistemi kaydı", "ExpansionPowerSystem::allowDamage" in mod)
-check("31. Sunucu kapanış temizliği", "ExpansionPowerSystem.clearAll" in mod and "public static void clearAll()" in expansion)
+check("31. Ölüm ve sunucu temizliği", "ExpansionPowerSystem.clearAll" in mod and contains_all(expansion, "!owner.isAlive()", "MAGNETIC_PULLS.removeIf", "SAND_GIANT_ARMS.removeIf", "SAND_GRAVES.removeIf"))
 check("32. Manyetik Uyanış", "Manyetik Çekirdek" in awakening and "tickAwakening" in expansion)
 check("33. Kum Uyanış", "Çölün Kalbi" in awakening and "finishAwakening" in expansion)
 check("34. Anomali yeni güçleri kopyalar", "case MAGNETIC, SAND -> power >= 1 && power <= 6" in anomaly)
@@ -109,7 +109,7 @@ enchantment_dir = ROOT / "src/main/resources/data/skinpowers/enchantment"
 check("45. Yirmi büyü JSON'u", enchantment_dir.is_dir() and len(list(enchantment_dir.glob("*.json"))) == 20)
 survival_tags = [ROOT / f"src/main/resources/data/minecraft/tags/enchantment/{name}.json" for name in ("tradeable", "treasure", "on_random_loot")]
 check("46. Survival büyü etiketleri", all(p.is_file() and "#skinpowers:class_enchantments" in p.read_text(encoding="utf-8") for p in survival_tags))
-check("47. Skin yeniden deneme ve ad fallback", contains_all(analyzer, "for (int attempt = 0; attempt < 3", "extractProfileName", "SkinPowers/1.2.0"))
+check("47. Skin yeniden deneme ve ad fallback", contains_all(analyzer, "for (int attempt = 0; attempt < 3", "extractProfileName", "SkinPowers/1.2.1"))
 check("48. Eski API hataları yok", "ParticleTypes.DRAGON_BREATH" not in class_enchantment and "SoundEvents.SHIELD_BLOCK," not in class_enchantment and "SoundEvents.GENERIC_EXPLODE," not in class_enchantment)
 
 json_ok = True
@@ -131,4 +131,4 @@ if errors:
 
 print("SKIN POWERS PROJE DENETİMİ BAŞARILI")
 print(f"{len(checks)} kontrol geçti.")
-print("Manyetik ve Kum sınıfları, kum ekranı ve Warden ekipman gizleme düzeltmesi doğrulandı.")
+print("Manyetik ve Kum dengelemesi, yumuşak takip ve ölüm temizliği doğrulandı.")

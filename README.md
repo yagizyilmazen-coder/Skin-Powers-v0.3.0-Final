@@ -1,8 +1,8 @@
-# Skin Powers 1.2.0
+# Skin Powers 1.2.1
 
 Minecraft 26.1.2 için Fabric güç modu. Oyuncunun skin renklerini inceleyerek Warden, Kadim Ejderha, Ateş, Doğa ve Anomali sınıflarını önerir.
 
-## 1.2.0 — Manyetik ve Kum
+## 1.2.1 — Manyetik ve Kum
 
 Yeni sınıflar:
 
