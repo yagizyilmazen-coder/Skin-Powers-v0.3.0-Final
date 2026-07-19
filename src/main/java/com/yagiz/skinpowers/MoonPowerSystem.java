@@ -74,7 +74,7 @@ public final class MoonPowerSystem {
         if (data.powerClass() != PowerClass.MOON || data.unlockedLevel() < 1) return;
         // Ay pasifi: gece veya açık gökyüzünde hafif çeviklik ve düşme kontrolü.
         boolean openSky = level.canSeeSky(player.blockPosition().above());
-        boolean night = level.getDayTime() % 24000L >= 12500L;
+        boolean night = level.getOverworldClockTime() % 24000L >= 12500L;
         if (openSky && night) {
             player.addEffect(new MobEffectInstance(MobEffects.SPEED, 28, 0, false, false, true));
             player.fallDistance = Math.min(player.fallDistance, 4.0F);
@@ -170,7 +170,7 @@ public final class MoonPowerSystem {
             now + (empowered ? 220L : 160L), empowered ? 3 : 2, stage, empowered));
         player.sendSystemMessage(Component.literal("Ay Aynası açık. Tekrar R: diski hilal saldırısı olarak fırlat."));
         level.playSound(null, player.blockPosition(), SoundEvents.SHIELD_BLOCK.value(), SoundSource.PLAYERS, 0.9F, 1.35F);
-        data.setCooldown(4, now, 18L); // İkinci basış hemen yapılabilsin.
+        data.setCooldown(4, now, 18); // İkinci basış hemen yapılabilsin.
         return true;
     }
 

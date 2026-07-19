@@ -154,7 +154,7 @@ public final class ClassEnchantmentSystem {
         }
         if (data.powerClass() == PowerClass.MOON
             && ClassEnchantments.has(level.registryAccess(), boots, ClassEnchantments.MOON_STEP)) {
-            boolean night = level.getDayTime() % 24000L >= 12500L;
+            boolean night = level.getOverworldClockTime() % 24000L >= 12500L;
             if (night || level.canSeeSky(player.blockPosition().above())) {
                 player.addEffect(new MobEffectInstance(MobEffects.SPEED, 28, 1, false, false, true));
                 player.addEffect(new MobEffectInstance(MobEffects.JUMP_BOOST, 28, 0, false, false, true));
