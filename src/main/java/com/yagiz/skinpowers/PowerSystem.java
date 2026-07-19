@@ -133,6 +133,7 @@ public final class PowerSystem {
         tickWardenAmbushes(server);
         tickWardenArmSegments();
         tickWardenArmStrikes();
+        MoonPowerSystem.tickServer(server);
         ExpansionPowerSystem.tickServer(server);
         AnomalySystem.tickServer(server);
         AncientChargeSystem.tick(server);
@@ -159,7 +160,7 @@ public final class PowerSystem {
             case WARDEN -> tickWarden(player, data, level, now);
             case FLIGHT -> tickFlight(player, data, level, now);
             case FIRE -> tickFire(player, data, level, now);
-            case NATURE -> tickNature(player, data, level, now);
+            case MOON -> MoonPowerSystem.tickPlayer(player, data, level, now);
             case MAGNETIC, SAND -> ExpansionPowerSystem.tickPlayer(player, data, level, now);
             case ANOMALY -> {
                 AnomalySystem.tickPlayer(player, data, level, now);
@@ -486,7 +487,7 @@ public final class PowerSystem {
             case WARDEN -> useWarden(player, data, power, now, normalCharged);
             case FLIGHT -> useFlight(player, data, power, now, normalCharged);
             case FIRE -> useFire(player, data, power, now, normalCharged, comboStarter);
-            case NATURE -> useNature(player, data, power, now, normalCharged, comboStarter);
+            case MOON -> MoonPowerSystem.use(player, data, power, now, normalCharged);
             case MAGNETIC -> ExpansionPowerSystem.useMagnetic(player, data, power, now, normalCharged);
             case SAND -> ExpansionPowerSystem.useSand(player, data, power, now, normalCharged);
             case ANOMALY -> AnomalySystem.use(player, data, power, now, normalCharged);
@@ -578,27 +579,12 @@ public final class PowerSystem {
                 scheduleMeteors(player, data, stage, charged);
                 yield true;
             }
-            case "nature_seed" -> {
-                launchNatureSeed(player, stage, charged);
-                yield true;
-            }
-            case "vine_trap" -> {
-                cooldownSlot = 3;
-                yield useNature(player, data, 3, now, charged, false);
-            }
-            case "life_tree" -> {
-                cooldownSlot = 4;
-                yield useNature(player, data, 4, now, charged, false);
-            }
-            case "root_wave" -> {
-                cooldownSlot = 5;
-                yield useNature(player, data, 5, now, charged, false);
-            }
-            case "thorn_forest" -> {
-                Vec3 center = findGroundPoint(level, player.position().add(horizontalDirection(player.getLookAngle()).scale(8.0)));
-                launchNatureComboSeed(player, stage, charged, center);
-                yield true;
-            }
+            case "moon_crescent" -> { cooldownSlot = 1; yield MoonPowerSystem.use(player, data, 1, now, charged); }
+            case "moon_step" -> { cooldownSlot = 2; yield MoonPowerSystem.use(player, data, 2, now, charged); }
+            case "moon_gravity" -> { cooldownSlot = 3; yield MoonPowerSystem.use(player, data, 3, now, charged); }
+            case "moon_mirror" -> { cooldownSlot = 4; yield MoonPowerSystem.use(player, data, 4, now, charged); }
+            case "moon_eclipse" -> { cooldownSlot = 5; yield MoonPowerSystem.use(player, data, 5, now, charged); }
+            case "moon_beast" -> { cooldownSlot = 6; yield MoonPowerSystem.use(player, data, 6, now, charged); }
             case "broken_step" -> {
                 cooldownSlot = 1;
                 yield AnomalySystem.use(player, data, 1, now, charged);
@@ -639,8 +625,8 @@ public final class PowerSystem {
             player.sendSystemMessage(Component.literal("Derinlik Pususu: 4. gücü R ile başlat; hareket ettikten sonra R ile yüzeye saldır."));
         } else if (data.powerClass() == PowerClass.FIRE) {
             player.sendSystemMessage(Component.literal("Ateş sınıfındaki güçler R ile veya otomatik olarak çalışır."));
-        } else if (data.powerClass() == PowerClass.NATURE) {
-            player.sendSystemMessage(Component.literal("Doğa sınıfındaki güçler R ile veya otomatik olarak çalışır."));
+        } else if (data.powerClass() == PowerClass.MOON) {
+            player.sendSystemMessage(Component.literal("Ay güçlerini R ile kullan. Ay Aynasını ikinci R basışıyla hilal olarak fırlat."));
         } else if (data.powerClass() == PowerClass.ANOMALY) {
             player.sendSystemMessage(Component.literal("Anomali: güçleri R ile kullan. Hasar seçimi hazırken V kalbe, X hedefe dönüştürür."));
         } else if (data.powerClass() == PowerClass.MAGNETIC) {
@@ -1383,12 +1369,13 @@ public final class PowerSystem {
                 player.sendSystemMessage(Component.literal("CEHENNEM FELAKETİ!"));
                 yield true;
             }
-            case NATURE -> {
-                Vec3 center = comboTarget(data, findGroundPoint((ServerLevel) player.level(), player.position().add(horizontalDirection(player.getLookAngle()).scale(7.0))));
-                launchNatureComboSeed(player, stage, charged, center);
-                data.setCooldown(2, now, Math.max(120, 180 - stage * 10));
-                player.sendSystemMessage(Component.literal("DİKEN ORMANI!"));
-                yield true;
+            case MOON -> {
+                boolean used = MoonPowerSystem.use(player, data, 1, now, true);
+                if (used) {
+                    data.setCooldown(1, now, Math.max(180, 280 - stage * 20));
+                    player.sendSystemMessage(Component.literal("TUTULMA HÜKMÜ!"));
+                }
+                yield used;
             }
             case FLIGHT -> {
                 boolean used = useFlight(player, data, 5, now, true);
@@ -1428,7 +1415,7 @@ public final class PowerSystem {
                 : useWarden(player, data, copiedPower, now, charged);
             case FLIGHT -> useFlight(player, data, copiedPower, now, charged);
             case FIRE -> useFire(player, data, copiedPower, now, charged, false);
-            case NATURE -> useNature(player, data, copiedPower, now, charged, false);
+            case MOON -> MoonPowerSystem.use(player, data, copiedPower, now, charged);
             case MAGNETIC, SAND -> ExpansionPowerSystem.executeCopiedPower(player, data, copiedClass, copiedPower, now, charged);
             default -> false;
         };

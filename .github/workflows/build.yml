@@ -28,8 +28,14 @@ jobs:
         with:
           gradle-version: '9.5.1'
 
-      - name: Eski Zaman kartını temizle
-        run: rm -f src/main/resources/assets/skinpowers/textures/gui/cards/time.png
+      - name: Eski sınıf kartlarını temizle
+        run: |
+          rm -f src/main/resources/assets/skinpowers/textures/gui/cards/time.png
+          rm -f src/main/resources/assets/skinpowers/textures/gui/cards/nature.png
+          rm -f src/main/resources/data/skinpowers/enchantment/kok_bagi.json
+          rm -f src/main/resources/data/skinpowers/enchantment/can_filizi.json
+          rm -f src/main/resources/data/skinpowers/enchantment/orman_sicrayisi.json
+          rm -f src/main/resources/data/skinpowers/enchantment/dikenli_savunma.json
 
       - name: JSON ve proje yapısını denetle
         run: python3 tools/verify_project.py
@@ -40,6 +46,6 @@ jobs:
       - name: Derlenen JAR dosyasını yükle
         uses: actions/upload-artifact@v4
         with:
-          name: skinpowers-1.2.1-jar
-          path: build/libs/skinpowers-1.2.1.jar
+          name: skinpowers-1.3.0-jar
+          path: build/libs/skinpowers-1.3.0.jar
           if-no-files-found: error

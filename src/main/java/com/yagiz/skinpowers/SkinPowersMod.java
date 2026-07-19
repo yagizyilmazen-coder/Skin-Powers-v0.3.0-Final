@@ -26,6 +26,7 @@ public final class SkinPowersMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             PowerSystem.clearAllMeteorVisuals();
             AnomalySystem.clearAll();
+            MoonPowerSystem.clearAll();
             PowerCollisionSystem.clearAll();
             WorldEventSystem.clearAll();
             ExpansionPowerSystem.clearAll();
@@ -40,12 +41,18 @@ public final class SkinPowersMod implements ModInitializer {
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(PowerSystem::allowWardenAmbushDamage);
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(PowerSystem::allowDragonScalesDamage);
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(ExpansionPowerSystem::allowDamage);
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register(MoonPowerSystem::allowDamage);
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(ClassEnchantmentSystem::allowDamage);
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(AnomalySystem::allowDamage);
         ServerLivingEntityEvents.ALLOW_DAMAGE.register(AwakeningSystem::allowDamage);
         ServerLivingEntityEvents.ALLOW_DEATH.register(ClassEnchantmentSystem::allowDeath);
         ServerLivingEntityEvents.ALLOW_DEATH.register(AnomalySystem::allowDeath);
+        // Tick tabanlı isAlive kontrolü hızlı yeniden doğmada yetersiz kalır.
+        // Oyuncu öldüğü kesinleştiği anda bağlı kum/metal görsellerini sil.
+        ServerLivingEntityEvents.AFTER_DEATH.register(ExpansionPowerSystem::afterDeath);
+        ServerLivingEntityEvents.AFTER_DEATH.register(MoonPowerSystem::afterDeath);
+        ServerLivingEntityEvents.AFTER_DEATH.register(AnomalySystem::afterDeath);
 
-        LOGGER.info("Skin Powers 1.2.1 yüklendi.");
+        LOGGER.info("Skin Powers 1.3.0 Ay ve Anomali 2.0 yüklendi.");
     }
 }

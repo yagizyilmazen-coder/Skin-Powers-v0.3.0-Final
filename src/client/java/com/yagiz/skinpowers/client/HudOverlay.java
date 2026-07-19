@@ -39,7 +39,7 @@ public final class HudOverlay {
             case WARDEN -> 0xFF35D7D0;
             case FLIGHT -> 0xFFB65CFF;
             case FIRE -> 0xFFFFA826;
-            case NATURE -> 0xFF67D96E;
+            case MOON -> 0xFFDCE6FF;
             case ANOMALY -> 0xFFB65CFF;
             case MAGNETIC -> 0xFFB8C5D1;
             case SAND -> 0xFFE0B85A;
@@ -89,9 +89,9 @@ public final class HudOverlay {
                 ? String.format(java.util.Locale.ROOT, "Derinlik Pususu: %.1f sn", ClientState.wardenHuntTicks() / 20.0)
                 : "Derinlik Pususu: R ile kullan";
             case FIRE -> ClientState.unlockedLevel() >= 4 ? "Seviye 4: Cehennem Küresi" : "Ateş bağışıklığı: AÇIK";
-            case NATURE -> ClientState.natureTreeTicks() > 0
-                ? String.format(java.util.Locale.ROOT, "Yaşam Ağacı: %.1f sn", ClientState.natureTreeTicks() / 20.0)
-                : "Doğanın Canı: AÇIK";
+            case MOON -> ClientState.selectedPower() == 4
+                ? "Ay Aynası: R ile aç/fırlat"
+                : (ClientState.selectedPower() == 5 ? "Tutulma Alanı hazır" : "Ay ışığı pasifi: gece açık");
             case ANOMALY -> {
                 if (ClientState.anomalyChoiceTicks() > 0) {
                     yield String.format(java.util.Locale.ROOT, "Depolanan: %.1f", ClientState.anomalyStoredDamage());
@@ -254,7 +254,7 @@ public final class HudOverlay {
             case WARDEN -> 0x0035D7D0;
             case FLIGHT -> 0x00B65CFF;
             case FIRE -> 0x00FF8A18;
-            case NATURE -> 0x0067D96E;
+            case MOON -> 0x00DCE6FF;
             case ANOMALY -> 0x005CE5E5;
             case MAGNETIC -> 0x00B8C5D1;
             case SAND -> 0x00E0B85A;

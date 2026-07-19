@@ -1,24 +1,22 @@
-SKIN POWERS v1.2.1 — MANYETİK VE KUM DENGE GÜNCELLEMESİ
+SKIN POWERS v1.3.0 — AY VE ANOMALİ 2.0
 
-Bu paket çalışan v1.2.0 FIX2 tam projesinin üzerine uygulanır.
+Bu küçük paket çalışan v1.2.1 FIX1 tam projesinin üzerine uygulanır.
 
 KURULUM
-1. ZIP'e sağ tıklayın ve Tümünü Ayıkla seçin.
+1. ZIP dosyasına sağ tıklayın ve "Tümünü Ayıkla" seçin.
 2. Ayıklanan klasördeki bütün dosya ve klasörleri kopyalayın.
 3. GitHub Desktop > Repository > Show in Explorer seçin.
 4. Açılan proje klasörüne yapıştırın.
-5. Hedefteki dosyaları değiştir seçin.
-6. Summary:
-   1.2.1 Manyetik ve Kum denge güncellemesi
-7. Commit to main ve Push origin yapın.
-8. Actions yeşil olunca skinpowers-1.2.1.jar artifact'ını kullanın.
+5. Sorulduğunda "Hedefteki dosyaları değiştir" seçin.
+6. Proje klasöründeki UYGULA_V1.3.0.bat dosyasına çift tıklayın.
+   Bu dosya eski Doğa büyülerini ve eski Doğa kart görselini siler.
+7. GitHub Desktop Summary:
+   1.3.0 Ay ve Anomali 2.0
+8. Commit to main ve Push origin yapın.
+9. GitHub Actions yeşil olduğunda artifact içindeki skinpowers-1.3.0.jar dosyasını kullanın.
 
-DÜZELTİLENLER
-- Manyetik Çekim çok daha güçlü ve sürekli çekiyor.
-- Metal Fırtınası daha büyük, hasarlı ve final patlamalı.
-- Ray Topu daha büyük, görünür, hızlı ve güçlü.
-- Kum Dalgası iki sıralı büyük kum/kumtaşı duvarı.
-- Çöl Aynası heykelleri 15 parçalı tam gövdeli muhafızlar.
-- Kum Zırhı ve Kum Mezarı yumuşak takip ediyor.
-- Ölünce bütün bağlı kum/metal gövdeleri temizleniyor.
-- Kum Devleri ciddi biçimde güçlendirildi.
+ÖNEMLİ
+- Eski Doğa sınıfındaki kayıtlar otomatik olarak Ay sınıfına taşınır.
+- /skinpower olay doga kaldırıldı.
+- Yeni komut: /skinpower olay ay
+- Eski Doğa büyüleri kaldırıldı; dört Ay büyüsü eklendi.

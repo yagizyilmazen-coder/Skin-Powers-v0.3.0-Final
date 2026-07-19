@@ -92,10 +92,17 @@ public final class ClassEnchantmentSystem {
                 && ready(attacker, "meteor_fall", now, 240L)) {
                 startMeteor(attacker, target, serverLevel, now);
             }
-        } else if (data.powerClass() == PowerClass.NATURE) {
-            if (ClassEnchantments.has(serverLevel.registryAccess(), weapon, ClassEnchantments.ROOT_BIND)
-                && ready(attacker, "root_bind", now, 120L)) {
-                rootBind(attacker, target, serverLevel);
+        } else if (data.powerClass() == PowerClass.MOON) {
+            if (ClassEnchantments.has(serverLevel.registryAccess(), weapon, ClassEnchantments.LUNAR_WOUND)
+                && ready(attacker, "lunar_wound", now, 85L)) {
+                target.hurtServer(serverLevel, serverLevel.damageSources().playerAttack(attacker), 4.5F);
+                Vec3 direction = target.position().subtract(attacker.position());
+                if (direction.lengthSqr() > 0.001) {
+                    direction = direction.normalize().scale(0.48);
+                    target.push(direction.x, 0.22, direction.z);
+                }
+                serverLevel.sendParticles(ParticleTypes.END_ROD, target.getX(), target.getY() + 1.0, target.getZ(), 30, 0.55, 0.75, 0.55, 0.06);
+                spawnVisibleRing(serverLevel, target.position().add(0.0, 1.0, 0.0), Items.AMETHYST_SHARD, 8, 1.15, now, 22L, 0.32);
             }
         } else if (data.powerClass() == PowerClass.ANOMALY) {
             if (ClassEnchantments.has(serverLevel.registryAccess(), weapon, ClassEnchantments.DELAYED_STRIKE)
@@ -145,9 +152,17 @@ public final class ClassEnchantmentSystem {
             && ClassEnchantments.has(level.registryAccess(), boots, ClassEnchantments.ASH_WALK)) {
             tickAshWalk(player, level, now);
         }
-        if (data.powerClass() == PowerClass.NATURE
-            && ClassEnchantments.has(level.registryAccess(), boots, ClassEnchantments.FOREST_LEAP)) {
-            tickForestLeap(player, level);
+        if (data.powerClass() == PowerClass.MOON
+            && ClassEnchantments.has(level.registryAccess(), boots, ClassEnchantments.MOON_STEP)) {
+            boolean night = level.getDayTime() % 24000L >= 12500L;
+            if (night || level.canSeeSky(player.blockPosition().above())) {
+                player.addEffect(new MobEffectInstance(MobEffects.SPEED, 28, 1, false, false, true));
+                player.addEffect(new MobEffectInstance(MobEffects.JUMP_BOOST, 28, 0, false, false, true));
+                player.fallDistance = Math.min(player.fallDistance, 3.0F);
+                if (now % 8L == 0L) {
+                    level.sendParticles(ParticleTypes.END_ROD, player.getX(), player.getY() + 0.15, player.getZ(), 7, 0.25, 0.08, 0.25, 0.02);
+                }
+            }
         }
     }
 
@@ -216,21 +231,22 @@ public final class ClassEnchantmentSystem {
                 hellCore(player, level);
             }
 
-            if (data.powerClass() == PowerClass.NATURE
-                && source.getEntity() instanceof LivingEntity attacker
-                && !(source.getDirectEntity() instanceof Projectile)
-                && ClassEnchantments.has(level.registryAccess(), chest, ClassEnchantments.THORNY_DEFENSE)
-                && ready(player, "thorny_defense", now, 40L)) {
-                try {
-                    internalDamage = true;
-                    attacker.hurtServer(level, level.damageSources().thorns(player), 2.5F);
-                } finally {
-                    internalDamage = false;
+            if (data.powerClass() == PowerClass.MOON
+                && source.getDirectEntity() instanceof Projectile projectile
+                && ClassEnchantments.has(level.registryAccess(), chest, ClassEnchantments.MOON_MIRROR)
+                && ready(player, "moon_mirror_enchant", now, 180L)) {
+                Entity originalOwner = projectile.getOwner();
+                projectile.setOwner(player);
+                if (originalOwner instanceof LivingEntity living && living.isAlive()) {
+                    Vec3 reflected = living.getEyePosition().subtract(projectile.position());
+                    if (reflected.lengthSqr() > 0.001) projectile.setDeltaMovement(reflected.normalize().scale(Math.max(1.1, projectile.getDeltaMovement().length())));
+                } else {
+                    projectile.setDeltaMovement(projectile.getDeltaMovement().scale(-1.2));
                 }
-                Vec3 push = attacker.position().subtract(player.position()).normalize().scale(0.55);
-                attacker.push(push.x, 0.25, push.z);
-                level.sendParticles(ParticleTypes.HAPPY_VILLAGER, attacker.getX(), attacker.getY() + 1.0, attacker.getZ(), 18, 0.35, 0.55, 0.35, 0.03);
-                spawnVisibleRing(level, attacker.position().add(0.0, 0.9, 0.0), Items.POINTED_DRIPSTONE, 6, 0.9, now, 20L, 0.30);
+                level.sendParticles(ParticleTypes.END_ROD, player.getX(), player.getY() + 1.0, player.getZ(), 40, 0.7, 0.9, 0.7, 0.06);
+                spawnVisibleRing(level, player.position().add(0.0, 1.0, 0.0), Items.QUARTZ, 8, 1.15, now, 24L, 0.25);
+                level.playSound(null, player.blockPosition(), SoundEvents.SHIELD_BLOCK.value(), SoundSource.PLAYERS, 1.0F, 1.45F);
+                return false;
             }
         }
 
@@ -275,12 +291,18 @@ public final class ClassEnchantmentSystem {
             ServerLevel level = (ServerLevel) attacker.level();
             PlayerPowerData data = PlayerDataStore.get(attacker.getUUID());
             ItemStack helmet = attacker.getItemBySlot(EquipmentSlot.HEAD);
-            if (data.powerClass() == PowerClass.NATURE
-                && ClassEnchantments.has(level.registryAccess(), helmet, ClassEnchantments.LIFE_SPROUT)
-                && level.getRandom().nextFloat() < 0.38F) {
-                long sproutNow = level.getGameTime();
-                HEALING_SPROUTS.add(new HealingSprout(level, attacker.getUUID(), victim.position(), sproutNow + 140L));
-                spawnStaticVisual(level, Items.FLOWERING_AZALEA, victim.position().add(0.0, 0.45, 0.0), sproutNow, 140L, true);
+            if (data.powerClass() == PowerClass.MOON
+                && ClassEnchantments.has(level.registryAccess(), helmet, ClassEnchantments.MOON_SIGHT)) {
+                long moonNow = level.getGameTime();
+                attacker.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 120, 0, false, true, true));
+                for (LivingEntity nearby : level.getEntitiesOfClass(LivingEntity.class, victim.getBoundingBox().inflate(12.0))) {
+                    if (nearby == attacker || PowerSystem.isProtectedAlly(attacker, nearby)) continue;
+                    if (nearby.getHealth() <= nearby.getMaxHealth() * 0.45F) {
+                        nearby.addEffect(new MobEffectInstance(MobEffects.GLOWING, 120, 0, false, false, true));
+                    }
+                }
+                level.sendParticles(ParticleTypes.END_ROD, victim.getX(), victim.getY() + 1.0, victim.getZ(), 35, 0.8, 1.0, 0.8, 0.05);
+                spawnVisibleRing(level, victim.position().add(0.0, 1.0, 0.0), Items.ENDER_EYE, 7, 1.05, moonNow, 28L, 0.22);
             }
         }
         return true;

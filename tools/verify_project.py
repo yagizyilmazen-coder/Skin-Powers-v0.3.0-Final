@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.2.1"
+VERSION = "1.3.0"
 MAX_CHECKS = 50
 checks: list[str] = []
 errors: list[str] = []
@@ -15,9 +15,7 @@ errors: list[str] = []
 
 def read(rel: str) -> str:
     path = ROOT / rel
-    if not path.is_file():
-        return ""
-    return path.read_text(encoding="utf-8")
+    return path.read_text(encoding="utf-8") if path.is_file() else ""
 
 
 def check(name: str, condition: bool, detail: str = "") -> None:
@@ -28,89 +26,94 @@ def check(name: str, condition: bool, detail: str = "") -> None:
         errors.append(f"{name}: {detail or 'başarısız'}")
 
 
-def contains_all(source: str, *tokens: str) -> bool:
+def has_all(source: str, *tokens: str) -> bool:
     return all(token in source for token in tokens)
 
 
 props = read("gradle.properties")
 workflow = read(".github/workflows/build.yml")
-mod_json_text = read("src/main/resources/fabric.mod.json")
+mod_json = read("src/main/resources/fabric.mod.json")
 power_class = read("src/main/java/com/yagiz/skinpowers/PowerClass.java")
 catalog = read("src/main/java/com/yagiz/skinpowers/PowerCatalog.java")
 power_system = read("src/main/java/com/yagiz/skinpowers/PowerSystem.java")
-expansion = read("src/main/java/com/yagiz/skinpowers/ExpansionPowerSystem.java")
-network = read("src/main/java/com/yagiz/skinpowers/ServerNetworking.java")
-mod = read("src/main/java/com/yagiz/skinpowers/SkinPowersMod.java")
-awakening = read("src/main/java/com/yagiz/skinpowers/AwakeningSystem.java")
+moon = read("src/main/java/com/yagiz/skinpowers/MoonPowerSystem.java")
 anomaly = read("src/main/java/com/yagiz/skinpowers/AnomalySystem.java")
+world = read("src/main/java/com/yagiz/skinpowers/WorldEventSystem.java")
 commands = read("src/main/java/com/yagiz/skinpowers/SkinPowersCommands.java")
-client_state = read("src/client/java/com/yagiz/skinpowers/client/ClientState.java")
-client = read("src/client/java/com/yagiz/skinpowers/client/SkinPowersClient.java")
-hud = read("src/client/java/com/yagiz/skinpowers/client/HudOverlay.java")
-menu = read("src/client/java/com/yagiz/skinpowers/client/PowerMenuScreen.java")
-selection = read("src/client/java/com/yagiz/skinpowers/client/SkinSelectionScreen.java")
+mod = read("src/main/java/com/yagiz/skinpowers/SkinPowersMod.java")
+network = read("src/main/java/com/yagiz/skinpowers/ServerNetworking.java")
+awakening = read("src/main/java/com/yagiz/skinpowers/AwakeningSystem.java")
+charge = read("src/main/java/com/yagiz/skinpowers/AncientChargeSystem.java")
+data_store = read("src/main/java/com/yagiz/skinpowers/PlayerDataStore.java")
+class_enchantments = read("src/main/java/com/yagiz/skinpowers/ClassEnchantments.java")
+enchantment_system = read("src/main/java/com/yagiz/skinpowers/ClassEnchantmentSystem.java")
 analyzer = read("src/client/java/com/yagiz/skinpowers/client/SkinAnalyzer.java")
+selection = read("src/client/java/com/yagiz/skinpowers/client/SkinSelectionScreen.java")
+menu = read("src/client/java/com/yagiz/skinpowers/client/PowerMenuScreen.java")
+hud = read("src/client/java/com/yagiz/skinpowers/client/HudOverlay.java")
 settings = read("src/client/java/com/yagiz/skinpowers/client/SkinPowersSettingsScreen.java")
 tr_text = read("src/main/resources/assets/skinpowers/lang/tr_tr.json")
 en_text = read("src/main/resources/assets/skinpowers/lang/en_us.json")
-class_enchantment = read("src/main/java/com/yagiz/skinpowers/ClassEnchantmentSystem.java")
+expansion = read("src/main/java/com/yagiz/skinpowers/ExpansionPowerSystem.java")
 
-core_files = [
+core = [
     "build.gradle", "gradle.properties", "settings.gradle", ".github/workflows/build.yml",
-    "src/main/resources/fabric.mod.json", "src/main/java/com/yagiz/skinpowers/ExpansionPowerSystem.java",
-    "src/client/java/com/yagiz/skinpowers/client/SkinSelectionScreen.java", "CHANGELOG_1.2.1.md",
+    "src/main/resources/fabric.mod.json", "src/main/java/com/yagiz/skinpowers/MoonPowerSystem.java",
+    "src/main/java/com/yagiz/skinpowers/AnomalySystem.java", "CHANGELOG_1.3.0.md",
 ]
-check("1. Temel proje dosyaları", all((ROOT / p).is_file() for p in core_files))
-check("2. Gradle sürüm numarası", f"mod_version={VERSION}" in props)
-check("3. GitHub Actions artifact", f"skinpowers-{VERSION}-jar" in workflow and f"skinpowers-{VERSION}.jar" in workflow)
-check("4. Java ve Gradle CI", "java-version: '25'" in workflow and "gradle-version: '9.5.1'" in workflow)
-check("5. Fabric açıklaması", "yedi güç sınıfı" in mod_json_text and "20 sınıfa özel büyü" in mod_json_text)
-check("6. Yeni sınıf enumları", contains_all(power_class, 'MAGNETIC("Manyetik")', 'SAND("Kum")'))
-check("7. Yeni sınıf takma adları", contains_all(power_class, 'normalized.equals("MANYETIK")', 'normalized.equals("KUM")'))
-check("8. Manyetik güç adları", contains_all(catalog, "Manyetik Çekim", "Kutup İtişi", "Demir Yumruk", "Metal Fırtınası", "Ray Topu", "Manyetik Kafes"))
-check("9. Kum güç adları", contains_all(catalog, "Kum Mermisi", "Kum Dalgası", "Çöl Aynası", "Kum Zırhı", "Kum Mezarı", "Kum Devleri"))
-check("10. Yeni sınıflar altı seviye", "powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.SAND" in catalog and "? 6 : 5" in catalog)
-check("11. Oyuncu sınıf komutları", 'selfClass("manyetik"' in commands and 'selfClass("kum"' in commands)
-check("12. Yönetici sınıf komutları", 'targetClass("manyetik"' in commands and 'targetClass("kum"' in commands)
-check("13. Güç sistemi delegasyonu", contains_all(power_system, "ExpansionPowerSystem.tickServer", "ExpansionPowerSystem.useMagnetic", "ExpansionPowerSystem.useSand"))
-check("14. Manyetik güçlendirmeleri", contains_all(expansion, "MAGNETIC_PULLS", "24.0F + stage * 3.0F", "20.0F + storm.stage * 2.8F", "MovingType.METAL_STORM") and "Blocks.CHAIN" not in expansion and re.search(r"\bItems\.CHAIN\b", expansion) is None)
-check("15. Kum görsel ve güç dengesi", contains_all(expansion, "Items.SAND", "Items.SANDSTONE", "Items.CUT_SANDSTONE", "Items.CHISELED_SANDSTONE", "positionOrbitSmooth", "positionSandGraveSmooth", "16.0F + arm.stage * 2.2F"))
-check("16. Kum parçacığı yalnızca darbe vurgusu", "Ana gövde her zaman kum/kumtaşı ItemEntity'dir" in expansion)
-check("17. Manyetik altı aktif güç", "public static boolean useMagnetic" in expansion and all(f"case {i} ->" in expansion for i in range(1, 7)))
-check("18. Kum altı aktif güç", "public static boolean useSand" in expansion and expansion.count("case 6 ->") >= 2)
-check("19. Manyetik combo", "Kutup Kıyameti" in catalog and "KUTUP KIYAMETİ" in power_system)
-check("20. Kum combo", "Çöl Ezicisi" in catalog and "ÇÖL EZİCİSİ" in power_system)
-check("21. Kum ekran paketi", 'new ClientEffectPayload("SAND_SCREEN"' in network)
-check("22. Kum ekran istemci alıcısı", '"SAND_SCREEN".equalsIgnoreCase' in client and "startSandScreen" in client_state)
-check("23. Kum ekranı dört saniye", "sendSandScreen" in expansion and ", 80)" in expansion)
-check("24. Suya girince ekran temizleme", "client.player.isInWater()" in client and "clearSandScreen" in client)
-check("25. Görsel kum ekranı", contains_all(hud, "drawSandScreenOverlay", "sandScreenTicks", "0x00C99745"))
-check("26. Kum mezarı suyla kaçış", "target.isInWater()" in expansion and "tickSandGraves" in expansion)
-check("27. Warden zırh gizleme", contains_all(power_system, "hideAmbushEquipment", "EquipmentSlot.HEAD", "EquipmentSlot.MAINHAND"))
-check("28. Warden gizli eşya güvenliği", contains_all(power_system, "hiddenExtraItems", "restoreAmbushEquipment", "player.getInventory().add"))
-check("29. Warden bağlantı kesme geri yükleme", "public static void handleDisconnect" in power_system and "PowerSystem.handleDisconnect" in network)
-check("30. Yeni hasar sistemi kaydı", "ExpansionPowerSystem::allowDamage" in mod)
-check("31. Ölüm ve sunucu temizliği", "ExpansionPowerSystem.clearAll" in mod and contains_all(expansion, "!owner.isAlive()", "MAGNETIC_PULLS.removeIf", "SAND_GIANT_ARMS.removeIf", "SAND_GRAVES.removeIf"))
-check("32. Manyetik Uyanış", "Manyetik Çekirdek" in awakening and "tickAwakening" in expansion)
-check("33. Kum Uyanış", "Çölün Kalbi" in awakening and "finishAwakening" in expansion)
-check("34. Anomali yeni güçleri kopyalar", "case MAGNETIC, SAND -> power >= 1 && power <= 6" in anomaly)
-check("35. Skin analizinde yedi sınıf", "CLASS_COUNT = 7" in analyzer)
-check("36. Skin analizinde Manyetik paleti", contains_all(analyzer, "MAGNETIC_COLORS", "metallicPixels"))
-check("37. Skin analizinde Kum paleti", contains_all(analyzer, "SAND_COLORS", "sandPixels"))
-check("38. Seçim ekranında yedi kart", "PowerClass.MAGNETIC, PowerClass.SAND" in selection and "new Button[CLASSES.length]" in selection)
-check("39. Manyetik kart görseli", "drawMagneticForge" in selection)
-check("40. Kum kart görseli", "drawDesertTemple" in selection)
-check("41. Güç menüsü yeni temalar", "case MAGNETIC -> new int[]" in menu and "case SAND -> new int[]" in menu)
-check("42. HUD yeni renk ve durumları", "case MAGNETIC -> 0xFFB8C5D1" in hud and "case SAND -> 0xFFE0B85A" in hud)
-check("43. Türkçe sınıf çevirileri", '"class.skinpowers.magnetic": "MANYETİK"' in tr_text and '"class.skinpowers.sand": "KUM"' in tr_text)
-check("44. İngilizce sınıf çevirileri", '"class.skinpowers.magnetic": "MAGNETIC"' in en_text and '"class.skinpowers.sand": "SAND"' in en_text)
+check("1. Temel proje dosyaları", all((ROOT / p).is_file() for p in core))
+check("2. Sürüm numarası", f"mod_version={VERSION}" in props)
+check("3. GitHub artifact sürümü", f"skinpowers-{VERSION}-jar" in workflow and f"skinpowers-{VERSION}.jar" in workflow)
+check("4. Java 25 ve Gradle 9.5.1", "java-version: '25'" in workflow and "gradle-version: '9.5.1'" in workflow)
+check("5. Fabric hedefleri", 'minecraft_version=26.1.2' in props and 'loader_version=0.19.3' in props)
+check("6. Ay enumu", 'MOON("Ay")' in power_class and 'NATURE("' not in power_class)
+check("7. Eski Doğa kayıt göçü", has_all(data_store, 'equalsIgnoreCase("NATURE")', '"MOON"'))
+check("8. Yedi aktif sınıf", all(token in power_class for token in ('WARDEN(', 'FLIGHT(', 'FIRE(', 'MOON(', 'ANOMALY(', 'MAGNETIC(', 'SAND(')))
+check("9. Ay altı güç adı", has_all(catalog, "Hilal Kesik", "Ay Adımı", "Yerçekimi Baskısı", "Ay Aynası", "Tutulma Alanı", "Dolunay Canavarı"))
+check("10. Ay altı seviye", 'powerClass == PowerClass.MOON' in catalog and '? 6 : 5' in catalog)
+check("11. Ay komutu", 'selfClass("ay", PowerClass.MOON)' in commands and 'targetClass("ay", PowerClass.MOON)' in commands)
+check("12. Eski Doğa komutu kapalı", 'selfClass("doga"' not in commands and 'targetClass("doga"' not in commands)
+check("13. Ay trigger komutları", all(f'triggerLiteral("{name}")' in commands for name in ("moon_crescent", "moon_step", "moon_gravity", "moon_mirror", "moon_eclipse", "moon_beast")))
+check("14. Güç sistemine Ay delegasyonu", has_all(power_system, "MoonPowerSystem.tickServer", "case MOON -> MoonPowerSystem.tickPlayer", "case MOON -> MoonPowerSystem.use"))
+check("15. Hilal gidip dönüyor", has_all(moon, "class CrescentAttack", "attack.returning", "toOwner.normalize()"))
+check("16. Ay Adımı güvenli nokta", has_all(moon, "Ay Adımı için ileride güvenli bir nokta yok", "level.getBlockState(feet.below())"))
+check("17. Yerçekimi alanı", has_all(moon, "GRAVITY_FIELDS", "tickGravityFields", "motion.y - 0.32"))
+check("18. Ay Aynası mermi yansıtma", has_all(moon, "MOON_MIRRORS", "projectile.setOwner(player)", "SoundEvents.SHIELD_BLOCK.value()"))
+check("19. Tutulma alanı", has_all(moon, "ECLIPSE_FIELDS", "tickEclipseFields", "MobEffects.WEAKNESS"))
+check("20. Dolunay Canavarı", has_all(moon, "FULL_MOON_BEASTS", "beastSwipe", "positionBeast"))
+check("21. Ay görünür eşya gövdeleri", has_all(moon, "ItemEntity", "setNeverPickUp", "setUnlimitedLifetime", "moveVisualSmoothly"))
+check("22. Ay ölüm temizliği", has_all(moon, "afterDeath", "clearOwner", "handleDisconnect", "clearAll"))
+check("23. Ay hasar olay kaydı", "MoonPowerSystem::allowDamage" in mod and "MoonPowerSystem::afterDeath" in mod)
+check("24. Ay bağlantı kesme temizliği", "MoonPowerSystem.handleDisconnect" in network)
+check("25. Tam Tutulma Uyanışı", 'case MOON' in awakening and '"Tam Tutulma"' in awakening)
+check("26. Antik şarj Ay desteği", 'case MOON -> true' in charge and 'case MOON -> ParticleTypes.END_ROD' in charge)
+check("27. Kızıl Ay olayı", has_all(world, 'RED_MOON("Kızıl Ay"', 'case RED_MOON', 'spawnMoonPillar'))
+check("28. Ay olay komutu", 'case "ay", "moon" -> RED_MOON' in world and 'worldEventLiteral("ay")' in commands)
+check("29. Doğa dünya olayı kaldırıldı", 'ANCIENT_BLOOM' not in world and 'case "doga"' not in world)
+check("30. Ay olayı geçici blok temizliği", has_all(world, "TemporaryMoonPillar", "clearMoonPillars", "Blocks.AMETHYST_BLOCK"))
+check("31. Anomali görünür kopyaları", has_all(anomaly, "spawnGlitchFigure", "ItemEntity", "PendingEcho"))
+check("32. REVERSED bildirimi", 'Component.literal("REVERSED")' in anomaly and 'spawnVisibleRing' in anomaly)
+check("33. Kopya 10 saniye", has_all(anomaly, "COPIED_EXPIRES", "now + 200L", "10 saniye"))
+check("34. Sistem Çökmesi iki kopya", 'setCopiedPowerUses(2)' in anomaly)
+check("35. Hasar küpleri", has_all(anomaly, "anomalyStoredDamage", "Items.REDSTONE", "Items.ENDER_EYE"))
+check("36. Varlıktan Çıkar görünür beden", "spawnGlitchFigure(level, player.getUUID(), target.position()" in anomaly)
+check("37. Görünür 404 gövdesi", has_all(anomaly, "spawn404Body", "404 ALANI: GERÇEKLİK BULUNAMADI", "AnomalyVisual"))
+check("38. Anomali Ay güçlerini kopyalar", 'case MOON -> power >= 1 && power <= 6' in anomaly)
+check("39. Ay skin paleti", has_all(analyzer, "MOON_COLORS", "double moon", "CLASS_COUNT = 7"))
+check("40. Ay seçim kartı", has_all(selection, '"AY"', "PowerClass.MOON", "drawMoon"))
+check("41. Ay güç menüsü teması", 'case MOON -> new int[]' in menu and 'powerClass == PowerClass.MOON' in menu)
+check("42. Ay HUD renk ve durumu", 'case MOON -> 0xFFDCE6FF' in hud and 'Ay Aynası' in hud)
+check("43. Ay çevirileri", '"class.skinpowers.moon": "AY"' in tr_text and '"class.skinpowers.moon": "MOON"' in en_text)
+check("44. Ay büyü anahtarları", has_all(class_enchantments, "LUNAR_WOUND", "MOON_SIGHT", "MOON_STEP", "MOON_MIRROR"))
+check("45. Ay büyü davranışları", has_all(enchantment_system, "ClassEnchantments.LUNAR_WOUND", "ClassEnchantments.MOON_SIGHT", "ClassEnchantments.MOON_STEP", "ClassEnchantments.MOON_MIRROR"))
 
 enchantment_dir = ROOT / "src/main/resources/data/skinpowers/enchantment"
-check("45. Yirmi büyü JSON'u", enchantment_dir.is_dir() and len(list(enchantment_dir.glob("*.json"))) == 20)
-survival_tags = [ROOT / f"src/main/resources/data/minecraft/tags/enchantment/{name}.json" for name in ("tradeable", "treasure", "on_random_loot")]
-check("46. Survival büyü etiketleri", all(p.is_file() and "#skinpowers:class_enchantments" in p.read_text(encoding="utf-8") for p in survival_tags))
-check("47. Skin yeniden deneme ve ad fallback", contains_all(analyzer, "for (int attempt = 0; attempt < 3", "extractProfileName", "SkinPowers/1.2.1"))
-check("48. Eski API hataları yok", "ParticleTypes.DRAGON_BREATH" not in class_enchantment and "SoundEvents.SHIELD_BLOCK," not in class_enchantment and "SoundEvents.GENERIC_EXPLODE," not in class_enchantment)
+moon_enchants = {"hilal_yarasi.json", "ay_gozu.json", "ay_adimi.json", "ay_aynasi.json"}
+check("46. Yirmi büyü ve dört Ay JSON'u", enchantment_dir.is_dir() and len(list(enchantment_dir.glob("*.json"))) == 20 and moon_enchants <= {p.name for p in enchantment_dir.glob("*.json")})
+check("47. Eski Doğa büyüleri silindi", not any((enchantment_dir / name).exists() for name in ("kok_bagi.json", "can_filizi.json", "orman_sicrayisi.json", "dikenli_savunma.json")))
+survival = [ROOT / f"src/main/resources/data/minecraft/tags/enchantment/{name}.json" for name in ("tradeable", "treasure", "on_random_loot")]
+check("48. Survival büyü etiketleri", all(p.is_file() and "#skinpowers:class_enchantments" in p.read_text(encoding="utf-8") for p in survival))
+check("49. Önceki kritik düzeltmeler", has_all(expansion, "discardLegacySandFollowers", "positionOrbitSmooth", "MAGNETIC_PULLS") and "Blocks.CHAIN" not in expansion and re.search(r"\bItems\.CHAIN\b", expansion) is None)
 
 json_ok = True
 for path in ROOT.rglob("*.json"):
@@ -119,8 +122,10 @@ for path in ROOT.rglob("*.json"):
     except Exception as exc:
         json_ok = False
         errors.append(f"Bozuk JSON {path.relative_to(ROOT)}: {exc}")
-check("49. Bütün JSON dosyaları", json_ok)
-check("50. Kontrol sınırı", len(checks) == 49 and MAX_CHECKS == 50)
+check("50. JSON ve kontrol sınırı", json_ok and MAX_CHECKS == 50 and len(checks) == 49)
+
+if len(checks) != MAX_CHECKS:
+    errors.append(f"Kontrol sayısı {len(checks)}; beklenen {MAX_CHECKS}.")
 
 if errors:
     print("SKIN POWERS PROJE DENETİMİ BAŞARISIZ")
@@ -131,4 +136,4 @@ if errors:
 
 print("SKIN POWERS PROJE DENETİMİ BAŞARILI")
 print(f"{len(checks)} kontrol geçti.")
-print("Manyetik ve Kum dengelemesi, yumuşak takip ve ölüm temizliği doğrulandı.")
+print("Ay sınıfı, Kızıl Ay olayı, Ay büyüleri ve Anomali 2.0 doğrulandı.")

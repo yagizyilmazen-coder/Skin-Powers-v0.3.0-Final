@@ -290,11 +290,12 @@ public final class PowerMenuScreen extends Screen {
             graphics.fill(x + 11, y + 12, x + 27, y + 29, accent);
             graphics.fill(x + 15, y + 5, x + 24, y + 18, withAlpha(accent, 210));
             graphics.fill(x + 18, y, x + 22, y + 10, 0xFFFFFF8A);
-        } else if (powerClass == PowerClass.NATURE) {
-            graphics.fill(x + 16, y + 11, x + 21, y + 30, 0xFF7A4A25);
-            graphics.fill(x + 4, y + 4, x + 18, y + 17, withAlpha(accent, 190));
-            graphics.fill(x + 19, y, x + 33, y + 15, withAlpha(accent, 220));
-            graphics.fill(x + 12, y - 2, x + 25, y + 11, 0xFF9BE66D);
+        } else if (powerClass == PowerClass.MOON) {
+            graphics.fill(x + 5, y + 2, x + 31, y + 28, withAlpha(0xFFE5EDFF, 220));
+            graphics.fill(x + 15, y, x + 34, y + 30, 0xFF10182D);
+            graphics.outline(x + 5, y + 2, 26, 26, accent);
+            graphics.fill(x + 1, y + 13, x + 7, y + 16, 0xFFAFC6FF);
+            graphics.fill(x + 30, y + 10, x + 35, y + 13, 0xFF9474D6);
         } else if (powerClass == PowerClass.ANOMALY) {
             graphics.outline(x + 3, y + 1, 29, 27, accent);
             graphics.fill(x + 7, y + 5, x + 29, y + 8, 0xFF5CE5E5);
@@ -322,6 +323,8 @@ public final class PowerMenuScreen extends Screen {
         if (powerClass == PowerClass.FIRE && (level == 1 || level == 2)) return "Otomatik";
         if (powerClass == PowerClass.ANOMALY && level == 3) return ClientState.copiedPowerName().isBlank() ? "R: hamle bekle" : "R: çalınan hamleyi kullan";
         if (powerClass == PowerClass.ANOMALY && level == 4) return "R: depola • V: kalp • X: geri gönder";
+        if (powerClass == PowerClass.MOON && level == 4) return "R: ayna • tekrar R: hilal olarak fırlat";
+        if (powerClass == PowerClass.MOON && level == 5) return "R: tutulma alanı";
         if (powerClass == PowerClass.MAGNETIC && level == 4) return "R: hazırla • tekrar R: fırlat";
         if (powerClass == PowerClass.SAND && level == 5) return "R: göm • suyla kaçış";
         return "R: kullan";
@@ -340,8 +343,8 @@ public final class PowerMenuScreen extends Screen {
         if (powerClass == PowerClass.WARDEN && level == 4 && ClientState.wardenHuntTicks() > 0) {
             return String.format(java.util.Locale.ROOT, "Derinlik Pususu %.1f sn", ClientState.wardenHuntTicks() / 20.0);
         }
-        if (powerClass == PowerClass.NATURE && level == 4 && ClientState.natureTreeTicks() > 0) {
-            return String.format(java.util.Locale.ROOT, "Yaşam Ağacı %.1f sn", ClientState.natureTreeTicks() / 20.0);
+        if (powerClass == PowerClass.MOON && level == 5) {
+            return ClientState.cooldownTicks() <= 0 ? "Tutulma Alanı hazır" : "Tutulma Alanı beklemede";
         }
         if (powerClass == PowerClass.ANOMALY && level == 3) {
             return ClientState.copiedPowerName().isBlank() ? "Hamle bekleniyor" : "Saklı: " + ClientState.copiedPowerName();
@@ -380,13 +383,17 @@ public final class PowerMenuScreen extends Screen {
                 int y = 70 + (i * 43) % Math.max(90, height - 130);
                 g.fill(x, y, x + 3, y + 3, withAlpha(accent, 65 + (i % 4) * 22));
             }
-        } else if (powerClass == PowerClass.NATURE) {
-            for (int i = 0; i < 16; i++) {
-                int x = (i * 101 + drift / 3) % Math.max(1, width);
-                int y = 75 + (i * 47) % Math.max(90, height - 130);
-                g.fill(x, y, x + 7, y + 4, withAlpha(accent, 55 + (i % 4) * 18));
-                g.fill(x + 3, y - 5, x + 5, y + 8, 0x557A4A25);
+        } else if (powerClass == PowerClass.MOON) {
+            for (int i = 0; i < 22; i++) {
+                int x = (i * 101 + drift / 5) % Math.max(1, width);
+                int y = 65 + (i * 47) % Math.max(90, height - 120);
+                int size = i % 5 == 0 ? 3 : 2;
+                g.fill(x, y, x + size, y + size, withAlpha(i % 3 == 0 ? 0xFFDCE6FF : accent, 55 + (i % 4) * 22));
             }
+            int moonX = width - 68;
+            int moonY = 55;
+            g.fill(moonX - 18, moonY - 18, moonX + 18, moonY + 18, withAlpha(0xFFE5EDFF, 120));
+            g.fill(moonX - 4, moonY - 20, moonX + 22, moonY + 20, 0xAA080D1B);
         } else if (powerClass == PowerClass.ANOMALY) {
             for (int i = 0; i < 22; i++) {
                 int x = (i * 107 + drift / 3) % Math.max(1, width);
@@ -494,7 +501,7 @@ public final class PowerMenuScreen extends Screen {
             case WARDEN -> new int[]{0xFF010409, 0xFF0A2430, 0xFF35D7D0};
             case FLIGHT -> new int[]{0xFF05010B, 0xFF351052, 0xFFCE72FF};
             case FIRE -> new int[]{0xFF170201, 0xFF7C1608, 0xFFFFA51F};
-            case NATURE -> new int[]{0xFF071008, 0xFF315A2A, 0xFF72D86A};
+            case MOON -> new int[]{0xFF030714, 0xFF27385E, 0xFFDCE6FF};
             case ANOMALY -> new int[]{0xFF05010B, 0xFF261044, 0xFFB65CFF};
             case MAGNETIC -> new int[]{0xFF080D12, 0xFF3B4954, 0xFFC5D2DE};
             case SAND -> new int[]{0xFF2E1C0C, 0xFF9B6D30, 0xFFFFD273};

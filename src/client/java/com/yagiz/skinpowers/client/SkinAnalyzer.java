@@ -37,8 +37,9 @@ public final class SkinAnalyzer {
     private static final int[][] FIRE_COLORS = {
         {235, 35, 20}, {246, 96, 13}, {255, 181, 24}, {173, 20, 9}, {249, 221, 54}
     };
-    private static final int[][] NATURE_COLORS = {
-        {46, 125, 50}, {76, 148, 63}, {31, 92, 43}, {104, 159, 56}, {91, 67, 39}, {126, 92, 49}, {59, 104, 53}
+    private static final int[][] MOON_COLORS = {
+        {7, 10, 24}, {18, 29, 62}, {51, 68, 112}, {118, 135, 173},
+        {198, 207, 229}, {240, 243, 255}, {126, 88, 176}, {150, 184, 222}
     };
     private static final int[][] ANOMALY_COLORS = {
         {12, 3, 20}, {52, 12, 82}, {116, 38, 170}, {182, 92, 255},
@@ -120,7 +121,7 @@ public final class SkinAnalyzer {
             if (skinUrl == null) return Result.unavailable();
             HttpRequest request = HttpRequest.newBuilder(URI.create(skinUrl))
                 .timeout(Duration.ofSeconds(12))
-                .header("User-Agent", "SkinPowers/1.2.1")
+                .header("User-Agent", "SkinPowers/1.3.0")
                 .GET()
                 .build();
             HttpResponse<byte[]> response = sendBytesWithRetry(request, 3);
@@ -224,7 +225,7 @@ public final class SkinAnalyzer {
             .mapToInt(Map.Entry::getKey)
             .toArray();
         if (dominant.length < 5) {
-            int[] filled = {0x233044, 0x8FCBE8, 0xE95818, 0x4F8B3B, 0x742AAA};
+            int[] filled = {0x233044, 0x8FCBE8, 0xE95818, 0x9AAFD6, 0x742AAA};
             System.arraycopy(dominant, 0, filled, 0, dominant.length);
             dominant = filled;
         }
@@ -244,7 +245,7 @@ public final class SkinAnalyzer {
         double warden = nearestSimilarity(r, g, b, WARDEN_COLORS, 70.0);
         double flight = nearestSimilarity(r, g, b, FLIGHT_COLORS, 68.0);
         double fire = nearestSimilarity(r, g, b, FIRE_COLORS, 66.0);
-        double nature = nearestSimilarity(r, g, b, NATURE_COLORS, 68.0);
+        double moon = nearestSimilarity(r, g, b, MOON_COLORS, 62.0) * 0.90;
         double anomaly = nearestSimilarity(r, g, b, ANOMALY_COLORS, 54.0) * 0.72;
         double magnetic = nearestSimilarity(r, g, b, MAGNETIC_COLORS, 62.0) * 0.86;
         double sand = nearestSimilarity(r, g, b, SAND_COLORS, 58.0) * 0.90;
@@ -258,8 +259,9 @@ public final class SkinAnalyzer {
         if (hue >= 245.0 && hue <= 286.0 && saturation > 0.38 && max > 0.22) flight = Math.max(flight, 0.76);
         if (hue >= 286.0 && hue <= 306.0 && saturation > 0.34 && max > 0.30) flight = Math.max(flight, 0.66);
         if (saturation > 0.42 && max > 0.30 && (hue <= 35.0 || hue >= 345.0)) fire = Math.max(fire, 0.78);
-        if (saturation > 0.28 && max > 0.20 && hue >= 72.0 && hue <= 155.0) nature = Math.max(nature, 0.75);
-        if (r > g && g > b && hue >= 22.0 && hue <= 52.0 && max < 0.72 && saturation > 0.22) nature = Math.max(nature, 0.58);
+        if (hue >= 205.0 && hue <= 248.0 && saturation > 0.18 && max > 0.20) moon = Math.max(moon, 0.75);
+        if (saturation < 0.18 && max > 0.58) moon = Math.max(moon, 0.68);
+        if (hue >= 255.0 && hue <= 285.0 && saturation > 0.18 && saturation < 0.62 && max > 0.35) moon = Math.max(moon, 0.62);
         if (hue >= 305.0 && hue <= 334.0 && saturation > 0.56 && max > 0.38) anomaly = Math.max(anomaly, 0.68);
         if (hue >= 174.0 && hue <= 194.0 && saturation > 0.48 && max > 0.48) anomaly = Math.max(anomaly, 0.64);
         if ((hue <= 10.0 || hue >= 350.0) && saturation > 0.68 && max > 0.62) anomaly = Math.max(anomaly, 0.57);
@@ -272,7 +274,7 @@ public final class SkinAnalyzer {
             sand *= 0.55;
         }
 
-        return new double[]{clamp01(warden), clamp01(flight), clamp01(fire), clamp01(nature), clamp01(anomaly), clamp01(magnetic), clamp01(sand)};
+        return new double[]{clamp01(warden), clamp01(flight), clamp01(fire), clamp01(moon), clamp01(anomaly), clamp01(magnetic), clamp01(sand)};
     }
 
     private static String normalizeSkinUrl(String url) {
@@ -326,7 +328,7 @@ public final class SkinAnalyzer {
         if (profileName == null || profileName.isBlank() || !profileName.matches("[A-Za-z0-9_]{1,16}")) return null;
         try {
             HttpRequest nameRequest = HttpRequest.newBuilder(URI.create("https://api.mojang.com/users/profiles/minecraft/" + profileName))
-                .timeout(Duration.ofSeconds(10)).header("User-Agent", "SkinPowers/1.2.1").GET().build();
+                .timeout(Duration.ofSeconds(10)).header("User-Agent", "SkinPowers/1.3.0").GET().build();
             HttpResponse<String> nameResponse = sendStringWithRetry(nameRequest, 3);
             if (nameResponse == null || nameResponse.statusCode() < 200 || nameResponse.statusCode() >= 300 || nameResponse.body().isBlank()) return null;
             JsonObject profileJson = JsonParser.parseString(nameResponse.body()).getAsJsonObject();
@@ -343,7 +345,7 @@ public final class SkinAnalyzer {
     private static String findSkinUrlForUuid(UUID profileId, HttpClient client) throws Exception {
         String compactUuid = profileId.toString().replace("-", "");
         HttpRequest request = HttpRequest.newBuilder(URI.create("https://sessionserver.mojang.com/session/minecraft/profile/" + compactUuid + "?unsigned=false"))
-            .timeout(Duration.ofSeconds(10)).header("User-Agent", "SkinPowers/1.2.1").GET().build();
+            .timeout(Duration.ofSeconds(10)).header("User-Agent", "SkinPowers/1.3.0").GET().build();
         HttpResponse<String> response = sendStringWithRetry(request, 2);
         if (response == null || response.statusCode() < 200 || response.statusCode() >= 300) return null;
         JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
@@ -510,7 +512,7 @@ public final class SkinAnalyzer {
         double matchedFraction
     ) {
         public static Result unavailable() {
-            return new Result(new double[CLASS_COUNT], new int[]{0x233044, 0x8FCBE8, 0xE95818, 0x4F8B3B, 0xD5AF42}, false, new int[0], 0, 0, 0.0);
+            return new Result(new double[CLASS_COUNT], new int[]{0x233044, 0x8FCBE8, 0xE95818, 0x9AAFD6, 0xD5AF42}, false, new int[0], 0, 0, 0.0);
         }
 
         public double score(int index) {

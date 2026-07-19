@@ -61,7 +61,7 @@ public final class PlayerDataStore {
             }
             dirty = migratedPlayers;
             if (migratedPlayers) {
-                SkinPowersMod.LOGGER.info("Skin Powers: eski Zaman kayıtları Anomaliye taşındı.");
+                SkinPowersMod.LOGGER.info("Skin Powers: eski Zaman kayıtları Anomaliye, eski Doğa kayıtları Ay sınıfına taşındı.");
                 save();
             }
             SkinPowersMod.LOGGER.info("Skin Powers: {} oyuncu kaydı yüklendi.", PLAYERS.size());
@@ -107,7 +107,7 @@ public final class PlayerDataStore {
     }
 
 
-    /** 1.0.3 ve önceki oyuncu kayıtlarındaki kaldırılmış Zaman sınıfını veri kaybetmeden taşır. */
+    /** Kaldırılmış Zaman ve Doğa sınıflarını veri kaybetmeden yeni karşılıklarına taşır. */
     private static boolean migrateLegacyClassNames(JsonElement element) {
         if (element == null || element.isJsonNull()) return false;
         boolean changed = false;
@@ -122,6 +122,9 @@ public final class PlayerDataStore {
             String value = classValue.getAsString();
             if (value.equalsIgnoreCase("TIME") || value.equalsIgnoreCase("ZAMAN")) {
                 object.addProperty("powerClass", "ANOMALY");
+                changed = true;
+            } else if (value.equalsIgnoreCase("NATURE") || value.equalsIgnoreCase("DOGA") || value.equalsIgnoreCase("DOĞA")) {
+                object.addProperty("powerClass", "MOON");
                 changed = true;
             }
         }

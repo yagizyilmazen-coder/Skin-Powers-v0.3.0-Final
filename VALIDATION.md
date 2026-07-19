@@ -1,5 +1,15 @@
-# Skin Powers 1.2.1 Doğrulama
+# Skin Powers 1.3.0 Doğrulama
 
-Yerel denetim en fazla 50 gruplanmış kontrol çalıştırır. Kontroller; sürüm ve GitHub Actions ayarlarını, 7 sınıf kaydını, Manyetik/Kum güçlerini, gerçek kum-kumtaşı gövdelerini, kum ekranı ve suyla temizlenmesini, Warden ekipman gizleme/geri yüklemeyi, skin analizini, arayüz temalarını, büyü JSON'larını ve survival etiketlerini kapsar.
+Proje denetimi kullanıcının isteği doğrultusunda en fazla 50 kontrol çalıştırır.
 
-Tam Minecraft 26.1.2 / Fabric derlemesi GitHub Actions üzerinde Java 25 ve Gradle 9.5.1 ile yapılır.
+Doğrulanan ana alanlar:
+
+- Ay sınıfı, altı güç, Uyanış, HUD ve seçim kartı
+- Kızıl Ay dünya olayı ve komutu
+- Ay sınıf büyüleri ve survival büyü etiketleri
+- Eski Doğa kayıtlarının Ay sınıfına taşınması
+- Anomali 2.0 görünür gövdeleri ve 10 saniyelik kopya süresi
+- Manyetik/Kum ve Warden düzeltmelerinin korunması
+- Bütün JSON dosyaları ve ZIP bütünlüğü
+
+Tam Minecraft/Fabric derlemesinin kesin sonucu GitHub Actions tarafından belirlenir.

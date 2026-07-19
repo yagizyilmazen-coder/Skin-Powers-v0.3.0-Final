@@ -10,12 +10,12 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 
 public final class SkinSelectionScreen extends Screen {
-    private static final String[] TITLES = {"WARDEN", "KADİM EJDERHA", "ATEŞ", "DOĞA", "ANOMALİ", "MANYETİK", "KUM"};
-    private static final String[] SUBTITLES = {"Derinliğin gücü", "Mor kıyametin kanatları", "Alevin hâkimiyeti", "Ormanın yaşamı", "Gerçekliğin hatası", "Metalin kutupları", "Çölün şekillenen gücü"};
-    private static final PowerClass[] CLASSES = {PowerClass.WARDEN, PowerClass.FLIGHT, PowerClass.FIRE, PowerClass.NATURE, PowerClass.ANOMALY, PowerClass.MAGNETIC, PowerClass.SAND};
-    private static final int[] TOP_COLORS = {0xFF07111C, 0xFF08020F, 0xFF5B0B08, 0xFF102B13, 0xFF05010B, 0xFF121820, 0xFF4C2F13};
-    private static final int[] BOTTOM_COLORS = {0xFF16384B, 0xFF451070, 0xFFFF6B18, 0xFF4C8B3C, 0xFF291248, 0xFF586875, 0xFFD2A34D};
-    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFCE72FF, 0xFFFFC22E, 0xFF74E36D, 0xFFB65CFF, 0xFFC5D2DE, 0xFFFFD273};
+    private static final String[] TITLES = {"WARDEN", "KADİM EJDERHA", "ATEŞ", "AY", "ANOMALİ", "MANYETİK", "KUM"};
+    private static final String[] SUBTITLES = {"Derinliğin gücü", "Mor kıyametin kanatları", "Alevin hâkimiyeti", "Tutulmanın hükmü", "Gerçekliğin hatası", "Metalin kutupları", "Çölün şekillenen gücü"};
+    private static final PowerClass[] CLASSES = {PowerClass.WARDEN, PowerClass.FLIGHT, PowerClass.FIRE, PowerClass.MOON, PowerClass.ANOMALY, PowerClass.MAGNETIC, PowerClass.SAND};
+    private static final int[] TOP_COLORS = {0xFF07111C, 0xFF08020F, 0xFF5B0B08, 0xFF060A1C, 0xFF05010B, 0xFF121820, 0xFF4C2F13};
+    private static final int[] BOTTOM_COLORS = {0xFF16384B, 0xFF451070, 0xFFFF6B18, 0xFF596B9E, 0xFF291248, 0xFF586875, 0xFFD2A34D};
+    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFCE72FF, 0xFFFFC22E, 0xFFD9E4FF, 0xFFB65CFF, 0xFFC5D2DE, 0xFFFFD273};
 
     private final long openedAt = Util.getMillis();
     private SkinAnalyzer.Result result = SkinAnalyzer.Result.unavailable();
@@ -183,7 +183,7 @@ public final class SkinSelectionScreen extends Screen {
             case 0 -> drawAncientCity(graphics, x, y, w, artBottom - y, now);
             case 1 -> drawDragonStorm(graphics, x, y, w, artBottom - y, now);
             case 2 -> drawLavaCave(graphics, x, y, w, artBottom - y, now);
-            case 3 -> drawForest(graphics, x, y, w, artBottom - y, now);
+            case 3 -> drawMoon(graphics, x, y, w, artBottom - y, now);
             case 4 -> drawAnomalyGlitch(graphics, x, y, w, artBottom - y, now);
             case 5 -> drawMagneticForge(graphics, x, y, w, artBottom - y, now);
             case 6 -> drawDesertTemple(graphics, x, y, w, artBottom - y, now);
@@ -400,27 +400,27 @@ public final class SkinSelectionScreen extends Screen {
         g.fill(cx, cy - 4, cx + 6, cy + 4, 0xFFFFFFB0);
     }
 
-    private void drawForest(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
-        g.fillGradient(x, y, x + w, y + h, 0xFF132A15, 0xFF477A35);
-        int ground = y + h - 18;
-        g.fill(x, ground, x + w, y + h, 0xFF3B2A19);
-        for (int i = 0; i < 5; i++) {
-            int tx = x + 8 + i * Math.max(13, (w - 16) / 5);
-            int th = 26 + (i % 3) * 8;
-            g.fill(tx, ground - th, tx + 6, ground, 0xFF6A4425);
-            g.fill(tx - 8, ground - th - 10, tx + 14, ground - th + 6, 0xFF2F7335);
-            g.fill(tx - 4, ground - th - 17, tx + 10, ground - th - 3, 0xFF4B9848);
+    private void drawMoon(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
+        g.fillGradient(x, y, x + w, y + h, 0xFF040817, 0xFF34456F);
+        int horizon = y + h - 18;
+        g.fill(x, horizon, x + w, y + h, 0xFF080B16);
+        for (int i = 0; i < 8; i++) {
+            int sx = x + 6 + (i * 29) % Math.max(12, w - 12);
+            int sy = y + 7 + (i * 17) % Math.max(12, h - 34);
+            int blink = 135 + (int) ((Math.sin(now / 260.0 + i) + 1.0) * 55.0);
+            g.fill(sx, sy, sx + 2, sy + 2, withAlpha(0xFFFFFFFF, blink));
         }
         int cx = x + w / 2;
         int cy = y + Math.max(35, h / 2);
-        int bob = (int) Math.round(Math.sin(now / 240.0) * 3.0);
-        // Dikenli Tohum görseli: havada net görünen çekirdek ve dikenler.
-        g.fill(cx - 8, cy - 8 + bob, cx + 8, cy + 8 + bob, 0xFF6F4C26);
-        g.fill(cx - 5, cy - 5 + bob, cx + 5, cy + 5 + bob, 0xFF8BC34A);
-        g.fill(cx - 14, cy - 2 + bob, cx - 7, cy + 2 + bob, 0xFFB5E56A);
-        g.fill(cx + 7, cy - 2 + bob, cx + 14, cy + 2 + bob, 0xFFB5E56A);
-        g.fill(cx - 2, cy - 14 + bob, cx + 2, cy - 7 + bob, 0xFFB5E56A);
-        g.fill(cx - 2, cy + 7 + bob, cx + 2, cy + 14 + bob, 0xFFB5E56A);
+        int pulse = 160 + (int) ((Math.sin(now / 210.0) + 1.0) * 45.0);
+        int radius = Math.max(15, Math.min(27, w / 5));
+        g.fill(cx - radius, cy - radius, cx + radius, cy + radius, withAlpha(0xFFE7EDFF, pulse));
+        g.fill(cx - radius / 3, cy - radius - 2, cx + radius + 4, cy + radius + 2, 0xFF10182D);
+        g.outline(cx - radius, cy - radius, radius * 2, radius * 2, 0xFFDCE6FF);
+        int orbit = ClientConfig.get().menuAnimations() ? (int) Math.round(Math.sin(now / 180.0) * 5.0) : 0;
+        g.fill(cx - radius - 13 + orbit, cy - 2, cx - radius - 4 + orbit, cy + 3, 0xFFAFC6FF);
+        g.fill(cx + radius + 4 - orbit, cy - 2, cx + radius + 13 - orbit, cy + 3, 0xFF9474D6);
+        g.fill(cx - 2, horizon - 15, cx + 2, horizon, 0xFF66769F);
     }
 
     private void drawMagneticForge(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {

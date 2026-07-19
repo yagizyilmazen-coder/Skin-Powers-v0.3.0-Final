@@ -12,9 +12,8 @@
   "class.skinpowers.warden": "WARDEN",
   "class.skinpowers.flight": "ANCIENT DRAGON",
   "class.skinpowers.fire": "FIRE",
-  "class.skinpowers.nature": "NATURE",
   "modmenu.nameTranslation.skinpowers": "Skin Powers",
-  "modmenu.descriptionTranslation.skinpowers": "Choose Warden, Ancient Dragon, Fire, Nature, Anomaly, Magnetic or Sand powers from your skin colors.",
+  "modmenu.descriptionTranslation.skinpowers": "Choose Warden, Ancient Dragon, Fire, Moon, Anomaly, Magnetic or Sand powers from your skin colors.",
   "modmenu.summaryTranslation.skinpowers": "Seven skin-based power classes with Awakening and class enchantments.",
   "key.skinpowers.combo": "Combo Mode",
   "class.skinpowers.anomaly": "ANOMALY",
@@ -30,10 +29,6 @@
   "enchantment.skinpowers.kul_yuruyusu": "Ash Walk",
   "enchantment.skinpowers.cehennem_cekirdegi": "Hell Core",
   "enchantment.skinpowers.meteor_dususu": "Meteor Fall",
-  "enchantment.skinpowers.kok_bagi": "Root Bind",
-  "enchantment.skinpowers.can_filizi": "Life Sprout",
-  "enchantment.skinpowers.orman_sicrayisi": "Forest Leap",
-  "enchantment.skinpowers.dikenli_savunma": "Thorny Defense",
   "enchantment.skinpowers.gecikmis_darbe": "Delayed Strike",
   "enchantment.skinpowers.faz_kaymasi": "Phase Shift",
   "enchantment.skinpowers.hata_payi": "Error Margin",
@@ -43,5 +38,10 @@
   "enchantment.skinpowers.kadim_pullar": "Ancient Scales",
   "enchantment.skinpowers.mor_nefes": "Purple Breath",
   "class.skinpowers.magnetic": "MAGNETIC",
-  "class.skinpowers.sand": "SAND"
+  "class.skinpowers.sand": "SAND",
+  "class.skinpowers.moon": "MOON",
+  "enchantment.skinpowers.hilal_yarasi": "Lunar Wound",
+  "enchantment.skinpowers.ay_gozu": "Moon Sight",
+  "enchantment.skinpowers.ay_adimi": "Moon Step",
+  "enchantment.skinpowers.ay_aynasi": "Moon Mirror"
 }

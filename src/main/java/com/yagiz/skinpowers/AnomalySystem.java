@@ -13,8 +13,12 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -31,6 +35,8 @@ public final class AnomalySystem {
     private static final Map<UUID, VoidedTarget> VOIDED = new HashMap<>();
     private static final Map<UUID, FrozenProjectile> FROZEN_PROJECTILES = new HashMap<>();
     private static final List<PendingEcho> ECHOES = new ArrayList<>();
+    private static final List<AnomalyVisual> VISUALS = new ArrayList<>();
+    private static final Map<UUID, Long> COPIED_EXPIRES = new HashMap<>();
     private static boolean reflectingDamage;
 
     private AnomalySystem() {}
@@ -84,7 +90,9 @@ public final class AnomalySystem {
         for (int i = 1; i <= echoCount; i++) {
             double fraction = i / (double) (echoCount + 1);
             Vec3 echoPos = start.add(direction.scale(totalDistance * fraction));
-            ECHOES.add(new PendingEcho(level, player.getUUID(), echoPos, now + 7L + i * 4L, stage, charged || systemCrash));
+            long detonate = now + 7L + i * 4L;
+            spawnGlitchFigure(level, player.getUUID(), echoPos, detonate + 8L, i * 0.4);
+            ECHOES.add(new PendingEcho(level, player.getUUID(), echoPos, detonate, stage, charged || systemCrash));
         }
         moveEntity(player, destination);
         double momentum = 1.05 + stage * 0.12 + (charged ? 0.30 : 0.0);
@@ -107,12 +115,19 @@ public final class AnomalySystem {
         target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, (int) duration, charged ? 3 : 2, false, true, true));
         target.addEffect(new MobEffectInstance(MobEffects.GLOWING, (int) duration, 0, false, false, true));
         level.sendParticles(ParticleTypes.WITCH, target.getX(), target.getY() + 1.0, target.getZ(), charged ? 75 : 45, 0.8, 1.0, 0.8, 0.08);
+        spawnVisibleRing(level, player.getUUID(), target.position().add(0.0, 1.0, 0.0), new Item[]{Items.REDSTONE, Items.ENDER_EYE}, charged ? 12 : 8, 1.25, now + duration);
+        if (target instanceof ServerPlayer reversedPlayer) reversedPlayer.sendSystemMessage(Component.literal("REVERSED"));
         level.playSound(null, target.blockPosition(), SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.PLAYERS, 1.0F, 0.65F);
         data.setCooldown(2, now, Math.max(260, 420 - stage * 40));
         return true;
     }
 
     private static boolean useCopied(ServerPlayer player, PlayerPowerData data, long now, boolean charged) {
+        long expiresAt = COPIED_EXPIRES.getOrDefault(player.getUUID(), data.hasCopiedPower() ? now + 200L : 0L);
+        if (data.hasCopiedPower() && expiresAt <= now) {
+            data.clearCopiedPower();
+            COPIED_EXPIRES.remove(player.getUUID());
+        }
         if (!data.hasCopiedPower()) {
             player.sendSystemMessage(Component.literal("? henüz bir hamle yakalamadı. Yakınındaki rakibin aktif bir güç kullanmasını bekle."));
             return false;
@@ -126,6 +141,7 @@ public final class AnomalySystem {
         }
         String name = PowerCatalog.powerName(copiedClass, copiedLevel);
         boolean exhausted = data.consumeCopiedPowerUse();
+        if (exhausted) COPIED_EXPIRES.remove(player.getUUID());
         data.clearCooldown(copiedLevel, now);
         data.setCooldown(3, now, data.classAwakeningActive(now) ? 180 : 360);
         player.sendSystemMessage(Component.literal(exhausted
@@ -142,6 +158,7 @@ public final class AnomalySystem {
         long duration = 100L + stage * 10L + (charged ? 40L : 0L);
         data.beginAnomalyDamageStore(now + duration);
         level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 55, 0.8, 1.0, 0.8, 0.04);
+        spawnVisibleRing(level, player.getUUID(), player.position().add(0.0, 1.0, 0.0), new Item[]{Items.REDSTONE, Items.ENDER_EYE}, charged ? 10 : 7, 1.15, now + duration);
         player.sendSystemMessage(Component.literal("Hasar Mevcut Değil: " + String.format(java.util.Locale.ROOT, "%.1f", duration / 20.0) + " saniye boyunca hasar depolanıyor."));
         data.setCooldown(4, now, Math.max(700, 980 - stage * 70));
         return true;
@@ -166,6 +183,7 @@ public final class AnomalySystem {
         target.setInvulnerable(true);
         target.setDeltaMovement(Vec3.ZERO);
         level.sendParticles(ParticleTypes.REVERSE_PORTAL, target.getX(), target.getY() + 1.0, target.getZ(), charged ? 100 : 65, 0.8, 1.1, 0.8, 0.18);
+        spawnGlitchFigure(level, player.getUUID(), target.position(), now + duration, 0.0);
         level.playSound(null, target.blockPosition(), SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 0.8F, 1.55F);
         data.setCooldown(5, now, Math.max(700, 980 - stage * 70));
         return true;
@@ -183,6 +201,8 @@ public final class AnomalySystem {
         player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, (int) duration, systemCrash ? 3 : 2, false, true, true));
         player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, (int) duration, systemCrash ? 2 : 1, false, true, true));
         level.sendParticles(ParticleTypes.WITCH, center.x, center.y + 1.0, center.z, 180, 3.0, 1.4, 3.0, 0.14);
+        spawn404Body(level, player.getUUID(), center.add(0.0, 1.0, 0.0), now + duration);
+        player.sendSystemMessage(Component.literal("404 ALANI: GERÇEKLİK BULUNAMADI"));
         level.playSound(null, player.blockPosition(), SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 1.7F, 0.45F);
         ServerNetworking.sendScreenShake(level, center, 42.0, 1.7F, 24);
         data.setCooldown(6, now, Math.max(1900, 2600 - stage * 170));
@@ -317,9 +337,10 @@ public final class AnomalySystem {
             PlayerPowerData observerData = PlayerDataStore.get(observer.getUUID());
             if (observerData.powerClass() != PowerClass.ANOMALY || observerData.unlockedLevel() < 3 || observerData.hasCopiedPower()) continue;
             observerData.setCopiedPower(powerClass, power);
+            COPIED_EXPIRES.put(observer.getUUID(), level.getGameTime() + 200L);
             if (observerData.classAwakeningActive(level.getGameTime())) observerData.setCopiedPowerUses(2);
             observer.sendSystemMessage(Component.literal("Hamle kopyalandı: " + PowerCatalog.powerName(powerClass, power)
-                + (observerData.copiedPowerUses() > 1 ? " • 2 kullanım" : "")));
+                + (observerData.copiedPowerUses() > 1 ? " • 2 kullanım" : "") + " • 10 saniye"));
             level.sendParticles(ParticleTypes.WITCH, observer.getX(), observer.getY() + 1.0, observer.getZ(), 45, 0.7, 0.9, 0.7, 0.08);
             PlayerDataStore.markDirty();
             ServerNetworking.sync(observer);
@@ -331,7 +352,7 @@ public final class AnomalySystem {
             case WARDEN -> power >= 1 && power <= 6;
             case FLIGHT -> power >= 1 && power <= 6;
             case FIRE -> power >= 3 && power <= 5;
-            case NATURE -> power >= 2 && power <= 5;
+            case MOON -> power >= 1 && power <= 6;
             case MAGNETIC, SAND -> power >= 1 && power <= 6;
             default -> false;
         };
@@ -352,6 +373,20 @@ public final class AnomalySystem {
     }
 
     public static void tickPlayer(ServerPlayer player, PlayerPowerData data, ServerLevel level, long now) {
+        if (data.hasCopiedPower()) {
+            long expiresAt = COPIED_EXPIRES.computeIfAbsent(player.getUUID(), ignored -> now + 200L);
+            if (expiresAt <= now) {
+                data.clearCopiedPower();
+                COPIED_EXPIRES.remove(player.getUUID());
+                player.sendSystemMessage(Component.literal("? içindeki kopyalanmış hamle silindi."));
+                PlayerDataStore.markDirty();
+                ServerNetworking.sync(player);
+            }
+        }
+        if ((data.anomalyDamageStoreUntil() > now || data.anomalyChoiceUntil() > now) && data.anomalyStoredDamage() > 0.0F && now % 10L == 0L) {
+            int count = Math.max(3, Math.min(12, 3 + (int) (data.anomalyStoredDamage() / 4.0F)));
+            spawnVisibleRing(level, player.getUUID(), player.position().add(0.0, 1.0, 0.0), new Item[]{Items.REDSTONE, Items.ENDER_EYE}, count, 1.0 + count * 0.035, now + 14L);
+        }
         if (data.anomalyDamageStoreUntil() > 0L && data.anomalyDamageStoreUntil() <= now) {
             data.finishAnomalyDamageStore(now + 240L);
             if (data.anomalyStoredDamage() > 0.0F) {
@@ -383,6 +418,7 @@ public final class AnomalySystem {
         tickVoided();
         tickFrozenProjectiles();
         tickEchoes();
+        tickVisuals();
     }
 
     private static void tickReversed() {
@@ -551,6 +587,10 @@ public final class AnomalySystem {
         ServerNetworking.sendScreenShake(entry.level, target.position(), 22.0, 1.0F, 10);
     }
 
+    public static void afterDeath(LivingEntity entity, DamageSource source) {
+        if (entity instanceof ServerPlayer player) clearPlayer(player);
+    }
+
     public static void clearPlayer(ServerPlayer player) {
         UUID ownerId = player.getUUID();
         REVERSED.entrySet().removeIf(entry -> entry.getValue().owner.equals(ownerId));
@@ -565,6 +605,8 @@ public final class AnomalySystem {
         PowerSystem.clearBorrowedClassEffects(player, data);
         if (data.anomalyBonusHealth() > 0.0D) removeBonusHealth(player, data);
         data.clearCopiedPower();
+        COPIED_EXPIRES.remove(ownerId);
+        discardOwnerVisuals(ownerId);
         data.clearAnomalyStoredDamage();
         data.clearAnomalyReality();
         Iterator<Map.Entry<UUID, FrozenProjectile>> frozenIterator = FROZEN_PROJECTILES.entrySet().iterator();
@@ -585,6 +627,12 @@ public final class AnomalySystem {
         REVERSED.clear();
         VOIDED.clear();
         ECHOES.clear();
+        for (AnomalyVisual visual : VISUALS) {
+            Entity entity = visual.level.getEntity(visual.entityId);
+            if (entity != null) entity.discard();
+        }
+        VISUALS.clear();
+        COPIED_EXPIRES.clear();
     }
 
     static ServerPlayer findRealityOwner(ServerLevel level, Vec3 position, UUID attackOwner) {
@@ -669,6 +717,69 @@ public final class AnomalySystem {
         }
     }
 
+    private static void spawnGlitchFigure(ServerLevel level, UUID owner, Vec3 base, long expireTick, double phase) {
+        Item[] items = {Items.ENDER_EYE, Items.REDSTONE, Items.AMETHYST_SHARD, Items.ECHO_SHARD};
+        double[][] offsets = {{0,1.9,0},{0,1.35,0},{-0.32,1.28,0},{0.32,1.28,0},{-0.25,0.72,0},{0.25,0.72,0},{-0.18,0.15,0},{0.18,0.15,0}};
+        for (int i = 0; i < offsets.length; i++) {
+            Vec3 pos = base.add(offsets[i][0], offsets[i][1], offsets[i][2]);
+            spawnVisual(level, owner, pos, items[(i + (int) phase) % items.length], expireTick);
+        }
+    }
+
+    private static void spawn404Body(ServerLevel level, UUID owner, Vec3 center, long expireTick) {
+        int[][] pixels = {
+            {-5,2},{-5,1},{-5,0},{-4,0},{-3,0},{-3,1},{-3,2},
+            {-1,2},{0,2},{1,2},{-1,1},{1,1},{-1,0},{0,0},{1,0},
+            {3,2},{3,1},{3,0},{4,0},{5,0},{5,1},{5,2}
+        };
+        for (int i = 0; i < pixels.length; i++) {
+            Item item = i % 3 == 0 ? Items.ENDER_EYE : (i % 2 == 0 ? Items.REDSTONE : Items.AMETHYST_SHARD);
+            spawnVisual(level, owner, center.add(pixels[i][0] * 0.42, pixels[i][1] * 0.55, 0.0), item, expireTick);
+        }
+    }
+
+    private static void spawnVisibleRing(ServerLevel level, UUID owner, Vec3 center, Item[] items, int count, double radius, long expireTick) {
+        for (int i = 0; i < count; i++) {
+            double angle = Math.PI * 2.0 * i / Math.max(1, count);
+            Vec3 pos = center.add(Math.cos(angle) * radius, Math.sin(angle * 2.0) * 0.18, Math.sin(angle) * radius);
+            spawnVisual(level, owner, pos, items[i % items.length], expireTick);
+        }
+    }
+
+    private static void spawnVisual(ServerLevel level, UUID owner, Vec3 position, Item item, long expireTick) {
+        ItemEntity visual = new ItemEntity(level, position.x, position.y, position.z, new ItemStack(item));
+        visual.setNoGravity(true);
+        visual.setDeltaMovement(Vec3.ZERO);
+        visual.setInvulnerable(true);
+        visual.setNeverPickUp();
+        visual.setUnlimitedLifetime();
+        level.addFreshEntity(visual);
+        VISUALS.add(new AnomalyVisual(level, owner, visual.getUUID(), expireTick));
+    }
+
+    private static void tickVisuals() {
+        Iterator<AnomalyVisual> iterator = VISUALS.iterator();
+        while (iterator.hasNext()) {
+            AnomalyVisual visual = iterator.next();
+            Entity entity = visual.level.getEntity(visual.entityId);
+            if (entity == null || entity.isRemoved() || visual.level.getGameTime() >= visual.expireTick) {
+                if (entity != null) entity.discard();
+                iterator.remove();
+            }
+        }
+    }
+
+    private static void discardOwnerVisuals(UUID owner) {
+        Iterator<AnomalyVisual> iterator = VISUALS.iterator();
+        while (iterator.hasNext()) {
+            AnomalyVisual visual = iterator.next();
+            if (!visual.owner.equals(owner)) continue;
+            Entity entity = visual.level.getEntity(visual.entityId);
+            if (entity != null) entity.discard();
+            iterator.remove();
+        }
+    }
+
     private static Vec3 findSafeStepPosition(ServerLevel level, Vec3 candidate) {
         BlockPos base = BlockPos.containing(candidate);
         for (int dy = 2; dy >= -3; dy--) {
@@ -720,6 +831,7 @@ public final class AnomalySystem {
         }
     }
 
+    private record AnomalyVisual(ServerLevel level, UUID owner, UUID entityId, long expireTick) {}
     private record PendingEcho(ServerLevel level, UUID owner, Vec3 position, long detonateTick, int stage, boolean empowered) {}
     private record ReversedTarget(ServerLevel level, UUID owner, UUID target, long expireTick) {}
     private record VoidedTarget(ServerLevel level, UUID owner, UUID target, LivingEntity targetEntity, Vec3 anchor, long expireTick,

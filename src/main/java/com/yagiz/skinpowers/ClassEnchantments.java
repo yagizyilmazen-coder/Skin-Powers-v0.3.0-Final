@@ -24,10 +24,10 @@ public final class ClassEnchantments {
     public static final ResourceKey<Enchantment> HELL_CORE = key("cehennem_cekirdegi");
     public static final ResourceKey<Enchantment> METEOR_FALL = key("meteor_dususu");
 
-    public static final ResourceKey<Enchantment> ROOT_BIND = key("kok_bagi");
-    public static final ResourceKey<Enchantment> LIFE_SPROUT = key("can_filizi");
-    public static final ResourceKey<Enchantment> FOREST_LEAP = key("orman_sicrayisi");
-    public static final ResourceKey<Enchantment> THORNY_DEFENSE = key("dikenli_savunma");
+    public static final ResourceKey<Enchantment> LUNAR_WOUND = key("hilal_yarasi");
+    public static final ResourceKey<Enchantment> MOON_SIGHT = key("ay_gozu");
+    public static final ResourceKey<Enchantment> MOON_STEP = key("ay_adimi");
+    public static final ResourceKey<Enchantment> MOON_MIRROR = key("ay_aynasi");
 
     public static final ResourceKey<Enchantment> DELAYED_STRIKE = key("gecikmis_darbe");
     public static final ResourceKey<Enchantment> PHASE_SHIFT = key("faz_kaymasi");
@@ -50,10 +50,10 @@ public final class ClassEnchantments {
         add("kul_yuruyusu", ASH_WALK);
         add("cehennem_cekirdegi", HELL_CORE);
         add("meteor_dususu", METEOR_FALL);
-        add("kok_bagi", ROOT_BIND);
-        add("can_filizi", LIFE_SPROUT);
-        add("orman_sicrayisi", FOREST_LEAP);
-        add("dikenli_savunma", THORNY_DEFENSE);
+        add("hilal_yarasi", LUNAR_WOUND);
+        add("ay_gozu", MOON_SIGHT);
+        add("ay_adimi", MOON_STEP);
+        add("ay_aynasi", MOON_MIRROR);
         add("gecikmis_darbe", DELAYED_STRIKE);
         add("faz_kaymasi", PHASE_SHIFT);
         add("hata_payi", ERROR_MARGIN);

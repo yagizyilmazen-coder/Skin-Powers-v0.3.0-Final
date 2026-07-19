@@ -1,8 +1,8 @@
-# Skin Powers 1.2.1 Özellik Durumu
+# Skin Powers 1.3.0 Özellik Durumu
 
-- 7 oynanabilir sınıf: Warden, Kadim Ejderha, Ateş, Doğa, Anomali, Manyetik ve Kum.
-- Manyetik ve Kum sınıflarında 6'şar aktif güç, kombo ve ayrı Uyanış Formu bulunur.
-- Kum saldırıları gerçek kum/kumtaşı gövdeleri kullanır; ekran kumu 4 saniye veya suya girene kadar sürer.
-- Warden Derinlik Pususu karakteri, zırhı ve eldeki eşyaları birlikte gizler.
-- 20 sınıf büyüsü survival ganimet/takaslarında bulunabilir ve normal örste basılır.
-- Bot ve düello sistemleri kaldırılmıştır; yönetilebilir dünya olayları korunur.
+- 7 oynanabilir sınıf: Warden, Kadim Ejderha, Ateş, Ay, Anomali, Manyetik ve Kum.
+- Ay sınıfı: 6 aktif güç, Tam Tutulma Uyanışı ve 4 sınıf büyüsü.
+- Anomali 2.0: görünür hata kopyaları, 10 saniyelik güç kopyalama ve büyük 404 alan gövdesi.
+- Dünya olayları: Sculk Uyanışı, Meteor Fırtınası, Gökyüzü Yarığı, Kızıl Ay ve Gerçeklik Çatlağı.
+- Eski Doğa verisi Ay sınıfına otomatik taşınır; Doğa seçimi, komutu, olayı ve büyüleri aktif değildir.
+- Manyetik/Kum dengelemesi ve ölümde görsel temizleme korunur.

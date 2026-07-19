@@ -12,9 +12,8 @@
   "class.skinpowers.warden": "WARDEN",
   "class.skinpowers.flight": "KADİM EJDERHA",
   "class.skinpowers.fire": "ATEŞ",
-  "class.skinpowers.nature": "DOĞA",
   "modmenu.nameTranslation.skinpowers": "Skin Powers",
-  "modmenu.descriptionTranslation.skinpowers": "Skin renklerinden Warden, Kadim Ejderha, Ateş, Doğa, Anomali, Manyetik ve Kum güçlerini seç.",
+  "modmenu.descriptionTranslation.skinpowers": "Skin renklerinden Warden, Kadim Ejderha, Ateş, Ay, Anomali, Manyetik ve Kum güçlerini seç.",
   "modmenu.summaryTranslation.skinpowers": "Skin tabanlı yedi güç sınıfı, Uyanış ve sınıf büyüleri.",
   "key.skinpowers.combo": "Kombo Modu",
   "class.skinpowers.anomaly": "ANOMALİ",
@@ -30,10 +29,6 @@
   "enchantment.skinpowers.kul_yuruyusu": "Kül Yürüyüşü",
   "enchantment.skinpowers.cehennem_cekirdegi": "Cehennem Çekirdeği",
   "enchantment.skinpowers.meteor_dususu": "Meteor Düşüşü",
-  "enchantment.skinpowers.kok_bagi": "Kök Bağı",
-  "enchantment.skinpowers.can_filizi": "Can Filizi",
-  "enchantment.skinpowers.orman_sicrayisi": "Orman Sıçrayışı",
-  "enchantment.skinpowers.dikenli_savunma": "Dikenli Savunma",
   "enchantment.skinpowers.gecikmis_darbe": "Gecikmiş Darbe",
   "enchantment.skinpowers.faz_kaymasi": "Faz Kayması",
   "enchantment.skinpowers.hata_payi": "Hata Payı",
@@ -43,5 +38,10 @@
   "enchantment.skinpowers.kadim_pullar": "Kadim Pullar",
   "enchantment.skinpowers.mor_nefes": "Mor Nefes",
   "class.skinpowers.magnetic": "MANYETİK",
-  "class.skinpowers.sand": "KUM"
+  "class.skinpowers.sand": "KUM",
+  "class.skinpowers.moon": "AY",
+  "enchantment.skinpowers.hilal_yarasi": "Hilal Yarası",
+  "enchantment.skinpowers.ay_gozu": "Ay Gözü",
+  "enchantment.skinpowers.ay_adimi": "Ay Adımı",
+  "enchantment.skinpowers.ay_aynasi": "Ay Aynası"
 }

@@ -2,7 +2,6 @@ package com.yagiz.skinpowers;
 
 public final class PowerCatalog {
     public static final int[] XP_COSTS = {5, 15, 30, 40, 50};
-    public static final int[] NATURE_XP_COSTS = {10, 20, 30, 40, 50};
     public static final int[] DRAGON_XP_COSTS = {10, 20, 30, 40, 55, 70};
     public static final int[] ANOMALY_XP_COSTS = {10, 20, 30, 40, 50, 70};
     public static final int[] EXPANSION_XP_COSTS = {10, 20, 30, 40, 55, 70};
@@ -13,7 +12,7 @@ public final class PowerCatalog {
         {"Warden Zırhı", "Yer Sarsıntısı", "Sonik Patlama", "Derinlik Pususu", "Warden Uyanışı", "Şarj Et Beni Antik Şehir"},
         {"Kuyruk Kasırgası", "Ejderha Nefesi", "Kadim Pullar", "Avcı Pençesi", "Kadim Kükreme", "Ejderha Hükümdarı"},
         {"Ateş Bağışıklığı", "Alevli Yakın Dövüş", "Ateş Çemberi", "Cehennem Küresi", "Meteor Yağmuru", "-"},
-        {"Doğanın Canı", "Dikenli Tohum", "Sarmaşık Kapanı", "Yaşam Ağacı", "Kadim Orman Hükmü", "-"},
+        {"Hilal Kesik", "Ay Adımı", "Yerçekimi Baskısı", "Ay Aynası", "Tutulma Alanı", "Dolunay Canavarı"},
         {"Kırık Adım", "Tersine Çevir", "?", "Hasar Mevcut Değil", "Varlıktan Çıkar", "404: Gerçeklik Bulunamadı"},
         {"Manyetik Çekim", "Kutup İtişi", "Demir Yumruk", "Metal Fırtınası", "Ray Topu", "Manyetik Kafes"},
         {"Kum Mermisi", "Kum Dalgası", "Çöl Aynası", "Kum Zırhı", "Kum Mezarı", "Kum Devleri"}
@@ -46,12 +45,12 @@ public final class PowerCatalog {
             ""
         },
         {
-            "Doğal zeminde iyileşir; kritik cana düşünce uzun beklemeli kurtarma tetiklenir.",
-            "Görünür dikenli tohumu fırlatır; hedefi zehirleyip kökler.",
-            "Bakılan yerde kalın kökler çıkarır; düşmanları sabitler ve ezer.",
-            "Büyük geçici ağaç dostları iyileştirir, ek kalp verir ve mermileri engeller.",
-            "Dev kök dalgası ilerler; sonunda Kadim Ağaç yükselip geniş alanı parçalar.",
-            ""
+            "Gidip geri dönen büyük, görünür bir hilal fırlatır; dönüşte yeniden vurabilir.",
+            "Güvenli bir noktaya ay ışığıyla sıçrar; geride patlayan bir ay görüntüsü bırakır.",
+            "Bir alanın yerçekimini artırır; düşmanları yere bastırır ve mermileri aşağı büker.",
+            "Dönen ay diski mermileri yansıtır; tekrar kullanılırsa güçlü hilal olarak fırlatılır.",
+            "Geçici tutulma alanında sen hızlanır, rakipler zayıflar ve Ay güçleri büyür.",
+            "Büyük görünür ay yaratığı iki pençe darbesi ve güçlü bir yere çarpma saldırısı yapar."
         },
         {
             "Koşarken veya havada gerçekliği yararak ileri sıçrar; yolundakilere vurur ve gecikmeli patlayan bozuk kopyalar bırakır.",
@@ -82,8 +81,8 @@ public final class PowerCatalog {
     private PowerCatalog() {}
 
     public static int maxLevel(PowerClass powerClass) {
-        return powerClass == PowerClass.WARDEN || powerClass == PowerClass.FLIGHT || powerClass == PowerClass.ANOMALY
-            || powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.SAND ? 6 : 5;
+        return powerClass == PowerClass.WARDEN || powerClass == PowerClass.FLIGHT || powerClass == PowerClass.MOON
+            || powerClass == PowerClass.ANOMALY || powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.SAND ? 6 : 5;
     }
 
     public static String powerName(PowerClass powerClass, int oneBasedLevel) {
@@ -106,8 +105,8 @@ public final class PowerCatalog {
         if (powerClass == PowerClass.ANOMALY) return ANOMALY_XP_COSTS[level - 1];
         if (powerClass == PowerClass.FLIGHT) return DRAGON_XP_COSTS[level - 1];
         if (powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.SAND) return EXPANSION_XP_COSTS[level - 1];
-        int[] costs = powerClass == PowerClass.NATURE ? NATURE_XP_COSTS : XP_COSTS;
-        return costs[level - 1];
+        if (powerClass == PowerClass.MOON) return EXPANSION_XP_COSTS[level - 1];
+        return XP_COSTS[level - 1];
     }
 
     public static int comboStarterPower(PowerClass powerClass) {
@@ -115,7 +114,7 @@ public final class PowerCatalog {
             case WARDEN -> 2;
             case FLIGHT -> 2;
             case FIRE -> 4;
-            case NATURE -> 3;
+            case MOON -> 3;
             case MAGNETIC -> 4;
             case SAND -> 2;
             default -> 0;
@@ -127,7 +126,7 @@ public final class PowerCatalog {
             case WARDEN -> 3;
             case FLIGHT -> 5;
             case FIRE -> 5;
-            case NATURE -> 2;
+            case MOON -> 1;
             case MAGNETIC -> 5;
             case SAND -> 6;
             default -> 0;
@@ -139,7 +138,7 @@ public final class PowerCatalog {
             case WARDEN -> "Sonik Fay";
             case FLIGHT -> "Mor Ejderha Fırtınası";
             case FIRE -> "Cehennem Felaketi";
-            case NATURE -> "Diken Ormanı";
+            case MOON -> "Tutulma Hükmü";
             case MAGNETIC -> "Kutup Kıyameti";
             case SAND -> "Çöl Ezicisi";
             default -> "-";

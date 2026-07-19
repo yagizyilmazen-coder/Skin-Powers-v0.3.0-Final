@@ -33,6 +33,7 @@ public final class ServerNetworking {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             PowerSystem.handleDisconnect(handler.player);
             AnomalySystem.handleDisconnect(handler.player);
+            MoonPowerSystem.handleDisconnect(handler.player);
         });
     }
 

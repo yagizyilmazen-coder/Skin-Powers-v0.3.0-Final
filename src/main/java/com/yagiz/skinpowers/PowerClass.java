@@ -5,7 +5,7 @@ public enum PowerClass {
     WARDEN("Warden"),
     FLIGHT("Kadim Ejderha"),
     FIRE("Ateş"),
-    NATURE("Doğa"),
+    MOON("Ay"),
     ANOMALY("Anomali"),
     MAGNETIC("Manyetik"),
     SAND("Kum");
@@ -26,6 +26,7 @@ public enum PowerClass {
         // 1.0.3 ve önceki kayıtlardaki Zaman sınıfı, 1.0.4'te Anomaliye taşınır.
         if (normalized.equals("TIME") || normalized.equals("ZAMAN")) return ANOMALY;
         if (normalized.equals("DRAGON") || normalized.equals("EJDERHA") || normalized.equals("KADIM_EJDERHA")) return FLIGHT;
+        if (normalized.equals("NATURE") || normalized.equals("DOGA") || normalized.equals("DOĞA") || normalized.equals("AY") || normalized.equals("MOON")) return MOON;
         if (normalized.equals("MAGNET") || normalized.equals("MANYETIK") || normalized.equals("MANYETİK")) return MAGNETIC;
         if (normalized.equals("KUM") || normalized.equals("SAND") || normalized.equals("COL")) return SAND;
         try {

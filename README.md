@@ -1,116 +1,72 @@
-# Skin Powers 1.2.1
+# Skin Powers 1.3.0
 
-Minecraft 26.1.2 için Fabric güç modu. Oyuncunun skin renklerini inceleyerek Warden, Kadim Ejderha, Ateş, Doğa ve Anomali sınıflarını önerir.
+Minecraft 26.1.2 için Fabric güç modu. Skin renklerini inceleyerek Warden, Kadim Ejderha, Ateş, Ay, Anomali, Manyetik ve Kum sınıflarını önerir.
 
-## 1.2.1 — Manyetik ve Kum
+## 1.3.0 — Ay ve Anomali 2.0
 
-Yeni sınıflar:
+### Ay sınıfı
 
-- **Manyetik:** çekme-itme, metal yumruk, metal fırtınası, ray topu ve manyetik kafes.
-- **Kum:** gerçek Minecraft kum/kumtaşı gövdeli mermi, dalga, aynalar, zırh, mezar ve dev kollar.
-- Kumla vurulan oyuncunun ekranı 4 saniye kumla kaplanır; suya girince hemen temizlenir.
-- Warden Derinlik Pususu artık zırhı ve eldeki eşyaları da güvenli biçimde gizler.
+1. **Hilal Kesik:** Gidip geri dönen görünür hilal.
+2. **Ay Adımı:** Güvenli noktaya sıçrama ve geride patlayan ay görüntüsü.
+3. **Yerçekimi Baskısı:** Düşmanları yere bastıran ve mermileri aşağı büken alan.
+4. **Ay Aynası:** Mermileri yansıtan disk; ikinci kullanımda hilal olarak fırlatılır.
+5. **Tutulma Alanı:** Ay oyuncusunu güçlendirip rakipleri zayıflatan alan.
+6. **Dolunay Canavarı:** İki pençe darbesi ve final yere çarpması yapan büyük görünür yaratık.
 
-Sınıf test komutları:
+**Uyanış:** Tam Tutulma.
+
+### Anomali 2.0
+
+- Kırık Adım gerçek görünür bozuk kopyalar bırakır.
+- Tersine Çevir hedefte görünür hata halkası ve `REVERSED` bildirimi oluşturur.
+- `?`, yakınında kullanılan uygun gücü 10 saniye saklar.
+- Hasar Mevcut Değil depolanan hasarı görünür kırmızı hata parçalarıyla gösterir.
+- Varlıktan Çıkar hedefin bulunduğu yerde görünür bozulma bedeni bırakır.
+- 404 alanının merkezinde büyük, gerçek eşya gövdeli `404` işareti bulunur.
+
+### Dünya olayı
 
 ```text
-/skinpower degistir manyetik
-/skinpower degistir kum
+/skinpower olay ay
 ```
 
+**Kızıl Ay** sırasında yerçekimi ağırlaşır, geçici ay sütunları yükselir ve Ay sınıfı güçlenir. Etkinlik yapıları süre sonunda temizlenir.
 
-## Temel özellikler
-- Beş sınıf ve her sınıf için altı güç seviyesi.
-- Ustalık, XP, kombo ve sınıfa özel Uyanış sistemi.
-- Warden için Derinlik Pususu ve 30 blok titreşim görüşü.
-- Otomatik veya yönetici komutuyla başlatılabilen dünya olayları.
-- Her sınıfa özel dört büyü; toplam 20 sınıf büyüsü.
-- Büyülü kitaplar normal Minecraft örsünde uygun eşyaya basılır.
-- Normal Minecraft büyüleri aynı eşyada kalabilir.
-- Bir eşyada en fazla bir Skin Powers sınıf büyüsü bulunabilir.
-- Özel etki yalnızca büyünün ait olduğu sınıf seçiliyken çalışır.
-- PvP botu ve düello sistemi bulunmaz.
+## Yedi sınıf
 
-## Sınıf büyüleri
+- Warden
+- Kadim Ejderha
+- Ateş
+- Ay
+- Anomali
+- Manyetik
+- Kum
 
-### Warden
-- `Yankı Darbesi` — kılıç veya balta
-- `Derinlik Adımı` — bot
-- `Sculk Zırhı` — göğüslük
-- `Antik Çöküş` — gürz
+## Ay sınıf büyüleri
 
-### Ateş
-- `Kor Birikimi` — kılıç veya balta
-- `Kül Yürüyüşü` — bot
-- `Cehennem Çekirdeği` — göğüslük
-- `Meteor Düşüşü` — gürz
+- `Hilal Yarası` — kılıç veya balta
+- `Ay Gözü` — miğfer
+- `Ay Adımı` — bot
+- `Ay Aynası` — göğüslük
 
-### Doğa
-- `Kök Bağı` — kılıç veya balta
-- `Can Filizi` — miğfer
-- `Orman Sıçrayışı` — bot
-- `Dikenli Savunma` — göğüslük
-
-### Anomali
-- `Gecikmiş Darbe` — kılıç veya balta
-- `Faz Kayması` — yay, arbalet veya üçlü mızrak
-- `Hata Payı` — göğüslük
-- `Bozuk Yörünge` — yay veya arbalet
-
-### Kadim Ejderha
-- `Ejderha Pençesi` — kılıç veya balta
-- `Mor Kanat` — bot
-- `Kadim Pullar` — göğüslük
-- `Mor Nefes` — yay veya arbalet
-
-## Büyülü kitap testi
-
-Büyüler gerçek Minecraft büyüleri olarak veri paketinde kayıtlıdır. Yönetici/test komutu gerçek bir büyülü kitap verir:
+Büyülü kitap test komutları:
 
 ```text
-/skinpower buyu kitap yanki_darbesi
-/skinpower buyu kitap derinlik_adimi
-/skinpower buyu kitap sculk_zirhi
-/skinpower buyu kitap antik_cokus
-/skinpower buyu kitap kor_birikimi
-/skinpower buyu kitap kul_yuruyusu
-/skinpower buyu kitap cehennem_cekirdegi
-/skinpower buyu kitap meteor_dususu
-/skinpower buyu kitap kok_bagi
-/skinpower buyu kitap can_filizi
-/skinpower buyu kitap orman_sicrayisi
-/skinpower buyu kitap dikenli_savunma
-/skinpower buyu kitap gecikmis_darbe
-/skinpower buyu kitap faz_kaymasi
-/skinpower buyu kitap hata_payi
-/skinpower buyu kitap bozuk_yorunge
-/skinpower buyu kitap ejderha_pencesi
-/skinpower buyu kitap mor_kanat
-/skinpower buyu kitap kadim_pullar
-/skinpower buyu kitap mor_nefes
+/skinpower buyu kitap hilal_yarasi
+/skinpower buyu kitap ay_gozu
+/skinpower buyu kitap ay_adimi
+/skinpower buyu kitap ay_aynasi
 ```
 
-Kitabı aldıktan sonra normal örs kullanılır:
+Kitaplar survival sandık ganimetlerinde ve kütüphaneci takaslarında bulunabilir; normal örste uygun eşyaya basılır.
+
+## Temel komutlar
 
 ```text
-Uygun eşya + Sınıf Büyülü Kitabı = Sınıf büyülü eşya
-```
-
-## Diğer temel komutlar
-```text
-/skinpower degistir <warden|ejderha|ates|doga|anomali>
-/skinpower olay <sculk|meteor|gok|doga|anomali|rastgele>
+/skinpower degistir <warden|ejderha|ates|ay|anomali|manyetik|kum>
+/skinpower olay <sculk|meteor|gok|ay|anomali|rastgele>
 /skinpower olay durum
 /skinpower olay durdur
 ```
 
-Dünya olayı, büyü kitabı ve yönetim komutları moderatör yetkisi gerektirir.
-
-## 1.1.1 düzeltmeleri
-
-- Skin tarama üç kez dener; UUID sorgusu başarısız olsa bile oyuncu adıyla devam eder.
-- Eski başarılı skin sonucu kalıcı tutulmaz; sınıf ekranı her açıldığında gerçek skin yeniden istenir.
-- Skin alınamazsa sahte Steve çizilmez, "Skin bekleniyor" göstergesi görünür.
-- Sınıf büyülü kitapları survival sandık ganimetlerinde ve kütüphaneci takaslarında bulunabilir.
-- Meteor ve etkin büyü saldırıları gerçek eşya/blok gövdeleriyle görünür.
-- Antik Çöküş ve Kor Birikimi güçlendirildi ve daha belirgin hâle getirildi.
+Eski kayıtlardaki Doğa sınıfı veri kaybetmeden Ay sınıfına dönüştürülür. PvP botu ve düello sistemi bulunmaz.

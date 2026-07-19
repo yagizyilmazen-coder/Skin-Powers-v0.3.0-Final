@@ -107,20 +107,15 @@ public final class AwakeningSystem {
                     }
                 }
             }
-            case NATURE -> {
-                player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 30, 2, false, false, true));
+            case MOON -> {
+                player.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, 2, false, false, true));
                 player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 2, false, false, true));
-                player.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 30, 1, false, false, true));
-                if (now % 8L == 0L) level.sendParticles(ParticleTypes.HAPPY_VILLAGER, player.getX(), player.getY() + 0.6, player.getZ(), 20, 1.15, 0.85, 1.15, 0.035);
-                if (now % 20L == 0L) {
-                    for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(9.0))) {
-                        if (target == player || PowerSystem.isProtectedAlly(player, target)) target.heal(2.0F);
-                        else {
-                            target.hurtServer(level, level.damageSources().playerAttack(player), 5.0F);
-                            target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 35, 3, false, true, true));
-                        }
-                    }
+                player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 30, 0, false, false, true));
+                if (now % 4L == 0L) {
+                    level.sendParticles(ParticleTypes.END_ROD, player.getX(), player.getY() + 1.0, player.getZ(), 24, 1.35, 1.15, 1.35, 0.045);
+                    level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 12, 1.0, 0.9, 1.0, 0.025);
                 }
+                if (now % 18L == 0L) pulseEnemies(player, level, 10.5, 8.0F, 0.85, -0.10, ParticleTypes.END_ROD);
             }
             case ANOMALY -> {
                 player.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, 3, false, false, true));
@@ -188,7 +183,7 @@ public final class AwakeningSystem {
             float damage = switch (powerClass) {
                 case WARDEN -> 20.0F;
                 case FIRE -> 19.0F;
-                case NATURE -> 13.0F;
+                case MOON -> 20.0F;
                 case ANOMALY -> 18.0F;
                 case FLIGHT -> 18.0F;
                 default -> 0.0F;
@@ -223,7 +218,7 @@ public final class AwakeningSystem {
         var particle = switch (powerClass) {
             case WARDEN -> ParticleTypes.SCULK_SOUL;
             case FIRE -> ParticleTypes.FLAME;
-            case NATURE -> ParticleTypes.HAPPY_VILLAGER;
+            case MOON -> ParticleTypes.END_ROD;
             case ANOMALY -> ParticleTypes.WITCH;
             case FLIGHT -> ParticleTypes.REVERSE_PORTAL;
             case MAGNETIC -> ParticleTypes.CRIT;
@@ -237,7 +232,7 @@ public final class AwakeningSystem {
         return switch (powerClass) {
             case WARDEN -> "Antik Şehir Uyanışı";
             case FIRE -> "Cehennem Çekirdeği";
-            case NATURE -> "Kadim Orman";
+            case MOON -> "Tam Tutulma";
             case ANOMALY -> "Sistem Çökmesi";
             case FLIGHT -> "Mor Kıyamet";
             case MAGNETIC -> "Manyetik Çekirdek";
@@ -250,7 +245,7 @@ public final class AwakeningSystem {
         return switch (powerClass) {
             case WARDEN -> 0.65F;
             case FIRE -> 0.82F;
-            case NATURE -> 1.15F;
+            case MOON -> 1.35F;
             case ANOMALY -> 0.55F;
             case FLIGHT -> 0.72F;
             case MAGNETIC -> 0.48F;

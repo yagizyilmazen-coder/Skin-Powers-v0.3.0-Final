@@ -29,6 +29,7 @@ public final class WorldEventSystem {
     private static ActiveEvent active;
     private static long nextAutomaticEvent;
     private static final List<PendingStrike> STRIKES = new ArrayList<>();
+    private static final List<TemporaryMoonPillar> MOON_PILLARS = new ArrayList<>();
 
     private WorldEventSystem() {}
 
@@ -51,6 +52,7 @@ public final class WorldEventSystem {
         }
 
         tickStrikes();
+        tickMoonPillars();
         if (active == null) return;
         long levelNow = active.level.getGameTime();
         if (levelNow >= active.endsAt) {
@@ -63,7 +65,7 @@ public final class WorldEventSystem {
     public static boolean startNearPlayer(ServerPlayer player, String requested) {
         EventType type = EventType.fromCommand(requested, ((ServerLevel) player.level()).getRandom());
         if (type == null) {
-            player.sendSystemMessage(Component.literal("Bilinmeyen olay. sculk, meteor, gok, doga, anomali veya rastgele kullan."));
+            player.sendSystemMessage(Component.literal("Bilinmeyen olay. sculk, meteor, gok, ay, anomali veya rastgele kullan."));
             return false;
         }
         return start(player.level().getServer(), type, (ServerLevel) player.level(), player.position(), true);
@@ -98,6 +100,7 @@ public final class WorldEventSystem {
         active = null;
         for (PendingStrike strike : STRIKES) clearStrikeVisual(strike);
         STRIKES.clear();
+        clearMoonPillars();
     }
 
     private static void tickActive(ActiveEvent event, long now) {
@@ -135,18 +138,31 @@ public final class WorldEventSystem {
                 }
                 if (now % 5L == 0L) level.sendParticles(ParticleTypes.CLOUD, event.center.x, event.center.y + 5.0, event.center.z, 28, 15.0, 5.0, 15.0, 0.08);
             }
-            case ANCIENT_BLOOM -> {
+            case RED_MOON -> {
                 if (now % 20L == 0L) {
                     for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, area)) {
-                        if (entity instanceof ServerPlayer player) {
-                            player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 45, 0, false, false, true));
+                        if (entity instanceof ServerPlayer player && PlayerDataStore.get(player.getUUID()).powerClass() == PowerClass.MOON) {
+                            player.addEffect(new MobEffectInstance(MobEffects.SPEED, 45, 1, false, false, true));
+                            player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 45, 0, false, false, true));
                         } else {
+                            Vec3 motion = entity.getDeltaMovement();
+                            entity.setDeltaMovement(motion.x * 0.72, Math.min(motion.y - 0.32, -0.25), motion.z * 0.72);
                             entity.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 45, 1, false, false, true));
-                            entity.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 45, 0, false, false, true));
+                            if (entity.getHealth() <= entity.getMaxHealth() * 0.40F) {
+                                entity.addEffect(new MobEffectInstance(MobEffects.GLOWING, 45, 0, false, false, true));
+                            }
                         }
                     }
                 }
-                if (now % 5L == 0L) level.sendParticles(ParticleTypes.HAPPY_VILLAGER, event.center.x, event.center.y + 1.0, event.center.z, 22, 15.0, 2.5, 15.0, 0.04);
+                for (Projectile projectile : level.getEntitiesOfClass(Projectile.class, area)) {
+                    Vec3 motion = projectile.getDeltaMovement();
+                    projectile.setDeltaMovement(motion.x * 0.92, motion.y - 0.08, motion.z * 0.92);
+                }
+                if (now % 80L == 0L) spawnMoonPillar(event, now);
+                if (now % 5L == 0L) {
+                    level.sendParticles(ParticleTypes.END_ROD, event.center.x, event.center.y + 6.0, event.center.z, 34, 15.0, 6.0, 15.0, 0.035);
+                    level.sendParticles(ParticleTypes.REVERSE_PORTAL, event.center.x, event.center.y + 1.0, event.center.z, 20, 15.0, 2.0, 15.0, 0.025);
+                }
             }
             case REALITY_TEAR -> {
                 for (Projectile projectile : level.getEntitiesOfClass(Projectile.class, area)) {
@@ -250,10 +266,65 @@ public final class WorldEventSystem {
         }
     }
 
+    private static void spawnMoonPillar(ActiveEvent event, long now) {
+        RandomSource random = event.level.getRandom();
+        double angle = random.nextDouble() * Math.PI * 2.0;
+        double distance = 4.0 + random.nextDouble() * (RADIUS - 6.0);
+        int x = (int) Math.floor(event.center.x + Math.cos(angle) * distance);
+        int z = (int) Math.floor(event.center.z + Math.sin(angle) * distance);
+        int y = event.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        BlockPos base = new BlockPos(x, y, z);
+        List<BlockPos> placed = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            BlockPos pos = base.above(i);
+            if (!event.level.getBlockState(pos).isAir()) break;
+            BlockState state = switch (i % 3) {
+                case 0 -> Blocks.AMETHYST_BLOCK.defaultBlockState();
+                case 1 -> Blocks.CALCITE.defaultBlockState();
+                default -> Blocks.PACKED_ICE.defaultBlockState();
+            };
+            event.level.setBlockAndUpdate(pos, state);
+            placed.add(new BlockPos(pos.getX(), pos.getY(), pos.getZ()));
+        }
+        if (!placed.isEmpty()) {
+            MOON_PILLARS.add(new TemporaryMoonPillar(event.level, placed, now + 70L));
+            event.level.sendParticles(ParticleTypes.END_ROD, x + 0.5, y + 2.0, z + 0.5, 45, 0.8, 2.0, 0.8, 0.05);
+            event.level.playSound(null, base, SoundEvents.END_PORTAL_SPAWN, SoundSource.AMBIENT, 1.0F, 0.75F);
+        }
+    }
+
+    private static void tickMoonPillars() {
+        Iterator<TemporaryMoonPillar> iterator = MOON_PILLARS.iterator();
+        while (iterator.hasNext()) {
+            TemporaryMoonPillar pillar = iterator.next();
+            if (pillar.level.getGameTime() < pillar.expireTick) continue;
+            for (BlockPos pos : pillar.blocks) {
+                BlockState state = pillar.level.getBlockState(pos);
+                if (state.is(Blocks.AMETHYST_BLOCK) || state.is(Blocks.CALCITE) || state.is(Blocks.PACKED_ICE)) {
+                    pillar.level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+                }
+            }
+            iterator.remove();
+        }
+    }
+
+    private static void clearMoonPillars() {
+        for (TemporaryMoonPillar pillar : MOON_PILLARS) {
+            for (BlockPos pos : pillar.blocks) {
+                BlockState state = pillar.level.getBlockState(pos);
+                if (state.is(Blocks.AMETHYST_BLOCK) || state.is(Blocks.CALCITE) || state.is(Blocks.PACKED_ICE)) {
+                    pillar.level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+                }
+            }
+        }
+        MOON_PILLARS.clear();
+    }
+
     public static void clearAll() {
         active = null;
         for (PendingStrike strike : STRIKES) clearStrikeVisual(strike);
         STRIKES.clear();
+        clearMoonPillars();
         nextAutomaticEvent = 0L;
     }
 
@@ -261,7 +332,7 @@ public final class WorldEventSystem {
         SCULK_SURGE("Sculk Uyanışı", "Titreşimler güçleniyor; yaratıklar saldırganlaşıyor.", ParticleTypes.SCULK_SOUL, 0.65F),
         METEOR_STORM("Meteor Fırtınası", "Görünür meteorlar gökyüzünden düşüyor ve çarpınca krater açıyor.", ParticleTypes.FLAME, 0.75F),
         SKY_RIFT("Gökyüzü Yarığı", "Yerçekimi zayıflıyor ve güçlü rüzgârlar yükseliyor.", ParticleTypes.CLOUD, 1.35F),
-        ANCIENT_BLOOM("Kadim Çiçeklenme", "Doğa oyuncuları iyileştirirken yaratıkları zayıflatıyor.", ParticleTypes.HAPPY_VILLAGER, 1.15F),
+        RED_MOON("Kızıl Ay", "Ay parçaları düşüyor; yerçekimi ağırlaşıyor ve Ay sınıfı güçleniyor.", ParticleTypes.END_ROD, 0.82F),
         REALITY_TEAR("Gerçeklik Çatlağı", "Mermiler ve hareketler kararsızlaşıyor.", ParticleTypes.WITCH, 0.50F);
 
         private final String display;
@@ -287,7 +358,7 @@ public final class WorldEventSystem {
                 case "sculk", "warden" -> SCULK_SURGE;
                 case "meteor", "ates" -> METEOR_STORM;
                 case "gok", "ucus" -> SKY_RIFT;
-                case "doga" -> ANCIENT_BLOOM;
+                case "ay", "moon" -> RED_MOON;
                 case "anomali", "404" -> REALITY_TEAR;
                 case "rastgele" -> random(random);
                 default -> null;
@@ -296,6 +367,7 @@ public final class WorldEventSystem {
     }
 
     private record ActiveEvent(EventType type, ServerLevel level, Vec3 center, long startedAt, long endsAt) {}
+    private record TemporaryMoonPillar(ServerLevel level, List<BlockPos> blocks, long expireTick) {}
     private static final class PendingStrike {
         private final ServerLevel level;
         private final Vec3 target;

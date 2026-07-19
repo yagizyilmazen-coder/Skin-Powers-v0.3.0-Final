@@ -30,7 +30,7 @@ public final class SkinPowersCommands {
             .then(selfClass("warden", PowerClass.WARDEN))
             .then(selfClass("ejderha", PowerClass.FLIGHT))
             .then(selfClass("ates", PowerClass.FIRE))
-            .then(selfClass("doga", PowerClass.NATURE))
+            .then(selfClass("ay", PowerClass.MOON))
             .then(selfClass("anomali", PowerClass.ANOMALY))
             .then(selfClass("manyetik", PowerClass.MAGNETIC))
             .then(selfClass("kum", PowerClass.SAND)));
@@ -41,7 +41,7 @@ public final class SkinPowersCommands {
             .then(worldEventLiteral("sculk"))
             .then(worldEventLiteral("meteor"))
             .then(worldEventLiteral("gok"))
-            .then(worldEventLiteral("doga"))
+            .then(worldEventLiteral("ay"))
             .then(worldEventLiteral("anomali"))
             .then(worldEventLiteral("rastgele"))
             .then(Commands.literal("durdur")
@@ -89,16 +89,18 @@ public final class SkinPowersCommands {
             .then(triggerLiteral("hellfire_charged"))
             .then(triggerLiteral("meteor"))
             .then(triggerLiteral("meteor_charged"))
-            .then(triggerLiteral("nature_seed"))
-            .then(triggerLiteral("nature_seed_charged"))
-            .then(triggerLiteral("vine_trap"))
-            .then(triggerLiteral("vine_trap_charged"))
-            .then(triggerLiteral("life_tree"))
-            .then(triggerLiteral("life_tree_charged"))
-            .then(triggerLiteral("root_wave"))
-            .then(triggerLiteral("root_wave_charged"))
-            .then(triggerLiteral("thorn_forest"))
-            .then(triggerLiteral("thorn_forest_charged"))
+            .then(triggerLiteral("moon_crescent"))
+            .then(triggerLiteral("moon_crescent_charged"))
+            .then(triggerLiteral("moon_step"))
+            .then(triggerLiteral("moon_step_charged"))
+            .then(triggerLiteral("moon_gravity"))
+            .then(triggerLiteral("moon_gravity_charged"))
+            .then(triggerLiteral("moon_mirror"))
+            .then(triggerLiteral("moon_mirror_charged"))
+            .then(triggerLiteral("moon_eclipse"))
+            .then(triggerLiteral("moon_eclipse_charged"))
+            .then(triggerLiteral("moon_beast"))
+            .then(triggerLiteral("moon_beast_charged"))
             .then(triggerLiteral("broken_step"))
             .then(triggerLiteral("broken_step_charged"))
             .then(triggerLiteral("reverse"))
@@ -114,7 +116,7 @@ public final class SkinPowersCommands {
                     .then(targetClass("warden", PowerClass.WARDEN))
                     .then(targetClass("ejderha", PowerClass.FLIGHT))
                     .then(targetClass("ates", PowerClass.FIRE))
-                    .then(targetClass("doga", PowerClass.NATURE))
+                    .then(targetClass("ay", PowerClass.MOON))
                     .then(targetClass("anomali", PowerClass.ANOMALY))
                     .then(targetClass("manyetik", PowerClass.MAGNETIC))
                     .then(targetClass("kum", PowerClass.SAND))))
@@ -228,6 +230,7 @@ public final class SkinPowersCommands {
 
         AncientChargeSystem.clearSilently(target);
         AnomalySystem.clearPlayer(target);
+        MoonPowerSystem.clearPlayer(target);
         data.changeClass(powerClass);
         PlayerDataStore.markDirty();
         PlayerDataStore.save();
@@ -242,6 +245,7 @@ public final class SkinPowersCommands {
 
     private static int resetPlayer(CommandSourceStack source, ServerPlayer target) {
         AnomalySystem.clearPlayer(target);
+        MoonPowerSystem.clearPlayer(target);
         PlayerDataStore.reset(target.getUUID());
         PlayerDataStore.save();
         ServerNetworking.sync(target);
