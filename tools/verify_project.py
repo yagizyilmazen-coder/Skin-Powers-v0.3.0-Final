@@ -113,7 +113,15 @@ check("46. Yirmi büyü ve dört Ay JSON'u", enchantment_dir.is_dir() and len(li
 check("47. Eski Doğa büyüleri silindi", not any((enchantment_dir / name).exists() for name in ("kok_bagi.json", "can_filizi.json", "orman_sicrayisi.json", "dikenli_savunma.json")))
 survival = [ROOT / f"src/main/resources/data/minecraft/tags/enchantment/{name}.json" for name in ("tradeable", "treasure", "on_random_loot")]
 check("48. Survival büyü etiketleri", all(p.is_file() and "#skinpowers:class_enchantments" in p.read_text(encoding="utf-8") for p in survival))
-check("49. Önceki kritik düzeltmeler", has_all(expansion, "discardLegacySandFollowers", "positionOrbitSmooth", "MAGNETIC_PULLS") and "Blocks.CHAIN" not in expansion and re.search(r"\bItems\.CHAIN\b", expansion) is None)
+check(
+    "49. Kritik düzeltmeler ve havadaki gövdeler",
+    has_all(expansion, "MAGNETIC_PULLS", "afterDeath")
+    and "Blocks.CHAIN" not in expansion
+    and re.search(r"\bItems\.CHAIN\b", expansion) is None
+    and has_all(moon, "spawnAirTrail", "ProjectileEscort", "moonFlightItems", "tickProjectileEscorts")
+    and has_all(anomaly, "ensureProjectileEscort", "ProjectileEscort", "tickProjectileEscorts"),
+    "Manyetik/Kum uyumluluğu veya Ay-Anomali uçan gövdeleri eksik."
+)
 
 json_ok = True
 for path in ROOT.rglob("*.json"):
@@ -136,4 +144,4 @@ if errors:
 
 print("SKIN POWERS PROJE DENETİMİ BAŞARILI")
 print(f"{len(checks)} kontrol geçti.")
-print("Ay sınıfı, Kızıl Ay olayı, Ay büyüleri ve Anomali 2.0 doğrulandı.")
+print("Ay sınıfı, Anomali 2.0 ve havada ilerleyen görünür saldırı gövdeleri doğrulandı.")

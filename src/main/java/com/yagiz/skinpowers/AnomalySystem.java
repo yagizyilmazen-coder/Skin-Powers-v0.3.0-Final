@@ -36,6 +36,7 @@ public final class AnomalySystem {
     private static final Map<UUID, FrozenProjectile> FROZEN_PROJECTILES = new HashMap<>();
     private static final List<PendingEcho> ECHOES = new ArrayList<>();
     private static final List<AnomalyVisual> VISUALS = new ArrayList<>();
+    private static final List<ProjectileEscort> PROJECTILE_ESCORTS = new ArrayList<>();
     private static final Map<UUID, Long> COPIED_EXPIRES = new HashMap<>();
     private static boolean reflectingDamage;
 
@@ -417,6 +418,7 @@ public final class AnomalySystem {
         tickReversed();
         tickVoided();
         tickFrozenProjectiles();
+        tickProjectileEscorts();
         tickEchoes();
         tickVisuals();
     }
@@ -438,6 +440,7 @@ public final class AnomalySystem {
             for (Projectile projectile : entry.level.getEntitiesOfClass(Projectile.class, area)) {
                 if (projectile.getOwner() != target) continue;
                 projectile.setDeltaMovement(projectile.getDeltaMovement().scale(-1.1));
+                ensureProjectileEscort(entry.level, entry.owner, projectile, now + 45L);
             }
             if (now % 5L == 0L) entry.level.sendParticles(ParticleTypes.WITCH, target.getX(), target.getY() + 1.0, target.getZ(), 8, 0.35, 0.55, 0.35, 0.03);
         }
@@ -497,6 +500,7 @@ public final class AnomalySystem {
             ));
             projectile.setNoGravity(true);
             projectile.setDeltaMovement(Vec3.ZERO);
+            ensureProjectileEscort(level, player.getUUID(), projectile, now + 70L);
         }
     }
 
@@ -632,6 +636,8 @@ public final class AnomalySystem {
             if (entity != null) entity.discard();
         }
         VISUALS.clear();
+        for (ProjectileEscort escort : PROJECTILE_ESCORTS) discardAll(escort.level, escort.ids);
+        PROJECTILE_ESCORTS.clear();
         COPIED_EXPIRES.clear();
     }
 
@@ -664,6 +670,7 @@ public final class AnomalySystem {
                 projectile.setPos(frozen.anchor.x, frozen.anchor.y, frozen.anchor.z);
                 projectile.setDeltaMovement(Vec3.ZERO);
                 projectile.setNoGravity(true);
+                ensureProjectileEscort(frozen.level, frozen.anomalyOwner, projectile, now + 30L);
                 if (now % 4L == 0L) frozen.level.sendParticles(ParticleTypes.WITCH, frozen.anchor.x, frozen.anchor.y, frozen.anchor.z, 8, 0.25, 0.25, 0.25, 0.03);
                 continue;
             }
@@ -686,7 +693,86 @@ public final class AnomalySystem {
         }
         projectile.setNoGravity(frozen.wasNoGravity);
         projectile.setDeltaMovement(velocity);
+        ensureProjectileEscort(frozen.level, frozen.anomalyOwner, projectile, frozen.level.getGameTime() + 55L);
         frozen.level.sendParticles(ParticleTypes.REVERSE_PORTAL, projectile.getX(), projectile.getY(), projectile.getZ(), 22, 0.35, 0.35, 0.35, 0.08);
+    }
+
+    private static void ensureProjectileEscort(ServerLevel level, UUID owner, Projectile projectile, long expireTick) {
+        for (ProjectileEscort escort : PROJECTILE_ESCORTS) {
+            if (escort.projectileId.equals(projectile.getUUID())) {
+                escort.expireTick = Math.max(escort.expireTick, expireTick);
+                return;
+            }
+        }
+        List<UUID> ids = new ArrayList<>();
+        Item[] items = {Items.ENDER_EYE, Items.REDSTONE, Items.ECHO_SHARD, Items.AMETHYST_SHARD};
+        for (int i = 0; i < 10; i++) {
+            ItemEntity visual = createFlyingVisual(level, projectile.position(), items[i % items.length]);
+            if (visual != null) ids.add(visual.getUUID());
+        }
+        PROJECTILE_ESCORTS.add(new ProjectileEscort(level, owner, projectile.getUUID(), ids, expireTick));
+    }
+
+    private static ItemEntity createFlyingVisual(ServerLevel level, Vec3 position, Item item) {
+        ItemEntity visual = new ItemEntity(level, position.x, position.y, position.z, new ItemStack(item));
+        visual.setNoGravity(true);
+        visual.setDeltaMovement(Vec3.ZERO);
+        visual.setInvulnerable(true);
+        visual.setGlowingTag(true);
+        visual.setNeverPickUp();
+        visual.setUnlimitedLifetime();
+        return level.addFreshEntity(visual) ? visual : null;
+    }
+
+    private static void tickProjectileEscorts() {
+        Iterator<ProjectileEscort> iterator = PROJECTILE_ESCORTS.iterator();
+        while (iterator.hasNext()) {
+            ProjectileEscort escort = iterator.next();
+            long now = escort.level.getGameTime();
+            Entity projectile = escort.level.getEntity(escort.projectileId);
+            if (projectile == null || projectile.isRemoved() || now >= escort.expireTick) {
+                discardAll(escort.level, escort.ids);
+                iterator.remove();
+                continue;
+            }
+            Vec3 velocity = projectile.getDeltaMovement();
+            Vec3 forward = velocity.lengthSqr() < 0.001 ? new Vec3(0.0, 0.0, 1.0) : velocity.normalize();
+            Vec3 right = perpendicular(horizontal(forward));
+            for (int i = 0; i < escort.ids.size(); i++) {
+                Entity visual = escort.level.getEntity(escort.ids.get(i));
+                if (visual == null) continue;
+                double angle = now * 0.42 + Math.PI * 2.0 * i / Math.max(1, escort.ids.size());
+                double radius = 0.42 + (i % 2) * 0.18;
+                Vec3 target = projectile.position()
+                    .add(right.scale(Math.cos(angle) * radius))
+                    .add(0.0, Math.sin(angle) * radius, 0.0)
+                    .add(forward.scale(-0.18 - (i % 3) * 0.14));
+                moveFlyingVisual(visual, target);
+            }
+        }
+    }
+
+    private static void moveFlyingVisual(Entity visual, Vec3 target) {
+        Vec3 delta = target.subtract(visual.position());
+        if (delta.lengthSqr() > 36.0) {
+            visual.setPos(target.x, target.y, target.z);
+            visual.setDeltaMovement(Vec3.ZERO);
+            return;
+        }
+        if (delta.lengthSqr() < 0.0004) {
+            visual.setDeltaMovement(Vec3.ZERO);
+            return;
+        }
+        Vec3 motion = delta.scale(0.96);
+        if (motion.lengthSqr() > 9.0) motion = motion.normalize().scale(3.0);
+        visual.setDeltaMovement(motion);
+    }
+
+    private static void discardAll(ServerLevel level, List<UUID> ids) {
+        for (UUID id : new ArrayList<>(ids)) {
+            Entity entity = level.getEntity(id);
+            if (entity != null) entity.discard();
+        }
     }
 
     private static void tickEchoes() {
@@ -778,6 +864,13 @@ public final class AnomalySystem {
             if (entity != null) entity.discard();
             iterator.remove();
         }
+        Iterator<ProjectileEscort> escortIterator = PROJECTILE_ESCORTS.iterator();
+        while (escortIterator.hasNext()) {
+            ProjectileEscort escort = escortIterator.next();
+            if (!escort.owner.equals(owner)) continue;
+            discardAll(escort.level, escort.ids);
+            escortIterator.remove();
+        }
     }
 
     private static Vec3 findSafeStepPosition(ServerLevel level, Vec3 candidate) {
@@ -797,6 +890,11 @@ public final class AnomalySystem {
         return horizontal.lengthSqr() < 0.0001 ? new Vec3(0.0, 0.0, 1.0) : horizontal.normalize();
     }
 
+    private static Vec3 perpendicular(Vec3 direction) {
+        Vec3 h = horizontal(direction);
+        return new Vec3(-h.z, 0.0, h.x);
+    }
+
     /** Minecraft 26.x eşlemelerinde kararlı olan konum güncellemesi; oyuncularda ağ senkronunu da zorlar. */
     private static void moveEntity(LivingEntity entity, Vec3 position) {
         entity.setPos(position.x, position.y, position.z);
@@ -812,6 +910,22 @@ public final class AnomalySystem {
 
     private static boolean safeForLiving(ServerLevel level, LivingEntity entity, Vec3 position) {
         return level.noCollision(entity, entity.getBoundingBox().move(position.subtract(entity.position())));
+    }
+
+    private static final class ProjectileEscort {
+        private final ServerLevel level;
+        private final UUID owner;
+        private final UUID projectileId;
+        private final List<UUID> ids;
+        private long expireTick;
+
+        private ProjectileEscort(ServerLevel level, UUID owner, UUID projectileId, List<UUID> ids, long expireTick) {
+            this.level = level;
+            this.owner = owner;
+            this.projectileId = projectileId;
+            this.ids = ids;
+            this.expireTick = expireTick;
+        }
     }
 
     private static final class FrozenProjectile {

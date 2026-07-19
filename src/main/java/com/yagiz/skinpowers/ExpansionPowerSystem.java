@@ -34,7 +34,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 1.2.1: Manyetik ve Kum dengelemesi, yumuşak görsel takip ve ölüm temizliği.
+ * 1.2.1 FIX1: Ölüm anı olayıyla kesin kum/metal görsel temizliği.
  * Parçacıklar yalnızca darbe/patlama vurgusudur; ana modeller ItemEntity gövdeleridir.
  */
 public final class ExpansionPowerSystem {
@@ -467,6 +467,36 @@ public final class ExpansionPowerSystem {
         MAGNETIC_STORMS.clear();
         SAND_ARMORS.clear();
         DESERT_MIRRORS.clear();
+    }
+
+    /**
+     * Oyuncu öldüğü anda, yeniden doğan yeni ServerPlayer örneği aynı UUID ile
+     * bulunmadan önce bütün oyuncuya bağlı görselleri siler. Yalnızca tick içinde
+     * isAlive kontrolü yapmak yeterli değildir; hızlı yeniden doğmada yeni oyuncu
+     * canlı göründüğü için eski kum zırhı onu takip etmeye devam edebilir.
+     */
+    public static void afterDeath(LivingEntity entity, DamageSource damageSource) {
+        if (!(entity instanceof ServerPlayer player)) return;
+        cancelOwner(player.getUUID());
+        discardLegacySandFollowers(player);
+    }
+
+    private static void discardLegacySandFollowers(ServerPlayer player) {
+        ServerLevel level = (ServerLevel) player.level();
+        AABB area = player.getBoundingBox().inflate(48.0);
+        for (ItemEntity visual : level.getEntitiesOfClass(ItemEntity.class, area)) {
+            if (!visual.isNoGravity()) continue;
+            ItemStack stack = visual.getItem();
+            if (isSandVisualItem(stack)) visual.discard();
+        }
+    }
+
+    private static boolean isSandVisualItem(ItemStack stack) {
+        return stack.is(Items.SAND)
+            || stack.is(Items.SANDSTONE)
+            || stack.is(Items.CUT_SANDSTONE)
+            || stack.is(Items.CHISELED_SANDSTONE)
+            || stack.is(Items.SMOOTH_SANDSTONE);
     }
 
     public static void handleDisconnect(ServerPlayer player) {

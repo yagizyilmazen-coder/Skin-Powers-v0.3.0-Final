@@ -38,6 +38,7 @@ public final class MoonPowerSystem {
     private static final List<GravityField> GRAVITY_FIELDS = new ArrayList<>();
     private static final List<EclipseField> ECLIPSE_FIELDS = new ArrayList<>();
     private static final List<FullMoonBeast> FULL_MOON_BEASTS = new ArrayList<>();
+    private static final List<ProjectileEscort> PROJECTILE_ESCORTS = new ArrayList<>();
     private static final Map<UUID, MoonMirror> MOON_MIRRORS = new HashMap<>();
     private static boolean reflectingDamage;
 
@@ -64,6 +65,7 @@ public final class MoonPowerSystem {
         tickCrescents();
         tickGravityFields();
         tickMoonMirrors(server);
+        tickProjectileEscorts();
         tickEclipseFields();
         tickFullMoonBeasts();
     }
@@ -90,7 +92,7 @@ public final class MoonPowerSystem {
     private static boolean crescentSlash(ServerPlayer player, PlayerPowerData data, ServerLevel level, long now, int stage, boolean empowered) {
         Vec3 direction = player.getLookAngle().normalize();
         Vec3 start = player.getEyePosition().add(direction.scale(0.9));
-        List<UUID> ids = spawnVisualItems(level, start, moonItems(), empowered ? 13 : 9, true, player.getUUID());
+        List<UUID> ids = spawnVisualItems(level, start, moonFlightItems(), empowered ? 33 : 25, true, player.getUUID());
         CRESCENTS.add(new CrescentAttack(level, player.getUUID(), ids, start, direction,
             now, now + (empowered ? 62L : 50L), stage, empowered, new HashSet<>(), false));
         level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW.value(), SoundSource.PLAYERS, 1.1F, 1.55F);
@@ -155,7 +157,7 @@ public final class MoonPowerSystem {
             discardAll(existing.level, existing.ids);
             Vec3 direction = player.getLookAngle().normalize();
             Vec3 start = player.getEyePosition().add(direction.scale(0.9));
-            List<UUID> ids = spawnVisualItems(level, start, new Item[]{Items.QUARTZ, Items.AMETHYST_SHARD, Items.ENDER_EYE}, empowered ? 15 : 11, true, player.getUUID());
+            List<UUID> ids = spawnVisualItems(level, start, moonFlightItems(), empowered ? 31 : 23, true, player.getUUID());
             CRESCENTS.add(new CrescentAttack(level, player.getUUID(), ids, start, direction,
                 now, now + 42L, stage + 1, true, new HashSet<>(), false));
             level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW.value(), SoundSource.PLAYERS, 1.15F, 1.75F);
@@ -212,6 +214,7 @@ public final class MoonPowerSystem {
         } else {
             projectile.setDeltaMovement(velocity.scale(-1.25));
         }
+        attachProjectileEscort(mirror.level, player.getUUID(), projectile, mirror.level.getGameTime() + 55L);
         mirror.charges--;
         mirror.level.sendParticles(ParticleTypes.END_ROD, player.getX(), player.getY() + 1.0, player.getZ(), 36, 0.8, 0.9, 0.8, 0.08);
         mirror.level.playSound(null, player.blockPosition(), SoundEvents.SHIELD_BLOCK.value(), SoundSource.PLAYERS, 1.0F, 1.65F);
@@ -249,8 +252,11 @@ public final class MoonPowerSystem {
             }
             double speed = 0.82 + attack.stage * 0.055 + (attack.empowered ? 0.20 : 0.0);
             attack.center = attack.center.add(desiredDirection.scale(speed));
-            positionCrescent(attack.level, attack.ids, attack.center, desiredDirection, now, attack.empowered ? 1.7 : 1.35);
-            AABB hitBox = new AABB(attack.center, attack.center).inflate(1.65 + attack.stage * 0.10);
+            positionCrescent(attack.level, attack.ids, attack.center, desiredDirection, now, attack.empowered ? 2.05 : 1.70);
+            if (now % 3L == 0L) {
+                spawnAirTrail(attack.level, attack.owner, attack.center, desiredDirection, now + 10L, attack.empowered);
+            }
+            AABB hitBox = new AABB(attack.center, attack.center).inflate(1.85 + attack.stage * 0.10);
             for (LivingEntity target : attack.level.getEntitiesOfClass(LivingEntity.class, hitBox)) {
                 if (target == owner || PowerSystem.isProtectedAlly(owner, target) || !attack.hit.add(target.getUUID())) continue;
                 float damage = 8.0F + attack.stage * 1.5F + (attack.empowered ? 4.0F : 0.0F);
@@ -315,6 +321,7 @@ public final class MoonPowerSystem {
                     Vec3 direction = living.getEyePosition().subtract(projectile.position());
                     if (direction.lengthSqr() > 0.001) projectile.setDeltaMovement(direction.normalize().scale(Math.max(1.1, velocity.length())));
                 } else projectile.setDeltaMovement(velocity.scale(-1.2));
+                attachProjectileEscort(mirror.level, owner.getUUID(), projectile, now + 55L);
                 mirror.charges--;
                 mirror.level.sendParticles(ParticleTypes.END_ROD, projectile.getX(), projectile.getY(), projectile.getZ(), 20, 0.35, 0.35, 0.35, 0.06);
                 break;
@@ -435,6 +442,7 @@ public final class MoonPowerSystem {
         GRAVITY_FIELDS.removeIf(field -> discardOwned(field.owner, owner, field.level, field.ids));
         ECLIPSE_FIELDS.removeIf(field -> discardOwned(field.owner, owner, field.level, field.ids));
         FULL_MOON_BEASTS.removeIf(beast -> discardOwned(beast.owner, owner, beast.level, beast.ids));
+        PROJECTILE_ESCORTS.removeIf(escort -> discardOwned(escort.owner, owner, escort.level, escort.ids));
         MoonMirror mirror = MOON_MIRRORS.remove(owner);
         if (mirror != null) discardAll(mirror.level, mirror.ids);
     }
@@ -454,12 +462,14 @@ public final class MoonPowerSystem {
         for (GravityField field : GRAVITY_FIELDS) discardAll(field.level, field.ids);
         for (EclipseField field : ECLIPSE_FIELDS) discardAll(field.level, field.ids);
         for (FullMoonBeast beast : FULL_MOON_BEASTS) discardAll(beast.level, beast.ids);
+        for (ProjectileEscort escort : PROJECTILE_ESCORTS) discardAll(escort.level, escort.ids);
         for (MoonMirror mirror : MOON_MIRRORS.values()) discardAll(mirror.level, mirror.ids);
         VISUALS.clear();
         CRESCENTS.clear();
         GRAVITY_FIELDS.clear();
         ECLIPSE_FIELDS.clear();
         FULL_MOON_BEASTS.clear();
+        PROJECTILE_ESCORTS.clear();
         MOON_MIRRORS.clear();
     }
 
@@ -505,15 +515,83 @@ public final class MoonPowerSystem {
     }
 
     private static void positionCrescent(ServerLevel level, List<UUID> ids, Vec3 center, Vec3 direction, long now, double radius) {
+        Vec3 forward = direction.normalize();
         Vec3 right = perpendicular(horizontal(direction));
+        int arcCount = Math.max(9, (int) Math.ceil(ids.size() * 0.72));
         for (int i = 0; i < ids.size(); i++) {
             Entity entity = level.getEntity(ids.get(i));
             if (entity == null) continue;
-            double t = ids.size() <= 1 ? 0.5 : i / (double) (ids.size() - 1);
-            double curve = (t - 0.5) * Math.PI;
-            Vec3 position = center.add(right.scale(Math.sin(curve) * radius))
-                .add(0.0, Math.cos(curve) * radius * 0.65 + Math.sin(now * 0.28 + i) * 0.08, 0.0);
-            moveVisualSmoothly(entity, position, 0.90, 1.8);
+            Vec3 position;
+            if (i < arcCount) {
+                double t = arcCount <= 1 ? 0.5 : i / (double) (arcCount - 1);
+                double curve = (t - 0.5) * Math.PI;
+                double thickness = ((i % 3) - 1) * 0.16;
+                position = center
+                    .add(right.scale(Math.sin(curve) * radius))
+                    .add(0.0, Math.cos(curve) * radius * 0.72 + thickness + Math.sin(now * 0.28 + i) * 0.06, 0.0)
+                    .add(forward.scale(((i % 2) - 0.5) * 0.20));
+            } else {
+                int tailIndex = i - arcCount;
+                double back = 0.28 + tailIndex * 0.18;
+                double side = ((tailIndex % 3) - 1) * 0.24;
+                double vertical = ((tailIndex / 3) % 3 - 1) * 0.22;
+                position = center.add(forward.scale(-back)).add(right.scale(side)).add(0.0, vertical, 0.0);
+            }
+            moveVisualSmoothly(entity, position, 0.94, 2.25);
+        }
+    }
+
+    private static void spawnAirTrail(ServerLevel level, UUID owner, Vec3 center, Vec3 direction, long expireTick, boolean empowered) {
+        Vec3 forward = direction.normalize();
+        Vec3 right = perpendicular(horizontal(direction));
+        Item[] items = moonFlightItems();
+        int count = empowered ? 9 : 6;
+        for (int i = 0; i < count; i++) {
+            double back = 0.35 + (i / 3) * 0.55;
+            double side = ((i % 3) - 1) * (empowered ? 0.42 : 0.30);
+            double height = ((i + 1) % 3 - 1) * 0.20;
+            Vec3 position = center.add(forward.scale(-back)).add(right.scale(side)).add(0.0, height, 0.0);
+            ItemEntity visual = createVisual(level, items[i % items.length], position, true);
+            if (visual != null) VISUALS.add(new MoonVisual(level, owner, visual.getUUID(), expireTick));
+        }
+    }
+
+    private static void attachProjectileEscort(ServerLevel level, UUID owner, Projectile projectile, long expireTick) {
+        for (ProjectileEscort escort : PROJECTILE_ESCORTS) {
+            if (escort.projectileId.equals(projectile.getUUID())) {
+                escort.expireTick = Math.max(escort.expireTick, expireTick);
+                return;
+            }
+        }
+        List<UUID> ids = spawnVisualItems(level, projectile.position(), moonFlightItems(), 10, true, owner);
+        PROJECTILE_ESCORTS.add(new ProjectileEscort(level, owner, projectile.getUUID(), ids, expireTick));
+    }
+
+    private static void tickProjectileEscorts() {
+        Iterator<ProjectileEscort> iterator = PROJECTILE_ESCORTS.iterator();
+        while (iterator.hasNext()) {
+            ProjectileEscort escort = iterator.next();
+            long now = escort.level.getGameTime();
+            Entity projectile = escort.level.getEntity(escort.projectileId);
+            if (projectile == null || projectile.isRemoved() || now >= escort.expireTick) {
+                discardAll(escort.level, escort.ids);
+                iterator.remove();
+                continue;
+            }
+            Vec3 velocity = projectile.getDeltaMovement();
+            Vec3 forward = velocity.lengthSqr() < 0.001 ? new Vec3(0.0, 0.0, 1.0) : velocity.normalize();
+            Vec3 right = perpendicular(horizontal(forward));
+            for (int i = 0; i < escort.ids.size(); i++) {
+                Entity visual = escort.level.getEntity(escort.ids.get(i));
+                if (visual == null) continue;
+                double angle = now * 0.35 + Math.PI * 2.0 * i / Math.max(1, escort.ids.size());
+                double radius = 0.38 + (i % 2) * 0.18;
+                Vec3 target = projectile.position()
+                    .add(right.scale(Math.cos(angle) * radius))
+                    .add(0.0, Math.sin(angle) * radius, 0.0)
+                    .add(forward.scale(-0.20 - (i % 3) * 0.12));
+                moveVisualSmoothly(visual, target, 0.96, 2.8);
+            }
         }
     }
 
@@ -593,6 +671,10 @@ public final class MoonPowerSystem {
         }
     }
 
+    private static Item[] moonFlightItems() {
+        return new Item[]{Items.NETHER_STAR, Items.ENDER_EYE, Items.QUARTZ, Items.AMETHYST_SHARD, Items.PRISMARINE_SHARD};
+    }
+
     private static Item[] moonItems() {
         return new Item[]{Items.QUARTZ, Items.AMETHYST_SHARD, Items.IRON_NUGGET, Items.PRISMARINE_SHARD, Items.ENDER_EYE};
     }
@@ -615,6 +697,22 @@ public final class MoonPowerSystem {
     }
 
     private record MoonVisual(ServerLevel level, UUID owner, UUID entityId, long expireTick) {}
+
+    private static final class ProjectileEscort {
+        private final ServerLevel level;
+        private final UUID owner;
+        private final UUID projectileId;
+        private final List<UUID> ids;
+        private long expireTick;
+
+        private ProjectileEscort(ServerLevel level, UUID owner, UUID projectileId, List<UUID> ids, long expireTick) {
+            this.level = level;
+            this.owner = owner;
+            this.projectileId = projectileId;
+            this.ids = ids;
+            this.expireTick = expireTick;
+        }
+    }
 
     private static final class CrescentAttack {
         private final ServerLevel level;
