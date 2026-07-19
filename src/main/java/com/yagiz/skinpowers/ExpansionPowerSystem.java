@@ -108,7 +108,7 @@ public final class ExpansionPowerSystem {
                     target.hurtMarked = true;
                 }
                 target.hurtServer(level, level.damageSources().playerAttack(player), 5.0F + stage + metal * 0.7F);
-                level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW, SoundSource.PLAYERS, 0.9F, 0.55F);
+                level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW.value(), SoundSource.PLAYERS, 0.9F, 0.55F);
                 ServerNetworking.sendScreenShake(level, target.position(), 18.0, 0.45F, 7);
                 data.setCooldown(1, now, Math.max(150, 240 - stage * 20));
                 return true;
@@ -143,7 +143,7 @@ public final class ExpansionPowerSystem {
                 MOVING_ATTACKS.add(createMovingAttack(level, player.getUUID(), MovingType.IRON_FIST,
                     start, velocity, now + 34L, 12.0F + stage * 1.8F, 2.25 + stage * 0.12, 1,
                     new Item[]{Items.IRON_BLOCK, Items.ANVIL, Items.IRON_INGOT, Items.COPPER_INGOT}, 10));
-                level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW, SoundSource.PLAYERS, 1.1F, 0.42F);
+                level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW.value(), SoundSource.PLAYERS, 1.1F, 0.42F);
                 data.setCooldown(3, now, Math.max(290, 440 - stage * 35));
                 return true;
             }
@@ -154,7 +154,7 @@ public final class ExpansionPowerSystem {
                     return false;
                 }
                 List<UUID> ids = spawnVisualItems(level, player.position().add(0.0, 1.0, 0.0),
-                    new Item[]{Items.IRON_INGOT, Items.COPPER_INGOT, Items.IRON_NUGGET, Items.CHAIN}, 12, true);
+                    new Item[]{Items.IRON_INGOT, Items.COPPER_INGOT, Items.IRON_NUGGET, Blocks.CHAIN.asItem()}, 12, true);
                 MAGNETIC_STORMS.put(player.getUUID(), new MagneticStorm(level, player.getUUID(), ids, now, now + 180L, stage));
                 data.setCooldown(4, now, 1);
                 player.sendSystemMessage(Component.literal("Metal Fırtınası hazır. Tekrar R ile nişangâhına fırlat."));
@@ -181,7 +181,7 @@ public final class ExpansionPowerSystem {
                     return false;
                 }
                 List<UUID> ids = spawnVisualItems(level, target.position().add(0.0, 1.0, 0.0),
-                    new Item[]{Items.IRON_BARS, Items.CHAIN, Items.LODESTONE, Items.IRON_BLOCK}, 18, true);
+                    new Item[]{Items.IRON_BARS, Blocks.CHAIN.asItem(), Items.LODESTONE, Items.IRON_BLOCK}, 18, true);
                 MAGNETIC_CAGES.add(new MagneticCage(level, player.getUUID(), target.getUUID(), ids,
                     target.position(), now, now + (awakened ? 130L : 100L), stage, awakened));
                 level.playSound(null, target.blockPosition(), SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 0.9F, 0.62F);
@@ -357,7 +357,7 @@ public final class ExpansionPowerSystem {
             }
             if (now % 18L == 0L) {
                 spawnVisibleRing(level, player.position().add(0.0, 1.0, 0.0),
-                    new Item[]{Items.IRON_BLOCK, Items.COPPER_BLOCK, Items.CHAIN, Items.LODESTONE}, 12, 2.2, now + 24L, 0.35);
+                    new Item[]{Items.IRON_BLOCK, Items.COPPER_BLOCK, Blocks.CHAIN.asItem(), Items.LODESTONE}, 12, 2.2, now + 24L, 0.35);
             }
         } else if (data.powerClass() == PowerClass.SAND) {
             player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 2, false, false, true));
@@ -383,7 +383,7 @@ public final class ExpansionPowerSystem {
         if (powerClass == PowerClass.MAGNETIC) {
             double radius = 13.0;
             spawnVisibleRing(level, player.position().add(0.0, 1.0, 0.0),
-                new Item[]{Items.IRON_BLOCK, Items.COPPER_BLOCK, Items.LODESTONE, Items.CHAIN}, 20, 4.2, level.getGameTime() + 40L, 0.55);
+                new Item[]{Items.IRON_BLOCK, Items.COPPER_BLOCK, Items.LODESTONE, Blocks.CHAIN.asItem()}, 20, 4.2, level.getGameTime() + 40L, 0.55);
             for (LivingEntity target : nearby(player, radius)) {
                 if (target == player || PowerSystem.isProtectedAlly(player, target)) continue;
                 target.hurtServer(level, level.damageSources().playerAttack(player), 19.0F);
@@ -462,7 +462,7 @@ public final class ExpansionPowerSystem {
             now + 52L, 13.0F + storm.stage * 1.8F, 3.0 + storm.stage * 0.15, 5));
         data.setCooldown(4, now, Math.max(430, 620 - storm.stage * 40));
         player.sendSystemMessage(Component.literal("Metal Fırtınası fırlatıldı!"));
-        storm.level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW, SoundSource.PLAYERS, 1.1F, 0.72F);
+        storm.level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW.value(), SoundSource.PLAYERS, 1.1F, 0.72F);
         PlayerDataStore.markDirty();
         ServerNetworking.sync(player);
     }
