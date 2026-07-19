@@ -1,0 +1,14 @@
+SKIN POWERS v1.3.0 FIX4
+
+Bu paket yalnızca build.gradle dosyasını değiştirir.
+FIX3 içindeki yanlış modImplementation satırı kaldırıldı.
+Projenin mevcut yapısına uygun olan implementation kullanıldı.
+Mod Menu 18.0.0, Modrinth Maven üzerinden alınır.
+
+Uygulama:
+1. build.gradle dosyasını GitHub proje ana klasörüne kopyala.
+2. Hedefteki dosyayı değiştir.
+3. GitHub Desktop: Commit to main -> Push origin.
+
+Commit özeti:
+1.3.0 FIX4 Mod Menu Gradle düzeltmesi

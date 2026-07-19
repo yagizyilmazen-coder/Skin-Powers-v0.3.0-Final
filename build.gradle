@@ -12,8 +12,6 @@ base {
 
 repositories {
     // Fabric Loom gerekli Minecraft/Fabric depolarını otomatik ekler.
-    // Mod Menu için Terraformers sunucusu GitHub Actions'ta dosyayı
-    // yarım gönderdiği için resmî Modrinth Maven aynası kullanılır.
     exclusiveContent {
         forRepository {
             maven {
@@ -42,9 +40,8 @@ dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
-    // Mod Menu 18.0.0 (Minecraft 26.1.x) - resmî Modrinth sürüm kimliği.
-    // Oyunda yine isteğe bağlıdır; yalnızca ayar ekranı entegrasyonu için derlenir.
-    modImplementation "maven.modrinth:mOgUt4GM:3rsoV1bk"
+    // Mod Menu zorunlu değildir; yalnızca ayar ekranı entegrasyonunu derlemek için kullanılır.
+    implementation "maven.modrinth:mOgUt4GM:3rsoV1bk"
 }
 
 processResources {
