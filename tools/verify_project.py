@@ -73,7 +73,7 @@ check("10. Yeni sınıflar altı seviye", "powerClass == PowerClass.MAGNETIC || 
 check("11. Oyuncu sınıf komutları", 'selfClass("manyetik"' in commands and 'selfClass("kum"' in commands)
 check("12. Yönetici sınıf komutları", 'targetClass("manyetik"' in commands and 'targetClass("kum"' in commands)
 check("13. Güç sistemi delegasyonu", contains_all(power_system, "ExpansionPowerSystem.tickServer", "ExpansionPowerSystem.useMagnetic", "ExpansionPowerSystem.useSand"))
-check("14. Manyetik gerçek gövdeler", contains_all(expansion, "Items.IRON_BLOCK", "Items.COPPER_BLOCK", "Items.ANVIL", "ItemEntity"))
+check("14. Manyetik gerçek gövdeler", contains_all(expansion, "Items.IRON_BLOCK", "Items.COPPER_BLOCK", "Items.ANVIL", "Items.IRON_BARS", "ItemEntity") and "Blocks.CHAIN" not in expansion and re.search(r"\\bItems\\.CHAIN\\b", expansion) is None)
 check("15. Kum gerçek gövdeler", contains_all(expansion, "Items.SAND", "Items.SANDSTONE", "Items.CUT_SANDSTONE", "Items.CHISELED_SANDSTONE"))
 check("16. Kum parçacığı yalnızca darbe vurgusu", "Ana gövde her zaman kum/kumtaşı ItemEntity'dir" in expansion)
 check("17. Manyetik altı aktif güç", "public static boolean useMagnetic" in expansion and all(f"case {i} ->" in expansion for i in range(1, 7)))

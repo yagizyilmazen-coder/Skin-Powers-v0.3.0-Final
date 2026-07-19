@@ -154,7 +154,7 @@ public final class ExpansionPowerSystem {
                     return false;
                 }
                 List<UUID> ids = spawnVisualItems(level, player.position().add(0.0, 1.0, 0.0),
-                    new Item[]{Items.IRON_INGOT, Items.COPPER_INGOT, Items.IRON_NUGGET, Blocks.CHAIN.asItem()}, 12, true);
+                    new Item[]{Items.IRON_INGOT, Items.COPPER_INGOT, Items.IRON_NUGGET, Items.IRON_BARS}, 12, true);
                 MAGNETIC_STORMS.put(player.getUUID(), new MagneticStorm(level, player.getUUID(), ids, now, now + 180L, stage));
                 data.setCooldown(4, now, 1);
                 player.sendSystemMessage(Component.literal("Metal Fırtınası hazır. Tekrar R ile nişangâhına fırlat."));
@@ -181,7 +181,7 @@ public final class ExpansionPowerSystem {
                     return false;
                 }
                 List<UUID> ids = spawnVisualItems(level, target.position().add(0.0, 1.0, 0.0),
-                    new Item[]{Items.IRON_BARS, Blocks.CHAIN.asItem(), Items.LODESTONE, Items.IRON_BLOCK}, 18, true);
+                    new Item[]{Items.IRON_BARS, Items.IRON_NUGGET, Items.LODESTONE, Items.IRON_BLOCK}, 18, true);
                 MAGNETIC_CAGES.add(new MagneticCage(level, player.getUUID(), target.getUUID(), ids,
                     target.position(), now, now + (awakened ? 130L : 100L), stage, awakened));
                 level.playSound(null, target.blockPosition(), SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 0.9F, 0.62F);
@@ -357,7 +357,7 @@ public final class ExpansionPowerSystem {
             }
             if (now % 18L == 0L) {
                 spawnVisibleRing(level, player.position().add(0.0, 1.0, 0.0),
-                    new Item[]{Items.IRON_BLOCK, Items.COPPER_BLOCK, Blocks.CHAIN.asItem(), Items.LODESTONE}, 12, 2.2, now + 24L, 0.35);
+                    new Item[]{Items.IRON_BLOCK, Items.COPPER_BLOCK, Items.IRON_BARS, Items.LODESTONE}, 12, 2.2, now + 24L, 0.35);
             }
         } else if (data.powerClass() == PowerClass.SAND) {
             player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 2, false, false, true));
@@ -383,7 +383,7 @@ public final class ExpansionPowerSystem {
         if (powerClass == PowerClass.MAGNETIC) {
             double radius = 13.0;
             spawnVisibleRing(level, player.position().add(0.0, 1.0, 0.0),
-                new Item[]{Items.IRON_BLOCK, Items.COPPER_BLOCK, Items.LODESTONE, Blocks.CHAIN.asItem()}, 20, 4.2, level.getGameTime() + 40L, 0.55);
+                new Item[]{Items.IRON_BLOCK, Items.COPPER_BLOCK, Items.LODESTONE, Items.IRON_BARS}, 20, 4.2, level.getGameTime() + 40L, 0.55);
             for (LivingEntity target : nearby(player, radius)) {
                 if (target == player || PowerSystem.isProtectedAlly(player, target)) continue;
                 target.hurtServer(level, level.damageSources().playerAttack(player), 19.0F);

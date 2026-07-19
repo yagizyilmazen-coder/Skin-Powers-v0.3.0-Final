@@ -1,25 +1,18 @@
-SKIN POWERS v1.2.0 KÜÇÜK GÜNCELLEME
+SKIN POWERS v1.2.0 FIX2 — TEK DOSYA DÜZELTMESİ
 
-Bu paket çalışan Skin Powers v1.1.1 tam projesinin üzerine uygulanır.
+Bu paket GitHub Actions'taki son 4 derleme hatasını düzeltir.
 
 KURULUM
-1. ZIP dosyasına sağ tıklayın ve "Tümünü Ayıkla" seçin.
-2. Ayıklanan klasördeki bütün dosya ve klasörleri kopyalayın.
-3. GitHub Desktop'ta Repository > Show in Explorer seçin.
+1. ZIP'e sağ tıklayın ve Tümünü Ayıkla seçin.
+2. Ayıklanan klasördeki src ve tools klasörlerini kopyalayın.
+3. GitHub Desktop > Repository > Show in Explorer seçin.
 4. Açılan proje klasörüne yapıştırın.
-5. Sorulduğunda "Hedefteki dosyaları değiştir" seçeneğini seçin.
-6. GitHub Desktop Summary:
-   1.2.0 Manyetik ve Kum sınıfları
-7. Commit to main ve ardından Push origin yapın.
-8. GitHub Actions yeşil olduğunda artifact içindeki skinpowers-1.2.0.jar dosyasını kullanın.
+5. Hedefteki dosyaları değiştir seçin.
+6. GitHub Desktop'ta ana değişiklikler:
+   - src/main/java/com/yagiz/skinpowers/ExpansionPowerSystem.java
+   - tools/verify_project.py
+7. Summary:
+   1.2.0 FIX2 zincir sabiti derleme düzeltmesi
+8. Commit to main ve Push origin yapın.
 
-BU SÜRÜM
-- 6. sınıf: Manyetik
-- 7. sınıf: Kum
-- Kum saldırılarının ana gövdeleri gerçek kum ve kumtaşı modelleridir.
-- Kum ekran etkisi 4 saniye sürer veya oyuncu suya girince hemen temizlenir.
-- Warden Derinlik Pususu sırasında zırh ve eldeki eşyalar da gizlenir.
-- Proje denetimi en fazla 50 gruplu kontrol çalıştırır.
-
-GitHub Desktop'ta yaklaşık 26 yeni/değişmiş dosya görünmesi normaldir.
-Kırmızı eksiyle silinmiş dosya görünmemelidir.
+Doğa sınıfına veya güç dengesine dokunulmadı.
