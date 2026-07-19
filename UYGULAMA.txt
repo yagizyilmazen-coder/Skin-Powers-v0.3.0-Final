@@ -1,0 +1,12 @@
+SKIN POWERS v1.3.0 FIX3 - MOD MENU İNDİRME KÖK DÜZELTMESİ
+
+1. Bu ZIP'i ayıkla.
+2. İçindeki build.gradle dosyasını kopyala.
+3. GitHub Desktop > Repository > Show in Explorer.
+4. Açılan ana proje klasörüne yapıştır.
+5. Hedefteki dosyayı değiştir seç.
+6. Summary: 1.3.0 FIX3 Mod Menu Modrinth Maven
+7. Commit to main > Push origin.
+
+Bu paket yalnızca build.gradle dosyasını değiştirir.
+Terraformers Maven yerine Modrinth'in resmî Maven aynasını kullanır.
