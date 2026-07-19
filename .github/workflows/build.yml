@@ -41,8 +41,40 @@ jobs:
         continue-on-error: true
         run: python3 tools/verify_project.py
 
-      - name: Modu derle
-        run: gradle clean build --stacktrace --warning-mode all
+      - name: Modu derle (indirme hatasında otomatik yeniden dene)
+        shell: bash
+        run: |
+          set +e
+
+          for deneme in 1 2 3; do
+            echo "=============================================="
+            echo "Gradle derleme denemesi: ${deneme}/3"
+            echo "=============================================="
+
+            if [ "$deneme" -eq 1 ]; then
+              gradle clean build --stacktrace --warning-mode all
+            else
+              echo "Eksik veya yarım inmiş Mod Menu önbelleği temizleniyor..."
+              rm -rf "$HOME/.gradle/caches/modules-2/files-2.1/com.terraformersmc/modmenu"
+              rm -rf "$HOME/.gradle/caches/modules-2/metadata-2.*/descriptors/com.terraformersmc/modmenu" 2>/dev/null || true
+
+              gradle clean build --refresh-dependencies --stacktrace --warning-mode all
+            fi
+
+            sonuc=$?
+            if [ "$sonuc" -eq 0 ]; then
+              echo "Derleme ${deneme}. denemede başarıyla tamamlandı."
+              exit 0
+            fi
+
+            if [ "$deneme" -lt 3 ]; then
+              echo "Derleme başarısız oldu. Geçici Maven/bağlantı hatası ihtimaline karşı yeniden denenecek."
+              sleep $((deneme * 15))
+            fi
+          done
+
+          echo "Derleme üç denemede de tamamlanamadı. Son hata gerçek derleme hatası veya devam eden sunucu sorunu olabilir."
+          exit 1
 
       - name: Derlenen JAR dosyasını yükle
         uses: actions/upload-artifact@v4
