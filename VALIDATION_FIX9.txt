@@ -1,0 +1,11 @@
+SKIN POWERS v1.3.0 FIX9 DOĞRULAMA
+================================
+
+- tools/verify_project.py: 50/50 kontrol başarılı.
+- Değişen üç Java dosyasında parantez, string ve yorum taraması başarılı.
+- FIX8 ile satır karşılaştırması yapıldı; hasar, cooldown, XP ve hedefleme değerleri değiştirilmedi.
+- Paket temiz FIX8 proje kopyasına uygulandı.
+- Uygulama sonrasında proje denetimi tekrar çalıştırıldı.
+- ZIP bütünlük testi ve dosya hash eşleşmesi yapıldı.
+
+Not: Tam Java 25/Fabric derlemesinin nihai sonucu GitHub Actions tarafından doğrulanır.

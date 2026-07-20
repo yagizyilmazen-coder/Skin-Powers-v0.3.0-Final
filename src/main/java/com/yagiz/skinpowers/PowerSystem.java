@@ -1676,6 +1676,7 @@ public final class PowerSystem {
         ));
         level.sendParticles(charged ? ParticleTypes.WITCH : ParticleTypes.FLAME, start.x, start.y, start.z, charged ? 48 : 24, 0.35, 0.35, 0.35, 0.05);
         level.sendParticles(charged ? ParticleTypes.SCULK_SOUL : ParticleTypes.LAVA, start.x, start.y, start.z, charged ? 18 : 5, 0.20, 0.20, 0.20, 0.0);
+        drawHellfireMuzzle(level, start, direction, charged, now);
         level.playSound(null, player.blockPosition(), SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 1.3F, 0.72F);
     }
 
@@ -1745,9 +1746,52 @@ public final class PowerSystem {
 
             orb.position = to;
             placeHellfireVisual(orb, to);
+            drawHellfireHelix(level, from, to, orb.charged, now);
             level.sendParticles(orb.charged ? ParticleTypes.WITCH : ParticleTypes.FLAME, to.x, to.y, to.z, orb.charged ? 30 : 18, 0.42, 0.42, 0.42, 0.025);
             level.sendParticles(orb.charged ? ParticleTypes.SCULK_SOUL : ParticleTypes.LAVA, to.x, to.y, to.z, orb.charged ? 12 : 3, 0.24, 0.24, 0.24, 0.0);
             level.sendParticles(ParticleTypes.LARGE_SMOKE, from.x, from.y, from.z, orb.charged ? 7 : 3, 0.20, 0.20, 0.20, 0.015);
+        }
+    }
+
+    /** Cehennem Işını çıkışında namlu ağzını gösteren, bakışa dik parçacık halkaları. */
+    private static void drawHellfireMuzzle(ServerLevel level, Vec3 center, Vec3 direction, boolean charged, long now) {
+        Vec3 forward = direction.normalize();
+        Vec3 side = forward.cross(new Vec3(0.0, 1.0, 0.0));
+        if (side.lengthSqr() < 0.001) side = new Vec3(1.0, 0.0, 0.0);
+        else side = side.normalize();
+        Vec3 up = side.cross(forward).normalize();
+        int points = charged ? 32 : 24;
+        for (int ring = 0; ring < 2; ring++) {
+            double radius = (charged ? 0.95 : 0.72) + ring * 0.38;
+            for (int i = 0; i < points; i++) {
+                double angle = Math.PI * 2.0 * i / points + now * 0.16 + ring * 0.5;
+                Vec3 point = center.add(side.scale(Math.cos(angle) * radius)).add(up.scale(Math.sin(angle) * radius));
+                level.sendParticles((i + ring) % 4 == 0 && charged ? ParticleTypes.WITCH : ParticleTypes.FLAME,
+                    point.x, point.y, point.z, 1, 0.0, 0.0, 0.0, 0.0);
+            }
+        }
+    }
+
+    /** Hareket eden ışının çevresindeki çift sarmallı ateş izi. */
+    private static void drawHellfireHelix(ServerLevel level, Vec3 from, Vec3 to, boolean charged, long now) {
+        Vec3 delta = to.subtract(from);
+        if (delta.lengthSqr() < 0.0001) return;
+        Vec3 forward = delta.normalize();
+        Vec3 side = forward.cross(new Vec3(0.0, 1.0, 0.0));
+        if (side.lengthSqr() < 0.001) side = new Vec3(1.0, 0.0, 0.0);
+        else side = side.normalize();
+        Vec3 up = side.cross(forward).normalize();
+        int samples = charged ? 9 : 7;
+        for (int i = 0; i <= samples; i++) {
+            double t = i / (double) samples;
+            Vec3 center = from.add(delta.scale(t));
+            double angle = now * 0.48 + t * Math.PI * 4.0;
+            double radius = charged ? 0.62 : 0.44;
+            Vec3 offset = side.scale(Math.cos(angle) * radius).add(up.scale(Math.sin(angle) * radius));
+            Vec3 a = center.add(offset);
+            Vec3 b = center.subtract(offset);
+            level.sendParticles(ParticleTypes.FLAME, a.x, a.y, a.z, 1, 0.0, 0.0, 0.0, 0.0);
+            level.sendParticles(charged ? ParticleTypes.WITCH : ParticleTypes.LAVA, b.x, b.y, b.z, 1, 0.0, 0.0, 0.0, 0.0);
         }
     }
 
@@ -1813,6 +1857,18 @@ public final class PowerSystem {
         level.sendParticles(ParticleTypes.EXPLOSION, impact.x, impact.y, impact.z, 5, 0.55, 0.55, 0.55, 0.0);
         level.sendParticles(orb.charged ? ParticleTypes.WITCH : ParticleTypes.FLAME, impact.x, impact.y, impact.z, orb.charged ? 130 : 70, 1.25, 1.25, 1.25, 0.11);
         level.sendParticles(orb.charged ? ParticleTypes.SCULK_SOUL : ParticleTypes.LAVA, impact.x, impact.y, impact.z, orb.charged ? 50 : 15, 0.85, 0.85, 0.85, 0.0);
+        drawRing(level, impact.add(0.0, 0.12, 0.0), blastRadius * 0.55, ParticleTypes.FLAME, orb.charged ? 72 : 48);
+        drawRing(level, impact.add(0.0, 0.24, 0.0), blastRadius * 0.90, orb.charged ? ParticleTypes.WITCH : ParticleTypes.LAVA, orb.charged ? 92 : 60);
+        drawRing(level, impact.add(0.0, 0.36, 0.0), blastRadius * 1.25, ParticleTypes.LARGE_SMOKE, orb.charged ? 104 : 72);
+        for (int i = 0; i < (orb.charged ? 22 : 15); i++) {
+            double y = impact.y + 0.25 + i * 0.28;
+            double radius = 0.18 + i * 0.025;
+            double angle = i * 1.15 + level.getGameTime() * 0.22;
+            level.sendParticles(i % 3 == 0 && orb.charged ? ParticleTypes.WITCH : ParticleTypes.FLAME,
+                impact.x + Math.cos(angle) * radius, y, impact.z + Math.sin(angle) * radius,
+                2, 0.06, 0.08, 0.06, 0.01);
+        }
+        ServerNetworking.sendScreenShake(level, impact, orb.charged ? 38.0 : 28.0, orb.charged ? 1.65F : 1.15F, orb.charged ? 20 : 14);
         level.playSound(null, BlockPos.containing(impact), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.15F, 1.05F);
         if (orb.comboPrimer && owner != null) {
             PlayerPowerData data = PlayerDataStore.get(owner.getUUID());

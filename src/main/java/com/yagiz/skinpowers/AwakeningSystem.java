@@ -60,6 +60,7 @@ public final class AwakeningSystem {
         player.sendSystemMessage(Component.literal(name + " başladı: " + PowerSystem.formatSeconds(duration) + " saniye."));
         level.playSound(null, player.blockPosition(), SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 1.0F, awakeningPitch(data.powerClass()));
         emitBurst(level, player.position().add(0.0, 1.0, 0.0), data.powerClass(), 84);
+        emitActivationSigil(level, player.position(), data.powerClass(), now);
         ServerNetworking.sendCastAnimation(level, player.position(), data.powerClass(), 6);
         ServerNetworking.sendScreenShake(level, player.position(), 28.0, 1.15F, 14);
         PlayerDataStore.markDirty();
@@ -196,6 +197,10 @@ public final class AwakeningSystem {
             }
         }
         emitBurst(level, player.position().add(0.0, 0.8, 0.0), powerClass, 110);
+        var finalParticle = awakeningParticle(powerClass);
+        PowerSystem.drawExternalRing(level, player.position().add(0.0, 0.12, 0.0), radius * 0.45, finalParticle, 56);
+        PowerSystem.drawExternalRing(level, player.position().add(0.0, 0.24, 0.0), radius * 0.75, finalParticle, 72);
+        PowerSystem.drawExternalRing(level, player.position().add(0.0, 0.36, 0.0), radius, finalParticle, 92);
         ServerNetworking.sendScreenShake(level, player.position(), 36.0, 1.55F, 18);
     }
 
@@ -215,7 +220,30 @@ public final class AwakeningSystem {
     }
 
     private static void emitBurst(ServerLevel level, Vec3 center, PowerClass powerClass, int count) {
-        var particle = switch (powerClass) {
+        var particle = awakeningParticle(powerClass);
+        level.sendParticles(particle, center.x, center.y, center.z, count, 1.25, 1.15, 1.25, 0.055);
+    }
+
+    /** Uyanış açılırken yerde sınıf mührü ve oyuncunun çevresinde yükselen çift sarmal oluşturur. */
+    private static void emitActivationSigil(ServerLevel level, Vec3 base, PowerClass powerClass, long now) {
+        var primary = awakeningParticle(powerClass);
+        var secondary = secondaryAwakeningParticle(powerClass);
+        PowerSystem.drawExternalRing(level, base.add(0.0, 0.10, 0.0), 2.2, primary, 48);
+        PowerSystem.drawExternalRing(level, base.add(0.0, 0.18, 0.0), 3.5, secondary, 64);
+        PowerSystem.drawExternalRing(level, base.add(0.0, 0.26, 0.0), 5.0, primary, 80);
+        for (int i = 0; i < 42; i++) {
+            double t = i / 41.0;
+            double angle = t * Math.PI * 7.0 + now * 0.20;
+            double radius = 1.55 - t * 0.75;
+            Vec3 a = base.add(Math.cos(angle) * radius, 0.25 + t * 3.6, Math.sin(angle) * radius);
+            Vec3 b = base.add(-Math.cos(angle) * radius, 0.25 + t * 3.6, -Math.sin(angle) * radius);
+            level.sendParticles(primary, a.x, a.y, a.z, 1, 0.0, 0.0, 0.0, 0.0);
+            level.sendParticles(secondary, b.x, b.y, b.z, 1, 0.0, 0.0, 0.0, 0.0);
+        }
+    }
+
+    private static net.minecraft.core.particles.ParticleOptions awakeningParticle(PowerClass powerClass) {
+        return switch (powerClass) {
             case WARDEN -> ParticleTypes.SCULK_SOUL;
             case FIRE -> ParticleTypes.FLAME;
             case MOON -> ParticleTypes.END_ROD;
@@ -225,7 +253,19 @@ public final class AwakeningSystem {
             case SAND -> ParticleTypes.POOF;
             default -> ParticleTypes.END_ROD;
         };
-        level.sendParticles(particle, center.x, center.y, center.z, count, 1.25, 1.15, 1.25, 0.055);
+    }
+
+    private static net.minecraft.core.particles.ParticleOptions secondaryAwakeningParticle(PowerClass powerClass) {
+        return switch (powerClass) {
+            case WARDEN -> ParticleTypes.SOUL_FIRE_FLAME;
+            case FIRE -> ParticleTypes.LAVA;
+            case MOON -> ParticleTypes.REVERSE_PORTAL;
+            case ANOMALY -> ParticleTypes.REVERSE_PORTAL;
+            case FLIGHT -> ParticleTypes.WITCH;
+            case MAGNETIC -> ParticleTypes.END_ROD;
+            case SAND -> ParticleTypes.LARGE_SMOKE;
+            default -> ParticleTypes.END_ROD;
+        };
     }
 
     public static String awakeningName(PowerClass powerClass) {

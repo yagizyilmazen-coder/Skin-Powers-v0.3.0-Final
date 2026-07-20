@@ -159,7 +159,7 @@ public final class AnomalySystem {
         long duration = 100L + stage * 10L + (charged ? 40L : 0L);
         data.beginAnomalyDamageStore(now + duration);
         level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 55, 0.8, 1.0, 0.8, 0.04);
-        spawnVisibleRing(level, player.getUUID(), player.position().add(0.0, 1.0, 0.0), new Item[]{Items.REDSTONE, Items.ENDER_EYE}, charged ? 10 : 7, 1.15, now + duration);
+        drawAnomalyShield(level, player.position().add(0.0, 1.0, 0.0), charged, now * 0.28);
         player.sendSystemMessage(Component.literal("Hasar Mevcut Değil: " + String.format(java.util.Locale.ROOT, "%.1f", duration / 20.0) + " saniye boyunca hasar depolanıyor."));
         data.setCooldown(4, now, Math.max(700, 980 - stage * 70));
         return true;
@@ -188,6 +188,7 @@ public final class AnomalySystem {
             voidedPlayer.sendSystemMessage(Component.literal("Varlıktan çıkarıldın. Süre bitene kadar hareket ve güç kullanımı kilitlendi."));
         }
         level.sendParticles(ParticleTypes.REVERSE_PORTAL, target.getX(), target.getY() + 1.0, target.getZ(), charged ? 100 : 65, 0.8, 1.1, 0.8, 0.18);
+        drawGlitchCage(level, target.position(), charged ? 1.55 : 1.30, charged ? 2.9 : 2.55, now * 0.22, charged);
         spawnGlitchFigure(level, player.getUUID(), target.position(), now + duration, 0.0);
         level.playSound(null, target.blockPosition(), SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 0.8F, 1.55F);
         data.setCooldown(5, now, Math.max(700, 980 - stage * 70));
@@ -227,6 +228,8 @@ public final class AnomalySystem {
                 ServerNetworking.sync(player);
                 ServerLevel level = (ServerLevel) player.level();
                 level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 12, 0.35, 0.55, 0.35, 0.03);
+                PowerSystem.drawExternalRing(level, player.position().add(0.0, 0.55, 0.0),
+                    data.classAwakeningActive(now) ? 1.75 : 1.45, ParticleTypes.WITCH, data.classAwakeningActive(now) ? 32 : 24);
                 return false;
             }
         }
@@ -316,6 +319,7 @@ public final class AnomalySystem {
             attribute.setBaseValue(baseBefore + newBonus);
             data.setAnomalyBonusHealth(newBonus, now + 3600L, baseBefore);
             player.sendSystemMessage(Component.literal("+" + String.format(java.util.Locale.ROOT, "%.1f", actualGain / 2.0) + " geçici kırmızı kalp kapasitesi • 03:00"));
+            drawHealthConversion((ServerLevel) player.level(), player.position().add(0.0, 1.0, 0.0), now);
             data.clearAnomalyStoredDamage();
         } else {
             LivingEntity target = findStoredDamageTarget(player, 34.0);
@@ -334,8 +338,8 @@ public final class AnomalySystem {
                 return;
             }
             level.sendParticles(ParticleTypes.WITCH, target.getX(), target.getY() + 1.0, target.getZ(), 75, 0.8, 1.0, 0.8, 0.12);
-            spawnVisibleRing(level, player.getUUID(), target.position().add(0.0, 1.0, 0.0),
-                new Item[]{Items.REDSTONE, Items.ECHO_SHARD}, 12, 1.35, now + 24L);
+            drawAnomalyBeam(level, player.getEyePosition(), target.getBoundingBox().getCenter(), now);
+            drawGlitchCage(level, target.position(), 1.45, 2.8, now * 0.30, true);
             player.sendSystemMessage(Component.literal("X: " + String.format(java.util.Locale.ROOT, "%.1f", damage)
                 + " hasar " + (target instanceof ServerPlayer ? "oyuncuya" : "moba") + " geri gönderildi."));
             data.clearAnomalyStoredDamage();
@@ -436,9 +440,9 @@ public final class AnomalySystem {
                 ServerNetworking.sync(player);
             }
         }
-        if ((data.anomalyDamageStoreUntil() > now || data.anomalyChoiceUntil() > now) && data.anomalyStoredDamage() > 0.0F && now % 10L == 0L) {
-            int count = Math.max(3, Math.min(12, 3 + (int) (data.anomalyStoredDamage() / 4.0F)));
-            spawnVisibleRing(level, player.getUUID(), player.position().add(0.0, 1.0, 0.0), new Item[]{Items.REDSTONE, Items.ENDER_EYE}, count, 1.0 + count * 0.035, now + 14L);
+        if ((data.anomalyDamageStoreUntil() > now || data.anomalyChoiceUntil() > now) && data.anomalyStoredDamage() > 0.0F && now % 8L == 0L) {
+            boolean empowered = data.classAwakeningActive(now);
+            drawAnomalyShield(level, player.position().add(0.0, 1.0, 0.0), empowered, now * 0.24);
         }
         if (data.anomalyDamageStoreUntil() > 0L && data.anomalyDamageStoreUntil() <= now) {
             data.finishAnomalyDamageStore(now + 240L);
@@ -527,7 +531,10 @@ public final class AnomalySystem {
                 player.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, 25, 255, false, false, false));
                 player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 25, 0, false, false, false));
             }
-            if (now % 6L == 0L) entry.level.sendParticles(ParticleTypes.REVERSE_PORTAL, entry.anchor.x, entry.anchor.y + 1.0, entry.anchor.z, 12, 0.45, 0.8, 0.45, 0.06);
+            if (now % 6L == 0L) {
+                entry.level.sendParticles(ParticleTypes.REVERSE_PORTAL, entry.anchor.x, entry.anchor.y + 1.0, entry.anchor.z, 12, 0.45, 0.8, 0.45, 0.06);
+                drawGlitchCage(entry.level, entry.anchor, 1.30, 2.8, now * 0.26, false);
+            }
         }
     }
 
@@ -654,6 +661,8 @@ public final class AnomalySystem {
             }
         }
         entry.level.sendParticles(ParticleTypes.REVERSE_PORTAL, target.getX(), target.getY() + 1.0, target.getZ(), 110, 1.2, 1.35, 1.2, 0.18);
+        drawGlitchCage(entry.level, target.position(), 2.10, 3.2, entry.level.getGameTime() * 0.34, true);
+        PowerSystem.drawExternalRing(entry.level, target.position().add(0.0, 0.15, 0.0), 3.2, ParticleTypes.REVERSE_PORTAL, 64);
         ServerNetworking.sendScreenShake(entry.level, target.position(), 22.0, 1.0F, 10);
     }
 
@@ -867,6 +876,84 @@ public final class AnomalySystem {
                 echo.empowered ? 48 : 28, radius * 0.45, 0.7, radius * 0.45, 0.08);
             iterator.remove();
         }
+    }
+
+    /** Parçacıklardan oluşan üç katmanlı Anomali kalkanı; eşya modeli kullanmaz. */
+    private static void drawAnomalyShield(ServerLevel level, Vec3 center, boolean empowered, double phase) {
+        int points = empowered ? 28 : 22;
+        double[] heights = {-0.72, 0.0, 0.72};
+        for (int layer = 0; layer < heights.length; layer++) {
+            double radius = (empowered ? 1.58 : 1.28) - Math.abs(layer - 1) * 0.16;
+            for (int i = 0; i < points; i++) {
+                double angle = Math.PI * 2.0 * i / points + phase + layer * 0.65;
+                Vec3 point = center.add(Math.cos(angle) * radius, heights[layer], Math.sin(angle) * radius);
+                level.sendParticles((i + layer) % 3 == 0 ? ParticleTypes.REVERSE_PORTAL : ParticleTypes.WITCH,
+                    point.x, point.y, point.z, 1, 0.0, 0.0, 0.0, 0.0);
+            }
+        }
+    }
+
+    /** Görünmez hedefin yerini açıkça gösteren dönen, dikey parçacık kafesi. */
+    private static void drawGlitchCage(ServerLevel level, Vec3 base, double radius, double height, double phase, boolean intense) {
+        int rings = intense ? 4 : 3;
+        int points = intense ? 20 : 14;
+        for (int ring = 0; ring < rings; ring++) {
+            double y = 0.15 + height * ring / Math.max(1.0, rings - 1.0);
+            double ringRadius = radius * (0.90 + Math.sin(phase + ring * 0.8) * 0.10);
+            for (int i = 0; i < points; i++) {
+                double angle = Math.PI * 2.0 * i / points + phase * (ring % 2 == 0 ? 1.0 : -1.0);
+                Vec3 point = base.add(Math.cos(angle) * ringRadius, y, Math.sin(angle) * ringRadius);
+                level.sendParticles((i + ring) % 4 == 0 ? ParticleTypes.WITCH : ParticleTypes.REVERSE_PORTAL,
+                    point.x, point.y, point.z, 1, 0.0, 0.0, 0.0, 0.0);
+            }
+        }
+        int columns = intense ? 7 : 5;
+        for (int column = 0; column < columns; column++) {
+            double angle = Math.PI * 2.0 * column / columns + phase;
+            int steps = intense ? 5 : 4;
+            for (int step = 0; step <= steps; step++) {
+                Vec3 point = base.add(Math.cos(angle) * radius, 0.15 + height * step / steps, Math.sin(angle) * radius);
+                level.sendParticles(ParticleTypes.WITCH, point.x, point.y, point.z, 1, 0.0, 0.0, 0.0, 0.0);
+            }
+        }
+    }
+
+    /** Depolanmış hasarın kullanıcıdan hedefe aktığını gösteren çift sarmallı ışın. */
+    private static void drawAnomalyBeam(ServerLevel level, Vec3 start, Vec3 end, long now) {
+        Vec3 delta = end.subtract(start);
+        double length = delta.length();
+        if (length < 0.01) return;
+        Vec3 direction = delta.scale(1.0 / length);
+        Vec3 side = direction.cross(new Vec3(0.0, 1.0, 0.0));
+        if (side.lengthSqr() < 0.001) side = new Vec3(1.0, 0.0, 0.0);
+        else side = side.normalize();
+        Vec3 up = side.cross(direction).normalize();
+        int samples = Math.max(12, (int) Math.ceil(length * 2.5));
+        for (int i = 0; i <= samples; i++) {
+            double t = i / (double) samples;
+            double angle = t * Math.PI * 8.0 + now * 0.32;
+            double radius = 0.18 + Math.sin(t * Math.PI) * 0.22;
+            Vec3 center = start.add(delta.scale(t));
+            Vec3 offset = side.scale(Math.cos(angle) * radius).add(up.scale(Math.sin(angle) * radius));
+            Vec3 a = center.add(offset);
+            Vec3 b = center.subtract(offset);
+            level.sendParticles(ParticleTypes.WITCH, a.x, a.y, a.z, 1, 0.0, 0.0, 0.0, 0.0);
+            level.sendParticles(ParticleTypes.REVERSE_PORTAL, b.x, b.y, b.z, 1, 0.0, 0.0, 0.0, 0.0);
+        }
+    }
+
+    private static void drawHealthConversion(ServerLevel level, Vec3 center, long now) {
+        for (int ring = 0; ring < 3; ring++) {
+            double radius = 0.85 + ring * 0.42;
+            double y = -0.65 + ring * 0.65;
+            for (int i = 0; i < 24; i++) {
+                double angle = Math.PI * 2.0 * i / 24.0 + now * 0.18 + ring * 0.7;
+                Vec3 point = center.add(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
+                level.sendParticles(i % 3 == 0 ? ParticleTypes.REVERSE_PORTAL : ParticleTypes.WITCH,
+                    point.x, point.y, point.z, 1, 0.0, 0.02, 0.0, 0.0);
+            }
+        }
+        level.playSound(null, BlockPos.containing(center), SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 0.85F, 1.45F);
     }
 
     private static void spawnGlitchFigure(ServerLevel level, UUID owner, Vec3 base, long expireTick, double phase) {
