@@ -1,7 +1,7 @@
 package com.yagiz.skinpowers;
 
 public final class PowerCatalog {
-    public static final int[] XP_COSTS = {5, 15, 30, 40, 50};
+    public static final int[] XP_COSTS = {5, 15, 30, 40, 50, 70};
     public static final int[] DRAGON_XP_COSTS = {10, 20, 30, 40, 55, 70};
     public static final int[] ANOMALY_XP_COSTS = {10, 20, 30, 40, 50, 70};
     public static final int[] EXPANSION_XP_COSTS = {10, 20, 30, 40, 55, 70};
@@ -11,7 +11,7 @@ public final class PowerCatalog {
         {"-", "-", "-", "-", "-", "-"},
         {"Warden Zırhı", "Yer Sarsıntısı", "Sonik Patlama", "Derinlik Pususu", "Warden Uyanışı", "Şarj Et Beni Antik Şehir"},
         {"Kuyruk Kasırgası", "Ejderha Nefesi", "Kadim Pullar", "Avcı Pençesi", "Kadim Kükreme", "Ejderha Hükümdarı"},
-        {"Ateş Bağışıklığı", "Alevli Yakın Dövüş", "Ateş Çemberi", "Cehennem Küresi", "Meteor Yağmuru", "-"},
+        {"Ateş Bağışıklığı", "Alevli Yakın Dövüş", "Ateş Çemberi", "Cehennem Küresi", "Meteor Yağmuru", "Cehennem Işını"},
         {"Ay Halkası", "Ay Mührü", "Yerçekimi Baskısı", "Ay Aynası", "Tutulma Hükmü", "Dolunay Canavarı"},
         {"Kırık Adım", "Tersine Çevir", "?", "Hasar Mevcut Değil", "Varlıktan Çıkar", "404: Gerçeklik Bulunamadı"},
         {"Manyetik Çekim", "Kutup İtişi", "Demir Yumruk", "Metal Fırtınası", "Ray Topu", "Manyetik Kafes"},
@@ -42,7 +42,7 @@ public final class PowerCatalog {
             "Çevrende yakan ve hasar veren geniş bir halka.",
             "Baktığın yöne ilerleyen görünür büyük bir ateş küresi fırlatır.",
             "Çevrene 10 yuvarlak magma meteoru indirir ve kraterler açar.",
-            ""
+            "Baktığın yönde uzun menzilli, kalın ve sürekli bir cehennem ışını açar; vurduğu hedefleri yakar ve son noktada patlar."
         },
         {
             "Eşya parçaları olmadan oluşan yoğun beyaz ay halkası gidip geri döner ve dönüşte yeniden vurabilir.",
@@ -81,8 +81,9 @@ public final class PowerCatalog {
     private PowerCatalog() {}
 
     public static int maxLevel(PowerClass powerClass) {
-        return powerClass == PowerClass.WARDEN || powerClass == PowerClass.FLIGHT || powerClass == PowerClass.MOON
-            || powerClass == PowerClass.ANOMALY || powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.SAND ? 6 : 5;
+        return powerClass == PowerClass.WARDEN || powerClass == PowerClass.FLIGHT || powerClass == PowerClass.FIRE
+            || powerClass == PowerClass.MOON || powerClass == PowerClass.ANOMALY
+            || powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.SAND ? 6 : 5;
     }
 
     public static String powerName(PowerClass powerClass, int oneBasedLevel) {

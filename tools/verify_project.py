@@ -95,10 +95,10 @@ check("31. Anomali görünür kopyaları", has_all(anomaly, "spawnGlitchFigure",
 check("32. REVERSED bildirimi", 'Component.literal("REVERSED")' in anomaly and 'spawnVisibleRing' in anomaly)
 check("33. Kopya 10 saniye", has_all(anomaly, "COPIED_EXPIRES", "now + 200L", "10 saniye"))
 check("34. Sistem Çökmesi iki kopya", 'setCopiedPowerUses(2)' in anomaly)
-check("35. Hasar küpleri", has_all(anomaly, "anomalyStoredDamage", "Items.REDSTONE", "Items.ENDER_EYE"))
-check("36. Varlıktan Çıkar görünür beden", "spawnGlitchFigure(level, player.getUUID(), target.position()" in anomaly)
+check("35. Hasar geri gönderme mob/oyuncu güvenliği", has_all(anomaly, "anomalyStoredDamage", "findStoredDamageTarget", "damageApplied", "depolanan hasar korunuyor"))
+check("36. Varlıktan Çıkar oyuncu kilidi", has_all(anomaly, "spawnGlitchFigure(level, player.getUUID(), target.position()", "isVoided", "MobEffects.MINING_FATIGUE", "Gerçekliğe geri döndün"))
 check("37. Görünür 404 gövdesi", has_all(anomaly, "spawn404Body", "404 ALANI: GERÇEKLİK BULUNAMADI", "AnomalyVisual"))
-check("38. Anomali Ay güçlerini kopyalar", 'case MOON -> power >= 1 && power <= 6' in anomaly)
+check("38. Anomali Ay ve Ateş 6 güçlerini kopyalar", 'case MOON -> power >= 1 && power <= 6' in anomaly and 'case FIRE -> power >= 3 && power <= 6' in anomaly)
 check("39. Ay skin paleti", has_all(analyzer, "MOON_COLORS", "double moon", "CLASS_COUNT = 7"))
 check("40. Ay seçim kartı", has_all(selection, '"AY"', "PowerClass.MOON", "drawMoon"))
 check("41. Ay güç menüsü teması", 'case MOON -> new int[]' in menu and 'powerClass == PowerClass.MOON' in menu)
@@ -136,8 +136,10 @@ check(
     and "Blocks.CHAIN" not in expansion
     and re.search(r"\bItems\.CHAIN\b", expansion) is None
     and has_all(moon, "spawnAirTrail", "ProjectileEscort", "moonFlightItems", "tickProjectileEscorts")
-    and has_all(anomaly, "ensureProjectileEscort", "ProjectileEscort", "tickProjectileEscorts"),
-    "Manyetik/Kum uyumluluğu veya Ay-Anomali uçan gövdeleri eksik."
+    and has_all(anomaly, "ensureProjectileEscort", "ProjectileEscort", "tickProjectileEscorts")
+    and has_all(catalog, "Cehennem Işını", "PowerClass.FIRE")
+    and has_all(power_system, "case 6 ->", "infernoRay", "Varlıktan çıkarılmışken güç kullanamazsın"),
+    "Manyetik/Kum uyumluluğu, Ay-Anomali gövdeleri, Anomali oyuncu kilidi veya Ateş 6 eksik."
 )
 
 json_ok = True

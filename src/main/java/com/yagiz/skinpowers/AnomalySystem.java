@@ -183,6 +183,10 @@ public final class AnomalySystem {
         target.setNoGravity(true);
         target.setInvulnerable(true);
         target.setDeltaMovement(Vec3.ZERO);
+        if (target instanceof ServerPlayer voidedPlayer) {
+            voidedPlayer.hurtMarked = true;
+            voidedPlayer.sendSystemMessage(Component.literal("Varlıktan çıkarıldın. Süre bitene kadar hareket ve güç kullanımı kilitlendi."));
+        }
         level.sendParticles(ParticleTypes.REVERSE_PORTAL, target.getX(), target.getY() + 1.0, target.getZ(), charged ? 100 : 65, 0.8, 1.1, 0.8, 0.18);
         spawnGlitchFigure(level, player.getUUID(), target.position(), now + duration, 0.0);
         level.playSound(null, target.blockPosition(), SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 0.8F, 1.55F);
@@ -314,19 +318,67 @@ public final class AnomalySystem {
             player.sendSystemMessage(Component.literal("+" + String.format(java.util.Locale.ROOT, "%.1f", actualGain / 2.0) + " geçici kırmızı kalp kapasitesi • 03:00"));
             data.clearAnomalyStoredDamage();
         } else {
-            LivingEntity target = PowerSystem.findTargetForExternalPower(player, 34.0);
+            LivingEntity target = findStoredDamageTarget(player, 34.0);
             if (target == null) {
-                player.sendSystemMessage(Component.literal("X: Hedef bulunamadı; depolanan hasar korunuyor."));
+                player.sendSystemMessage(Component.literal("X: Nişangâhında mob veya oyuncu bulunamadı; depolanan hasar korunuyor."));
                 return;
             }
             float damage = data.anomalyStoredDamage();
-            target.hurtServer((ServerLevel) player.level(), player.level().damageSources().playerAttack(player), damage);
-            ((ServerLevel) player.level()).sendParticles(ParticleTypes.WITCH, target.getX(), target.getY() + 1.0, target.getZ(), 75, 0.8, 1.0, 0.8, 0.12);
-            player.sendSystemMessage(Component.literal("X: " + String.format(java.util.Locale.ROOT, "%.1f", damage) + " hasar geri gönderildi."));
+            ServerLevel level = (ServerLevel) player.level();
+            boolean damageApplied = target.hurtServer(level, level.damageSources().playerAttack(player), damage);
+            if (!damageApplied) {
+                String reason = target instanceof ServerPlayer
+                    ? "Oyuncuya hasar verilemedi. Sunucuda PvP kapalı olabilir; depolanan hasar korunuyor."
+                    : "Hedef şu anda hasar alamıyor; depolanan hasar korunuyor.";
+                player.sendSystemMessage(Component.literal("X: " + reason));
+                return;
+            }
+            level.sendParticles(ParticleTypes.WITCH, target.getX(), target.getY() + 1.0, target.getZ(), 75, 0.8, 1.0, 0.8, 0.12);
+            spawnVisibleRing(level, player.getUUID(), target.position().add(0.0, 1.0, 0.0),
+                new Item[]{Items.REDSTONE, Items.ECHO_SHARD}, 12, 1.35, now + 24L);
+            player.sendSystemMessage(Component.literal("X: " + String.format(java.util.Locale.ROOT, "%.1f", damage)
+                + " hasar " + (target instanceof ServerPlayer ? "oyuncuya" : "moba") + " geri gönderildi."));
             data.clearAnomalyStoredDamage();
         }
         PlayerDataStore.markDirty();
         ServerNetworking.sync(player);
+    }
+
+    /**
+     * Depolanmış hasarın moblarda da güvenilir çalışması için önce dar nişan seçimini,
+     * sonra hedefin gövdesini kullanan daha geniş bir görüş konisi seçimini dener.
+     */
+    private static LivingEntity findStoredDamageTarget(ServerPlayer player, double range) {
+        LivingEntity direct = PowerSystem.findTargetForExternalPower(player, range);
+        if (direct != null) return direct;
+
+        ServerLevel level = (ServerLevel) player.level();
+        Vec3 origin = player.getEyePosition();
+        Vec3 look = player.getLookAngle().normalize();
+        Vec3 end = origin.add(look.scale(range));
+        AABB search = new AABB(origin, end).inflate(3.5);
+        LivingEntity best = null;
+        double bestForward = range + 1.0;
+
+        for (LivingEntity candidate : level.getEntitiesOfClass(LivingEntity.class, search)) {
+            if (candidate == player || !candidate.isAlive() || PowerSystem.isProtectedAlly(player, candidate)) continue;
+            Vec3 center = candidate.getBoundingBox().getCenter();
+            Vec3 to = center.subtract(origin);
+            double forward = to.dot(look);
+            if (forward <= 0.0 || forward > range) continue;
+            double side = to.subtract(look.scale(forward)).length();
+            double tolerance = 2.25 + candidate.getBbWidth() * 0.75;
+            if (side > tolerance || !player.hasLineOfSight(candidate)) continue;
+            if (forward < bestForward) {
+                bestForward = forward;
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
+    public static boolean isVoided(UUID entityId) {
+        return entityId != null && VOIDED.containsKey(entityId);
     }
 
     public static void recordPowerUse(ServerPlayer caster, PowerClass powerClass, int power) {
@@ -352,7 +404,7 @@ public final class AnomalySystem {
         return switch (powerClass) {
             case WARDEN -> power >= 1 && power <= 6;
             case FLIGHT -> power >= 1 && power <= 6;
-            case FIRE -> power >= 3 && power <= 5;
+            case FIRE -> power >= 3 && power <= 6;
             case MOON -> power >= 1 && power <= 6;
             case MAGNETIC, SAND -> power >= 1 && power <= 6;
             default -> false;
@@ -462,9 +514,19 @@ public final class AnomalySystem {
                 iterator.remove();
                 continue;
             }
+            target.setInvisible(true);
+            target.setNoGravity(true);
+            target.setInvulnerable(true);
             target.setDeltaMovement(Vec3.ZERO);
+            target.fallDistance = 0.0F;
             moveEntity(target, entry.anchor);
-            if (target instanceof ServerPlayer player) player.hurtMarked = true;
+            if (target instanceof ServerPlayer player) {
+                player.hurtMarked = true;
+                player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 25, 255, false, false, false));
+                player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 25, 255, false, false, false));
+                player.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, 25, 255, false, false, false));
+                player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 25, 0, false, false, false));
+            }
             if (now % 6L == 0L) entry.level.sendParticles(ParticleTypes.REVERSE_PORTAL, entry.anchor.x, entry.anchor.y + 1.0, entry.anchor.z, 12, 0.45, 0.8, 0.45, 0.06);
         }
     }
@@ -572,6 +634,10 @@ public final class AnomalySystem {
         target.setNoGravity(entry.wasNoGravity);
         target.setInvulnerable(entry.wasInvulnerable);
         moveEntity(target, entry.anchor);
+        if (target instanceof ServerPlayer restoredPlayer) {
+            restoredPlayer.hurtMarked = true;
+            restoredPlayer.sendSystemMessage(Component.literal("Gerçekliğe geri döndün."));
+        }
         if (!applyReturnPenalty || !target.isAlive()) return;
 
         target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 120, 3, false, true, true));

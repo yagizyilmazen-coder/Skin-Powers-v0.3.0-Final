@@ -83,6 +83,10 @@ public final class PowerSystem {
             return InteractionResult.PASS;
         }
 
+        if (AnomalySystem.isVoided(serverPlayer.getUUID())) {
+            return InteractionResult.FAIL;
+        }
+
         PlayerPowerData data = PlayerDataStore.get(serverPlayer.getUUID());
         if (data.powerClass() != PowerClass.FIRE || data.unlockedLevel() < 2) {
             return InteractionResult.PASS;
@@ -424,6 +428,10 @@ public final class PowerSystem {
     }
 
     public static void useSelectedPower(ServerPlayer player, PlayerPowerData data) {
+        if (AnomalySystem.isVoided(player.getUUID())) {
+            player.sendSystemMessage(Component.literal("Varlıktan çıkarılmışken güç kullanamazsın."));
+            return;
+        }
         if (data.powerClass() == PowerClass.NONE || data.unlockedLevel() == 0) {
             player.sendSystemMessage(Component.literal("Önce O ekranından bir seviye açmalısın."));
             return;
@@ -1207,8 +1215,71 @@ public final class PowerSystem {
                 data.setCooldown(5, now, Math.max(1800, 2400 - stage * 120));
                 return true;
             }
+            case 6 -> {
+                infernoRay(player, stage, charged);
+                data.setCooldown(6, now, Math.max(1700, 2300 - stage * 140));
+                return true;
+            }
             default -> { return false; }
         }
+    }
+
+    /** Ateş sınıfının altıncı gücü: kalın, uzun menzilli ve tek kullanımlık cehennem ışını. */
+    private static void infernoRay(ServerPlayer player, int stage, boolean charged) {
+        ServerLevel level = (ServerLevel) player.level();
+        Vec3 direction = player.getLookAngle().normalize();
+        Vec3 start = player.getEyePosition().add(direction.scale(1.2));
+        double range = AncientChargeSystem.radius(34.0 + stage * 3.0, charged);
+        double hitRadius = AncientChargeSystem.radius(1.75 + stage * 0.18, charged);
+        java.util.Set<UUID> hit = new java.util.HashSet<>();
+        Vec3 impact = start.add(direction.scale(range));
+
+        for (double distance = 0.0; distance <= range; distance += 0.55) {
+            Vec3 point = start.add(direction.scale(distance));
+            BlockState state = level.getBlockState(BlockPos.containing(point));
+            if (!state.isAir() && !state.is(Blocks.FIRE)) {
+                impact = point.subtract(direction.scale(0.35));
+                break;
+            }
+
+            level.sendParticles(ParticleTypes.FLAME, point.x, point.y, point.z, charged ? 8 : 5,
+                hitRadius * 0.24, hitRadius * 0.24, hitRadius * 0.24, 0.01);
+            if (((int) (distance * 10.0)) % 11 == 0) {
+                level.sendParticles(charged ? ParticleTypes.WITCH : ParticleTypes.LAVA,
+                    point.x, point.y, point.z, charged ? 5 : 2, 0.18, 0.18, 0.18, 0.0);
+            }
+
+            AABB contact = new AABB(point, point).inflate(hitRadius);
+            for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, contact)) {
+                if (target == player || protectedAlly(player, target) || !hit.add(target.getUUID())) continue;
+                float damage = AncientChargeSystem.damage(20.0F + stage * 3.0F, charged);
+                target.hurtServer(level, level.damageSources().playerAttack(player), damage);
+                target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), 240 + stage * 40));
+                Vec3 push = direction.scale(AncientChargeSystem.knockback(1.15 + stage * 0.12, charged));
+                target.push(push.x, 0.30, push.z);
+            }
+            impact = point;
+        }
+
+        double blastRadius = AncientChargeSystem.radius(4.2 + stage * 0.45, charged);
+        for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, new AABB(impact, impact).inflate(blastRadius))) {
+            if (target == player || protectedAlly(player, target) || !hit.add(target.getUUID())) continue;
+            target.hurtServer(level, level.damageSources().playerAttack(player),
+                AncientChargeSystem.damage(12.0F + stage * 2.0F, charged));
+            target.setRemainingFireTicks(Math.max(target.getRemainingFireTicks(), 180));
+            Vec3 push = target.position().subtract(impact);
+            if (push.lengthSqr() > 0.001) {
+                push = push.normalize().scale(AncientChargeSystem.knockback(1.25, charged));
+                target.push(push.x, 0.55, push.z);
+            }
+        }
+        level.sendParticles(ParticleTypes.EXPLOSION, impact.x, impact.y, impact.z, charged ? 8 : 5, 0.8, 0.8, 0.8, 0.0);
+        level.sendParticles(charged ? ParticleTypes.WITCH : ParticleTypes.FLAME,
+            impact.x, impact.y, impact.z, charged ? 160 : 100, 1.7, 1.4, 1.7, 0.10);
+        drawRing(level, impact, blastRadius, charged ? ParticleTypes.WITCH : ParticleTypes.FLAME, charged ? 96 : 72);
+        level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.8F, 0.62F);
+        level.playSound(null, BlockPos.containing(impact), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.6F, 0.72F);
+        ServerNetworking.sendScreenShake(level, impact, 46.0, charged ? 2.1F : 1.65F, charged ? 28 : 22);
     }
 
     private static boolean useNature(ServerPlayer player, PlayerPowerData data, int power, long now, boolean charged, boolean comboStarter) {

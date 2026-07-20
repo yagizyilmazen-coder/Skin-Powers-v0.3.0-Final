@@ -1,14 +1,22 @@
-SKIN POWERS v1.3.0 FIX4
+SKIN POWERS v1.3.0 FIX8
+========================
 
-Bu paket yalnızca build.gradle dosyasını değiştirir.
-FIX3 içindeki yanlış modImplementation satırı kaldırıldı.
-Projenin mevcut yapısına uygun olan implementation kullanıldı.
-Mod Menu 18.0.0, Modrinth Maven üzerinden alınır.
+Bu paket güncel v1.3.0 FINAL (FIX6 + FIX7) projesinin üzerine uygulanır.
+
+Düzeltilenler:
+- Anomali 4 / Hasar Mevcut Değil: mob ve oyuncu hedef seçimi genişletildi.
+- Hasar gerçekten uygulanmazsa depolanan hasar artık silinmez.
+- Oyuncuya geri gönderme sunucunun PvP ayarına saygı gösterir.
+- Anomali 5 / Varlıktan Çıkar: gerçek oyuncuların hareketi, saldırısı ve güç kullanımı kilitlenir.
+- Süre bitince oyuncunun görünürlük, yerçekimi ve hasar alma durumu geri yüklenir.
+- Beş gücü kalan tek sınıf olan Ateş'e 6. güç eklendi: Cehennem Işını.
+- Ateş 6. güç 70 XP ile açılır.
 
 Uygulama:
-1. build.gradle dosyasını GitHub proje ana klasörüne kopyala.
-2. Hedefteki dosyayı değiştir.
-3. GitHub Desktop: Commit to main -> Push origin.
+1. ZIP'i ayıkla.
+2. Bu klasörün içindeki her şeyi projenin ana klasörüne kopyala.
+3. Dosyaları değiştir seç.
+4. GitHub Desktop: Commit to main -> Push origin.
 
-Commit özeti:
-1.3.0 FIX4 Mod Menu Gradle düzeltmesi
+Önerilen commit:
+1.3.0 FIX8 Anomali oyuncu düzeltmesi ve Ateş 6
