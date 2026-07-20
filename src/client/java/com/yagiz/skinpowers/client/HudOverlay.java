@@ -47,7 +47,7 @@ public final class HudOverlay {
         };
 
         drawPowerPanel(graphics, client, powerClass, x, y, panelWidth, panelHeight, accent);
-        int awakeningHeight = drawAwakeningStatus(graphics, client, x, y + panelHeight + 4, panelWidth, accent, config);
+        int awakeningHeight = drawAwakeningStatus(graphics, client, powerClass, x, y + panelHeight + 4, panelWidth, accent, config);
         int comboHeight = drawComboStatus(graphics, client, x, y + panelHeight + awakeningHeight + 4, panelWidth, accent);
         drawAncientStatus(graphics, client, screenWidth, screenHeight, x, y, panelWidth, panelHeight + awakeningHeight + comboHeight + 4);
         drawAnomalyChoice(graphics, client, screenWidth, screenHeight);
@@ -91,7 +91,7 @@ public final class HudOverlay {
             case FIRE -> ClientState.unlockedLevel() >= 4 ? "Seviye 4: Cehennem Küresi" : "Ateş bağışıklığı: AÇIK";
             case MOON -> ClientState.selectedPower() == 4
                 ? "Ay Aynası: R ile aç/fırlat"
-                : (ClientState.selectedPower() == 5 ? "Tutulma Alanı hazır" : "Ay ışığı pasifi: gece açık");
+                : (ClientState.selectedPower() == 5 ? "Tutulma Hükmü hazır" : "Ay ışığı pasifi: gece açık");
             case ANOMALY -> {
                 if (ClientState.anomalyChoiceTicks() > 0) {
                     yield String.format(java.util.Locale.ROOT, "Depolanan: %.1f", ClientState.anomalyStoredDamage());
@@ -112,7 +112,7 @@ public final class HudOverlay {
         graphics.text(client.font, fit(client, status, panelWidth - 18), x + 9, statusY, 0xFFB8C8D3, false);
     }
 
-    private static int drawAwakeningStatus(GuiGraphicsExtractor graphics, Minecraft client, int x, int y, int width, int accent, ClientConfig config) {
+    private static int drawAwakeningStatus(GuiGraphicsExtractor graphics, Minecraft client, PowerClass powerClass, int x, int y, int width, int accent, ClientConfig config) {
         if (!config.showAwakeningBar()) return 0;
         int height = ClientState.classAwakeningTicks() > 0 ? 27 : 18;
         graphics.fill(x, y, x + width, y + height, 0xC5080710);
@@ -135,7 +135,8 @@ public final class HudOverlay {
         }
         int fill = Math.round((barRight - barLeft) * ratio);
         if (fill > 0) graphics.fill(barLeft, barTop, barLeft + fill, barBottom, accent);
-        graphics.text(client.font, fit(client, label, width - 14), x + 7, y + (height > 20 ? 16 : 5), 0xFFF2E9FF, false);
+        int labelColor = powerClass == PowerClass.MOON ? 0xFF4FA8FF : 0xFFF2E9FF;
+        graphics.text(client.font, fit(client, label, width - 14), x + 7, y + (height > 20 ? 16 : 5), labelColor, false);
         return height + 4;
     }
 

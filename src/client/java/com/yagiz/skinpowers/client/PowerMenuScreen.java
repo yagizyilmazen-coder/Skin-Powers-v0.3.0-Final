@@ -323,8 +323,9 @@ public final class PowerMenuScreen extends Screen {
         if (powerClass == PowerClass.FIRE && (level == 1 || level == 2)) return "Otomatik";
         if (powerClass == PowerClass.ANOMALY && level == 3) return ClientState.copiedPowerName().isBlank() ? "R: hamle bekle" : "R: çalınan hamleyi kullan";
         if (powerClass == PowerClass.ANOMALY && level == 4) return "R: depola • V: kalp • X: geri gönder";
-        if (powerClass == PowerClass.MOON && level == 4) return "R: ayna • tekrar R: hilal olarak fırlat";
-        if (powerClass == PowerClass.MOON && level == 5) return "R: tutulma alanı";
+        if (powerClass == PowerClass.MOON && level == 2) return "R: hedefe Ay Mührü bırak";
+        if (powerClass == PowerClass.MOON && level == 4) return "R: ayna • tekrar R: ay halkası fırlat";
+        if (powerClass == PowerClass.MOON && level == 5) return "R: Tutulma Hükmü";
         if (powerClass == PowerClass.MAGNETIC && level == 4) return "R: hazırla • tekrar R: fırlat";
         if (powerClass == PowerClass.SAND && level == 5) return "R: göm • suyla kaçış";
         return "R: kullan";
@@ -344,7 +345,7 @@ public final class PowerMenuScreen extends Screen {
             return String.format(java.util.Locale.ROOT, "Derinlik Pususu %.1f sn", ClientState.wardenHuntTicks() / 20.0);
         }
         if (powerClass == PowerClass.MOON && level == 5) {
-            return ClientState.cooldownTicks() <= 0 ? "Tutulma Alanı hazır" : "Tutulma Alanı beklemede";
+            return ClientState.cooldownTicks() <= 0 ? "Tutulma Hükmü hazır" : "Tutulma Hükmü beklemede";
         }
         if (powerClass == PowerClass.ANOMALY && level == 3) {
             return ClientState.copiedPowerName().isBlank() ? "Hamle bekleniyor" : "Saklı: " + ClientState.copiedPowerName();

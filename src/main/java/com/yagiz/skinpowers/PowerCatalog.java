@@ -12,7 +12,7 @@ public final class PowerCatalog {
         {"Warden Zırhı", "Yer Sarsıntısı", "Sonik Patlama", "Derinlik Pususu", "Warden Uyanışı", "Şarj Et Beni Antik Şehir"},
         {"Kuyruk Kasırgası", "Ejderha Nefesi", "Kadim Pullar", "Avcı Pençesi", "Kadim Kükreme", "Ejderha Hükümdarı"},
         {"Ateş Bağışıklığı", "Alevli Yakın Dövüş", "Ateş Çemberi", "Cehennem Küresi", "Meteor Yağmuru", "-"},
-        {"Hilal Kesik", "Ay Adımı", "Yerçekimi Baskısı", "Ay Aynası", "Tutulma Alanı", "Dolunay Canavarı"},
+        {"Ay Halkası", "Ay Mührü", "Yerçekimi Baskısı", "Ay Aynası", "Tutulma Hükmü", "Dolunay Canavarı"},
         {"Kırık Adım", "Tersine Çevir", "?", "Hasar Mevcut Değil", "Varlıktan Çıkar", "404: Gerçeklik Bulunamadı"},
         {"Manyetik Çekim", "Kutup İtişi", "Demir Yumruk", "Metal Fırtınası", "Ray Topu", "Manyetik Kafes"},
         {"Kum Mermisi", "Kum Dalgası", "Çöl Aynası", "Kum Zırhı", "Kum Mezarı", "Kum Devleri"}
@@ -45,12 +45,12 @@ public final class PowerCatalog {
             ""
         },
         {
-            "Gidip geri dönen büyük, görünür bir hilal fırlatır; dönüşte yeniden vurabilir.",
-            "Güvenli bir noktaya ay ışığıyla sıçrar; geride patlayan bir ay görüntüsü bırakır.",
+            "Eşya parçaları olmadan oluşan yoğun beyaz ay halkası gidip geri döner ve dönüşte yeniden vurabilir.",
+            "Hedef alana beyaz bir Ay Mührü bırakır; rakipleri merkeze kilitler, havaya kaldırır ve iki aşamada patlar.",
             "Bir alanın yerçekimini artırır; düşmanları yere bastırır ve mermileri aşağı büker.",
-            "Dönen ay diski mermileri yansıtır; tekrar kullanılırsa güçlü hilal olarak fırlatılır.",
-            "Geçici tutulma alanında sen hızlanır, rakipler zayıflar ve Ay güçleri büyür.",
-            "Büyük görünür ay yaratığı iki pençe darbesi ve güçlü bir yere çarpma saldırısı yapar."
+            "Dönen ay diski mermileri yansıtır; tekrar kullanılırsa güçlü beyaz ay halkası olarak fırlatılır.",
+            "Geniş tutulma alanında sen güçlenirsin; rakipler merkeze çekilir ve üzerlerine düzenli ay ışınları iner.",
+            "Büyük ay yaratığı üç pençe saldırısı yapar; ardından dev bir ay ışını ve güçlü final çarpmasıyla alanı temizler."
         },
         {
             "Koşarken veya havada gerçekliği yararak ileri sıçrar; yolundakilere vurur ve gecikmeli patlayan bozuk kopyalar bırakır.",

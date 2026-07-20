@@ -626,7 +626,7 @@ public final class PowerSystem {
         } else if (data.powerClass() == PowerClass.FIRE) {
             player.sendSystemMessage(Component.literal("Ateş sınıfındaki güçler R ile veya otomatik olarak çalışır."));
         } else if (data.powerClass() == PowerClass.MOON) {
-            player.sendSystemMessage(Component.literal("Ay güçlerini R ile kullan. Ay Aynasını ikinci R basışıyla hilal olarak fırlat."));
+            player.sendSystemMessage(Component.literal("Ay güçlerini R ile kullan. Ay Aynasını ikinci R basışıyla beyaz ay halkası olarak fırlat."));
         } else if (data.powerClass() == PowerClass.ANOMALY) {
             player.sendSystemMessage(Component.literal("Anomali: güçleri R ile kullan. Hasar seçimi hazırken V kalbe, X hedefe dönüştürür."));
         } else if (data.powerClass() == PowerClass.MAGNETIC) {
@@ -2587,6 +2587,26 @@ public final class PowerSystem {
             float damage = charged ? (56.0F + stage * 5.0F) : (23.0F + stage * 3.5F);
             METEORS.add(new PendingMeteor(level, player.getUUID(), startPosition, impact, spawnTick, impactTick, craterRadius, damage, charged));
         }
+    }
+
+    /** Meteor Düşüşü büyüsü için normal Meteor Yağmuru ile aynı gerçek blok gövdesini kullanan tek meteor. */
+    public static void scheduleEnchantmentMeteor(ServerPlayer player, Vec3 requestedImpact) {
+        ServerLevel level = (ServerLevel) player.level();
+        long now = level.getGameTime();
+        RandomSource random = level.getRandom();
+        int x = (int) Math.floor(requestedImpact.x);
+        int z = (int) Math.floor(requestedImpact.z);
+        int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        Vec3 impact = new Vec3(x + 0.5, y, z + 0.5);
+        double angle = random.nextDouble() * Math.PI * 2.0;
+        double horizontalOffset = 8.0 + random.nextDouble() * 4.0;
+        Vec3 start = new Vec3(
+            impact.x + Math.cos(angle) * horizontalOffset,
+            impact.y + 34.0 + random.nextInt(7),
+            impact.z + Math.sin(angle) * horizontalOffset
+        );
+        METEORS.add(new PendingMeteor(level, player.getUUID(), start, impact, now, now + 46L, 4, 20.0F, false));
+        level.playSound(null, BlockPos.containing(impact), SoundEvents.WITHER_SPAWN, SoundSource.PLAYERS, 0.55F, 1.55F);
     }
 
     private static void tickMeteors() {

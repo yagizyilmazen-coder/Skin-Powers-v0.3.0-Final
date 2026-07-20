@@ -1,0 +1,36 @@
+{
+  "criteria": {
+    "joined": {
+      "trigger": "minecraft:tick"
+    }
+  },
+  "requirements": [
+    [
+      "joined"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "skinpowers:craft_yanki_darbesi",
+      "skinpowers:craft_derinlik_adimi",
+      "skinpowers:craft_sculk_zirhi",
+      "skinpowers:craft_antik_cokus",
+      "skinpowers:craft_kor_birikimi",
+      "skinpowers:craft_kul_yuruyusu",
+      "skinpowers:craft_cehennem_cekirdegi",
+      "skinpowers:craft_meteor_dususu",
+      "skinpowers:craft_hilal_yarasi",
+      "skinpowers:craft_ay_gozu",
+      "skinpowers:craft_ay_adimi",
+      "skinpowers:craft_ay_aynasi",
+      "skinpowers:craft_gecikmis_darbe",
+      "skinpowers:craft_faz_kaymasi",
+      "skinpowers:craft_hata_payi",
+      "skinpowers:craft_bozuk_yorunge",
+      "skinpowers:craft_ejderha_pencesi",
+      "skinpowers:craft_mor_kanat",
+      "skinpowers:craft_kadim_pullar",
+      "skinpowers:craft_mor_nefes"
+    ]
+  }
+}

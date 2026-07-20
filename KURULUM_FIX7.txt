@@ -1,0 +1,36 @@
+SKIN POWERS v1.3.0 FIX7 - SURVIVAL BÜYÜ KİTAPLARI
+====================================================
+
+Bütün tarifler şekilsizdir: malzemeleri çalışma masasının herhangi bir yerine koyabilirsin.
+Tarifler dünyaya girdikten sonra vanilla tarif kitabında otomatik açılır.
+Büyü kitapları ayrıca keşif sandıklarında nadiren bulunabilir ve kütüphanecilerden çıkabilir.
+
+[Warden]
+- Yankı Darbesi: book + lapis lazuli + echo shard + sculk
+- Derinlik Adımı: book + lapis lazuli + echo shard + sculk sensor
+- Sculk Zırhı: book + lapis lazuli + sculk catalyst + diamond
+- Antik Çöküş: book + lapis lazuli + echo shard + echo shard + sculk catalyst
+[Ateş]
+- Kor Birikimi: book + lapis lazuli + blaze powder + magma cream
+- Kül Yürüyüşü: book + lapis lazuli + magma cream + soul sand
+- Cehennem Çekirdeği: book + lapis lazuli + blaze rod + fire charge + obsidian
+- Meteor Düşüşü: book + lapis lazuli + fire charge + magma block + crying obsidian
+[Ay]
+- Hilal Yarası: book + lapis lazuli + amethyst shard + quartz
+- Ay Gözü: book + lapis lazuli + spyglass + amethyst shard
+- Ay Mührü: book + lapis lazuli + ender pearl + amethyst shard
+- Ay Aynası: book + lapis lazuli + tinted glass + ender eye + amethyst shard
+[Anomali]
+- Gecikmiş Darbe: book + lapis lazuli + clock + redstone
+- Faz Kayması: book + lapis lazuli + chorus fruit + ender pearl
+- Hata Payı: book + lapis lazuli + comparator + redstone block
+- Bozuk Yörünge: book + lapis lazuli + chorus fruit + echo shard + ender eye
+[Kadim Ejderha]
+- Ejderha Pençesi: book + lapis lazuli + dragon breath + diamond
+- Mor Kanat: book + lapis lazuli + phantom membrane + dragon breath
+- Kadim Pullar: book + lapis lazuli + diamond block + dragon breath
+- Mor Nefes: book + lapis lazuli + dragon breath + blaze powder + amethyst shard
+
+KEŞİF NADİRLİĞİ
+- Her sınıfın 1. kitabı daha sık, 4. kitabı en nadir çıkar.
+- Bütün kitaplar treasure, random loot ve tradeable etiketlerinde kalır.

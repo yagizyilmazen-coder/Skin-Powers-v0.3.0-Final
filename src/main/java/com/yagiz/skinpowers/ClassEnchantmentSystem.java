@@ -515,21 +515,7 @@ public final class ClassEnchantmentSystem {
     }
 
     private static void startMeteor(ServerPlayer player, LivingEntity target, ServerLevel level, long now) {
-        Vec3 impact = target.position();
-        Vec3 start = impact.add(0.0, 18.0, 0.0);
-        List<UUID> visualIds = new ArrayList<>();
-        net.minecraft.world.item.Item[] items = {
-            Items.MAGMA_BLOCK,
-            Items.CRYING_OBSIDIAN, Items.FIRE_CHARGE, Items.BLACKSTONE, Items.FIRE_CHARGE,
-            Items.CRYING_OBSIDIAN, Items.MAGMA_CREAM, Items.BLACKSTONE, Items.MAGMA_CREAM
-        };
-        for (int i = 0; i < items.length; i++) {
-            ItemEntity visual = createVisualItem(level, new ItemStack(items[i]), start, true);
-            if (visual != null) visualIds.add(visual.getUUID());
-        }
-        if (!visualIds.isEmpty()) {
-            METEORS.add(new EnchantMeteor(level, player.getUUID(), List.copyOf(visualIds), start, impact, now, now + 36L));
-        }
+        PowerSystem.scheduleEnchantmentMeteor(player, target.position());
     }
 
     private static void tickMeteors() {

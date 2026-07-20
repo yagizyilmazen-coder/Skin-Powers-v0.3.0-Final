@@ -1,0 +1,12 @@
+SKIN POWERS v1.3.0 — FINAL TEK SEFER PAKETI (FIX6 + FIX7)
+
+Bu paket FIX4/FIX5 uygulanmış mevcut GitHub projesinin üstüne tek seferde kopyalanır.
+FIX6 Ay yenilemesini ve gerçek meteoru; FIX7 survival büyü kitabı tariflerini içerir.
+
+1. ZIP'i Tümünü Ayıkla ile aç.
+2. Açılan Skin_Powers_v1.3.0_FINAL_Tek_Sefer_FIX6_FIX7 klasörünün İÇİNDEKİ bütün dosya ve klasörleri kopyala.
+3. GitHub Desktop > Repository > Show in Explorer.
+4. Projenin ana klasörüne yapıştır.
+5. Hedefteki dosyaları değiştir seç.
+6. Summary: 1.3.0 FINAL Ay yenilemesi ve survival büyü kitapları
+7. Commit to main > Push origin.

@@ -35,6 +35,7 @@ import java.util.UUID;
 public final class MoonPowerSystem {
     private static final List<MoonVisual> VISUALS = new ArrayList<>();
     private static final List<CrescentAttack> CRESCENTS = new ArrayList<>();
+    private static final List<LunarSeal> LUNAR_SEALS = new ArrayList<>();
     private static final List<GravityField> GRAVITY_FIELDS = new ArrayList<>();
     private static final List<EclipseField> ECLIPSE_FIELDS = new ArrayList<>();
     private static final List<FullMoonBeast> FULL_MOON_BEASTS = new ArrayList<>();
@@ -51,7 +52,7 @@ public final class MoonPowerSystem {
         boolean empowered = awakened || eclipse;
         return switch (power) {
             case 1 -> crescentSlash(player, data, level, now, stage, empowered);
-            case 2 -> moonStep(player, data, level, now, stage, empowered);
+            case 2 -> lunarSeal(player, data, level, now, stage, empowered);
             case 3 -> gravityPressure(player, data, level, now, stage, empowered);
             case 4 -> moonMirror(player, data, level, now, stage, empowered);
             case 5 -> eclipseField(player, data, level, now, stage, empowered);
@@ -63,6 +64,7 @@ public final class MoonPowerSystem {
     public static void tickServer(MinecraftServer server) {
         tickVisuals();
         tickCrescents();
+        tickLunarSeals();
         tickGravityFields();
         tickMoonMirrors(server);
         tickProjectileEscorts();
@@ -92,7 +94,8 @@ public final class MoonPowerSystem {
     private static boolean crescentSlash(ServerPlayer player, PlayerPowerData data, ServerLevel level, long now, int stage, boolean empowered) {
         Vec3 direction = player.getLookAngle().normalize();
         Vec3 start = player.getEyePosition().add(direction.scale(0.9));
-        List<UUID> ids = spawnVisualItems(level, start, moonFlightItems(), empowered ? 33 : 25, true, player.getUUID());
+        // Hilal artık eşya parçalarından değil, kesintisiz beyaz ay ışığı halkasından oluşur.
+        List<UUID> ids = List.of();
         CRESCENTS.add(new CrescentAttack(level, player.getUUID(), ids, start, direction,
             now, now + (empowered ? 62L : 50L), stage, empowered, new HashSet<>(), false));
         level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW.value(), SoundSource.PLAYERS, 1.1F, 1.55F);
@@ -100,43 +103,15 @@ public final class MoonPowerSystem {
         return true;
     }
 
-    private static boolean moonStep(ServerPlayer player, PlayerPowerData data, ServerLevel level, long now, int stage, boolean empowered) {
-        Vec3 start = player.position();
-        Vec3 direction = horizontal(player.getLookAngle());
-        double range = 8.5 + stage * 1.25 + (empowered ? 4.5 : 0.0);
-        Vec3 destination = null;
-        for (double distance = range; distance >= 2.0; distance -= 0.5) {
-            Vec3 candidate = start.add(direction.scale(distance));
-            BlockPos feet = BlockPos.containing(candidate);
-            if (level.getBlockState(feet).isAir() && level.getBlockState(feet.above()).isAir()
-                && !level.getBlockState(feet.below()).isAir()) {
-                destination = new Vec3(candidate.x, feet.getY(), candidate.z);
-                break;
-            }
-        }
-        if (destination == null) {
-            player.sendSystemMessage(Component.literal("Ay Adımı için ileride güvenli bir nokta yok."));
-            return false;
-        }
-        Vec3 echoCenter = start.add(0.0, 1.0, 0.0);
-        spawnVisibleRing(level, echoCenter, new Item[]{Items.QUARTZ, Items.AMETHYST_SHARD}, 12, 1.25, now + 36L, player.getUUID());
-        player.setPos(destination.x, destination.y, destination.z);
-        player.setDeltaMovement(direction.scale(0.55 + stage * 0.07).add(0.0, 0.12, 0.0));
-        player.hurtMarked = true;
-        player.fallDistance = 0.0F;
-        AABB echoBlast = new AABB(start, start).inflate(2.8 + stage * 0.2);
-        for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, echoBlast)) {
-            if (target == player || PowerSystem.isProtectedAlly(player, target)) continue;
-            target.hurtServer(level, level.damageSources().playerAttack(player), 4.0F + stage + (empowered ? 3.0F : 0.0F));
-            Vec3 push = target.position().subtract(start);
-            if (push.lengthSqr() > 0.001) {
-                push = push.normalize().scale(0.85);
-                target.push(push.x, 0.35, push.z);
-            }
-        }
-        level.sendParticles(ParticleTypes.END_ROD, start.x, start.y + 1.0, start.z, 30, 0.7, 0.8, 0.7, 0.04);
-        level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.85F, 1.45F);
-        data.setCooldown(2, now, Math.max(150, 250 - stage * 22));
+    private static boolean lunarSeal(ServerPlayer player, PlayerPowerData data, ServerLevel level, long now, int stage, boolean empowered) {
+        Vec3 center = targetGround(level, player, 13.0 + stage * 1.8 + (empowered ? 4.0 : 0.0));
+        double radius = 4.8 + stage * 0.45 + (empowered ? 1.6 : 0.0);
+        LUNAR_SEALS.add(new LunarSeal(level, player.getUUID(), center, now, now + 26L,
+            now + (empowered ? 72L : 62L), radius, stage, empowered, 0));
+        drawWhiteGroundRing(level, center.add(0.0, 0.18, 0.0), radius, empowered ? 64 : 48);
+        level.playSound(null, BlockPos.containing(center), SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 0.85F, 1.55F);
+        player.sendSystemMessage(Component.literal("Ay Mührü hedefe kilitlendi."));
+        data.setCooldown(2, now, Math.max(300, 430 - stage * 28));
         return true;
     }
 
@@ -157,7 +132,7 @@ public final class MoonPowerSystem {
             discardAll(existing.level, existing.ids);
             Vec3 direction = player.getLookAngle().normalize();
             Vec3 start = player.getEyePosition().add(direction.scale(0.9));
-            List<UUID> ids = spawnVisualItems(level, start, moonFlightItems(), empowered ? 31 : 23, true, player.getUUID());
+            List<UUID> ids = List.of();
             CRESCENTS.add(new CrescentAttack(level, player.getUUID(), ids, start, direction,
                 now, now + 42L, stage + 1, true, new HashSet<>(), false));
             level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW.value(), SoundSource.PLAYERS, 1.15F, 1.75F);
@@ -168,7 +143,7 @@ public final class MoonPowerSystem {
             new Item[]{Items.QUARTZ, Items.AMETHYST_SHARD, Items.PRISMARINE_SHARD}, empowered ? 12 : 8, true, player.getUUID());
         MOON_MIRRORS.put(player.getUUID(), new MoonMirror(level, player.getUUID(), ids,
             now + (empowered ? 220L : 160L), empowered ? 3 : 2, stage, empowered));
-        player.sendSystemMessage(Component.literal("Ay Aynası açık. Tekrar R: diski hilal saldırısı olarak fırlat."));
+        player.sendSystemMessage(Component.literal("Ay Aynası açık. Tekrar R: diski beyaz ay halkası olarak fırlat."));
         level.playSound(null, player.blockPosition(), SoundEvents.SHIELD_BLOCK.value(), SoundSource.PLAYERS, 0.9F, 1.35F);
         data.setCooldown(4, now, 18); // İkinci basış hemen yapılabilsin.
         return true;
@@ -176,28 +151,29 @@ public final class MoonPowerSystem {
 
     private static boolean eclipseField(ServerPlayer player, PlayerPowerData data, ServerLevel level, long now, int stage, boolean empowered) {
         Vec3 center = targetGround(level, player, 8.0 + stage * 1.4);
-        double radius = 9.0 + stage * 0.7 + (empowered ? 2.5 : 0.0);
+        double radius = 11.0 + stage * 0.85 + (empowered ? 3.0 : 0.0);
         List<UUID> ids = spawnVisualItems(level, center.add(0.0, 4.5, 0.0),
             new Item[]{Items.ENDER_EYE, Items.QUARTZ, Items.AMETHYST_SHARD, Items.NETHER_STAR}, empowered ? 28 : 20, true, player.getUUID());
         ECLIPSE_FIELDS.add(new EclipseField(level, player.getUUID(), center, ids, now,
-            now + (empowered ? 260L : 200L), radius, stage, empowered));
+            now + (empowered ? 340L : 270L), radius, stage, empowered));
+        player.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, empowered ? 340 : 270, empowered ? 2 : 1, false, true, true));
         level.playSound(null, BlockPos.containing(center), SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 1.25F, 0.72F);
         ServerNetworking.sendScreenShake(level, center, 28.0, 0.75F, 10);
-        data.setCooldown(5, now, Math.max(850, 1200 - stage * 75));
+        data.setCooldown(5, now, Math.max(820, 1160 - stage * 70));
         return true;
     }
 
     private static boolean fullMoonBeast(ServerPlayer player, PlayerPowerData data, ServerLevel level, long now, int stage, boolean empowered) {
-        Vec3 direction = horizontal(player.getLookAngle());
+        Vec3 direction = directionToNearestEnemy(level, player, 24.0);
         Vec3 center = player.position().add(direction.scale(4.5));
         List<UUID> ids = spawnVisualItems(level, center.add(0.0, 1.0, 0.0),
             new Item[]{Items.QUARTZ, Items.AMETHYST_SHARD, Items.IRON_NUGGET, Items.ENDER_EYE, Items.NETHER_STAR},
-            empowered ? 34 : 26, true, player.getUUID());
+            empowered ? 46 : 36, true, player.getUUID());
         FULL_MOON_BEASTS.add(new FullMoonBeast(level, player.getUUID(), ids, center, direction, now,
-            now + (empowered ? 70L : 58L), stage, empowered, 0));
+            now + (empowered ? 112L : 92L), stage, empowered, 0));
         level.playSound(null, player.blockPosition(), SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 1.5F, 0.48F);
         ServerNetworking.sendScreenShake(level, center, 34.0, 1.0F, 14);
-        data.setCooldown(6, now, Math.max(1050, 1450 - stage * 85));
+        data.setCooldown(6, now, Math.max(980, 1380 - stage * 80));
         return true;
     }
 
@@ -252,10 +228,8 @@ public final class MoonPowerSystem {
             }
             double speed = 0.82 + attack.stage * 0.055 + (attack.empowered ? 0.20 : 0.0);
             attack.center = attack.center.add(desiredDirection.scale(speed));
-            positionCrescent(attack.level, attack.ids, attack.center, desiredDirection, now, attack.empowered ? 2.05 : 1.70);
-            if (now % 3L == 0L) {
-                spawnAirTrail(attack.level, attack.owner, attack.center, desiredDirection, now + 10L, attack.empowered);
-            }
+            drawWhiteLunarRing(attack.level, attack.center, desiredDirection, attack.empowered ? 2.15 : 1.82, attack.empowered);
+            drawWhiteTrail(attack.level, attack.center, desiredDirection, attack.empowered);
             AABB hitBox = new AABB(attack.center, attack.center).inflate(1.85 + attack.stage * 0.10);
             for (LivingEntity target : attack.level.getEntitiesOfClass(LivingEntity.class, hitBox)) {
                 if (target == owner || PowerSystem.isProtectedAlly(owner, target) || !attack.hit.add(target.getUUID())) continue;
@@ -267,6 +241,61 @@ public final class MoonPowerSystem {
             if (attack.returning && attack.center.distanceToSqr(owner.getEyePosition()) < 2.0) {
                 discardAll(attack.level, attack.ids);
                 iterator.remove();
+            }
+        }
+    }
+
+    private static void tickLunarSeals() {
+        Iterator<LunarSeal> iterator = LUNAR_SEALS.iterator();
+        while (iterator.hasNext()) {
+            LunarSeal seal = iterator.next();
+            long now = seal.level.getGameTime();
+            ServerPlayer owner = seal.level.getServer().getPlayerList().getPlayer(seal.owner);
+            if (owner == null || !owner.isAlive() || now >= seal.expireTick) {
+                iterator.remove();
+                continue;
+            }
+
+            double pulse = seal.radius * (0.86 + Math.sin((now - seal.startTick) * 0.18) * 0.08);
+            drawWhiteGroundRing(seal.level, seal.center.add(0.0, 0.16, 0.0), pulse, seal.empowered ? 72 : 56);
+            AABB area = new AABB(seal.center, seal.center).inflate(seal.radius, 5.0, seal.radius);
+            for (LivingEntity target : seal.level.getEntitiesOfClass(LivingEntity.class, area)) {
+                if (target == owner || PowerSystem.isProtectedAlly(owner, target)) continue;
+                Vec3 pull = seal.center.subtract(target.position());
+                if (pull.lengthSqr() > 0.01) {
+                    pull = pull.normalize().scale(seal.empowered ? 0.22 : 0.16);
+                    target.setDeltaMovement(target.getDeltaMovement().scale(0.72).add(pull.x, 0.0, pull.z));
+                }
+                target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 25, seal.empowered ? 3 : 2, false, false, true));
+            }
+
+            if (seal.phase == 0 && now >= seal.triggerTick) {
+                seal.phase = 1;
+                for (LivingEntity target : seal.level.getEntitiesOfClass(LivingEntity.class, area)) {
+                    if (target == owner || PowerSystem.isProtectedAlly(owner, target)) continue;
+                    target.hurtServer(seal.level, seal.level.damageSources().playerAttack(owner),
+                        10.0F + seal.stage * 1.8F + (seal.empowered ? 5.0F : 0.0F));
+                    target.setDeltaMovement(target.getDeltaMovement().x * 0.35, 1.0 + seal.stage * 0.08, target.getDeltaMovement().z * 0.35);
+                }
+                drawMoonBeam(seal.level, seal.center, 12.0, seal.empowered ? 80 : 58);
+                seal.level.playSound(null, BlockPos.containing(seal.center), SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 0.9F, 1.75F);
+                ServerNetworking.sendScreenShake(seal.level, seal.center, 24.0, 0.8F, 10);
+            } else if (seal.phase == 1 && now >= seal.triggerTick + 16L) {
+                seal.phase = 2;
+                for (LivingEntity target : seal.level.getEntitiesOfClass(LivingEntity.class, area.inflate(1.5))) {
+                    if (target == owner || PowerSystem.isProtectedAlly(owner, target)) continue;
+                    target.hurtServer(seal.level, seal.level.damageSources().playerAttack(owner),
+                        12.0F + seal.stage * 2.0F + (seal.empowered ? 6.0F : 0.0F));
+                    Vec3 push = target.position().subtract(seal.center);
+                    if (push.lengthSqr() > 0.001) {
+                        push = push.normalize().scale(seal.empowered ? 1.45 : 1.05);
+                        target.push(push.x, 0.55, push.z);
+                    }
+                }
+                drawWhiteGroundRing(seal.level, seal.center.add(0.0, 0.22, 0.0), seal.radius * 1.35, seal.empowered ? 92 : 72);
+                seal.level.sendParticles(ParticleTypes.EXPLOSION, seal.center.x, seal.center.y + 0.6, seal.center.z, 8, 1.1, 0.5, 1.1, 0.02);
+                seal.level.playSound(null, BlockPos.containing(seal.center), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.9F, 1.35F);
+                ServerNetworking.sendScreenShake(seal.level, seal.center, 30.0, 1.15F, 14);
             }
         }
     }
@@ -341,18 +370,29 @@ public final class MoonPowerSystem {
                 continue;
             }
             positionEclipse(field.level, field.ids, field.center.add(0.0, 4.8, 0.0), now, field.radius * 0.28);
+            if (now % 2L == 0L) drawWhiteGroundRing(field.level, field.center.add(0.0, 0.12, 0.0), field.radius, field.empowered ? 88 : 68);
             AABB area = new AABB(field.center, field.center).inflate(field.radius, 7.0, field.radius);
             for (LivingEntity target : field.level.getEntitiesOfClass(LivingEntity.class, area)) {
                 if (target == owner || PowerSystem.isProtectedAlly(owner, target)) {
-                    target.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, field.empowered ? 2 : 1, false, false, true));
-                    target.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 0, false, false, true));
+                    target.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, field.empowered ? 3 : 2, false, false, true));
+                    target.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, field.empowered ? 1 : 0, false, false, true));
+                    target.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 30, field.empowered ? 1 : 0, false, false, true));
                 } else {
-                    target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 30, field.empowered ? 3 : 2, false, false, true));
-                    target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 30, field.empowered ? 2 : 1, false, false, true));
-                    if (now % 25L == 0L) target.hurtServer(field.level, field.level.damageSources().playerAttack(owner), 3.0F + field.stage * 0.8F);
+                    target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 30, field.empowered ? 4 : 3, false, false, true));
+                    target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 30, field.empowered ? 3 : 2, false, false, true));
+                    Vec3 pull = field.center.subtract(target.position());
+                    if (pull.lengthSqr() > 0.01) {
+                        pull = pull.normalize().scale(field.empowered ? 0.15 : 0.10);
+                        target.setDeltaMovement(target.getDeltaMovement().scale(0.82).add(pull.x, -0.08, pull.z));
+                    }
+                    if (now % 16L == 0L) target.hurtServer(field.level, field.level.damageSources().playerAttack(owner), 5.0F + field.stage * 1.1F + (field.empowered ? 2.5F : 0.0F));
+                    if (now % 32L == 0L) {
+                        drawMoonBeam(field.level, target.position(), 9.0, field.empowered ? 56 : 42);
+                        target.hurtServer(field.level, field.level.damageSources().playerAttack(owner), 6.0F + field.stage + (field.empowered ? 3.0F : 0.0F));
+                    }
                 }
             }
-            if (now % 6L == 0L) PowerSystem.drawExternalRing(field.level, field.center, field.radius, ParticleTypes.REVERSE_PORTAL, 72);
+            if (now % 6L == 0L) PowerSystem.drawExternalRing(field.level, field.center, field.radius * 0.72, ParticleTypes.REVERSE_PORTAL, 72);
         }
     }
 
@@ -368,36 +408,41 @@ public final class MoonPowerSystem {
                 continue;
             }
             long age = now - beast.startTick;
-            Vec3 center = owner.position().add(beast.direction.scale(4.2 + Math.min(2.5, age * 0.035)));
+            Vec3 center = owner.position().add(beast.direction.scale(4.8 + Math.min(6.0, age * 0.075)));
             beast.center = center;
             positionBeast(beast.level, beast.ids, center, beast.direction, now, beast.empowered);
-            if (beast.phase == 0 && age >= 14L) {
+            if (beast.phase == 0 && age >= 12L) {
                 beast.phase = 1;
-                beastSwipe(beast, owner, center.add(perpendicular(beast.direction).scale(-2.2)), 9.0F + beast.stage * 1.6F);
-            } else if (beast.phase == 1 && age >= 28L) {
+                beastSwipe(beast, owner, center.add(perpendicular(beast.direction).scale(-2.4)), 13.0F + beast.stage * 1.9F);
+            } else if (beast.phase == 1 && age >= 25L) {
                 beast.phase = 2;
-                beastSwipe(beast, owner, center.add(perpendicular(beast.direction).scale(2.2)), 10.0F + beast.stage * 1.7F);
-            } else if (beast.phase == 2 && age >= 43L) {
+                beastSwipe(beast, owner, center.add(perpendicular(beast.direction).scale(2.4)), 14.0F + beast.stage * 2.0F);
+            } else if (beast.phase == 2 && age >= 39L) {
                 beast.phase = 3;
-                double radius = 7.0 + beast.stage * 0.4 + (beast.empowered ? 2.0 : 0.0);
+                beastSwipe(beast, owner, center, 16.0F + beast.stage * 2.2F);
+                drawMoonBeam(beast.level, center, 10.0, beast.empowered ? 72 : 56);
+            } else if (beast.phase == 3 && age >= 57L) {
+                beast.phase = 4;
+                double radius = 9.0 + beast.stage * 0.55 + (beast.empowered ? 2.5 : 0.0);
                 for (LivingEntity target : beast.level.getEntitiesOfClass(LivingEntity.class, new AABB(center, center).inflate(radius))) {
                     if (target == owner || PowerSystem.isProtectedAlly(owner, target)) continue;
-                    target.hurtServer(beast.level, beast.level.damageSources().playerAttack(owner), 16.0F + beast.stage * 2.2F + (beast.empowered ? 6.0F : 0.0F));
+                    target.hurtServer(beast.level, beast.level.damageSources().playerAttack(owner), 24.0F + beast.stage * 2.8F + (beast.empowered ? 8.0F : 0.0F));
                     Vec3 push = target.position().subtract(center);
                     if (push.lengthSqr() > 0.001) {
-                        push = push.normalize().scale(1.8);
-                        target.push(push.x, 0.95, push.z);
+                        push = push.normalize().scale(2.25);
+                        target.push(push.x, 1.15, push.z);
                     }
                 }
-                spawnVisibleRing(beast.level, center.add(0.0, 0.45, 0.0), moonItems(), 26, radius * 0.72, now + 35L, beast.owner);
-                beast.level.sendParticles(ParticleTypes.EXPLOSION, center.x, center.y + 0.7, center.z, 10, 1.8, 0.8, 1.8, 0.08);
-                ServerNetworking.sendScreenShake(beast.level, center, 38.0, 1.65F, 18);
+                drawWhiteGroundRing(beast.level, center.add(0.0, 0.35, 0.0), radius, beast.empowered ? 112 : 88);
+                drawMoonBeam(beast.level, center, 15.0, beast.empowered ? 110 : 86);
+                beast.level.sendParticles(ParticleTypes.EXPLOSION, center.x, center.y + 0.7, center.z, 16, 2.2, 1.0, 2.2, 0.10);
+                ServerNetworking.sendScreenShake(beast.level, center, 44.0, 2.0F, 22);
             }
         }
     }
 
     private static void beastSwipe(FullMoonBeast beast, ServerPlayer owner, Vec3 center, float baseDamage) {
-        double radius = 5.5 + beast.stage * 0.35;
+        double radius = 6.8 + beast.stage * 0.42;
         for (LivingEntity target : beast.level.getEntitiesOfClass(LivingEntity.class, new AABB(center, center).inflate(radius, 3.0, radius))) {
             if (target == owner || PowerSystem.isProtectedAlly(owner, target)) continue;
             target.hurtServer(beast.level, beast.level.damageSources().playerAttack(owner), baseDamage + (beast.empowered ? 4.0F : 0.0F));
@@ -439,6 +484,7 @@ public final class MoonPowerSystem {
             return true;
         });
         CRESCENTS.removeIf(attack -> discardOwned(attack.owner, owner, attack.level, attack.ids));
+        LUNAR_SEALS.removeIf(seal -> seal.owner.equals(owner));
         GRAVITY_FIELDS.removeIf(field -> discardOwned(field.owner, owner, field.level, field.ids));
         ECLIPSE_FIELDS.removeIf(field -> discardOwned(field.owner, owner, field.level, field.ids));
         FULL_MOON_BEASTS.removeIf(beast -> discardOwned(beast.owner, owner, beast.level, beast.ids));
@@ -466,6 +512,7 @@ public final class MoonPowerSystem {
         for (MoonMirror mirror : MOON_MIRRORS.values()) discardAll(mirror.level, mirror.ids);
         VISUALS.clear();
         CRESCENTS.clear();
+        LUNAR_SEALS.clear();
         GRAVITY_FIELDS.clear();
         ECLIPSE_FIELDS.clear();
         FULL_MOON_BEASTS.clear();
@@ -483,6 +530,67 @@ public final class MoonPowerSystem {
                 iterator.remove();
             }
         }
+    }
+
+    private static void drawWhiteLunarRing(ServerLevel level, Vec3 center, Vec3 direction, double radius, boolean empowered) {
+        Vec3 forward = direction.normalize();
+        Vec3 right = perpendicular(horizontal(forward));
+        Vec3 up = new Vec3(0.0, 1.0, 0.0);
+        int count = empowered ? 56 : 44;
+        for (int i = 0; i < count; i++) {
+            double angle = Math.PI * 2.0 * i / count;
+            Vec3 outer = center.add(right.scale(Math.cos(angle) * radius)).add(up.scale(Math.sin(angle) * radius));
+            level.sendParticles(ParticleTypes.END_ROD, outer.x, outer.y, outer.z, 1, 0.0, 0.0, 0.0, 0.0);
+            if (i % 2 == 0) {
+                Vec3 inner = center.add(right.scale(Math.cos(angle) * radius * 0.78)).add(up.scale(Math.sin(angle) * radius * 0.78));
+                level.sendParticles(ParticleTypes.END_ROD, inner.x, inner.y, inner.z, 1, 0.0, 0.0, 0.0, 0.0);
+            }
+        }
+        level.sendParticles(ParticleTypes.END_ROD, center.x, center.y, center.z, empowered ? 5 : 3, 0.12, 0.12, 0.12, 0.0);
+    }
+
+    private static void drawWhiteTrail(ServerLevel level, Vec3 center, Vec3 direction, boolean empowered) {
+        Vec3 forward = direction.normalize();
+        int count = empowered ? 8 : 5;
+        for (int i = 1; i <= count; i++) {
+            Vec3 point = center.add(forward.scale(-i * 0.34));
+            level.sendParticles(ParticleTypes.END_ROD, point.x, point.y, point.z, 2, 0.06, 0.06, 0.06, 0.0);
+        }
+    }
+
+    private static void drawWhiteGroundRing(ServerLevel level, Vec3 center, double radius, int count) {
+        for (int i = 0; i < count; i++) {
+            double angle = Math.PI * 2.0 * i / Math.max(1, count);
+            Vec3 point = center.add(Math.cos(angle) * radius, Math.sin(angle * 3.0) * 0.05, Math.sin(angle) * radius);
+            level.sendParticles(ParticleTypes.END_ROD, point.x, point.y, point.z, 1, 0.0, 0.0, 0.0, 0.0);
+        }
+    }
+
+    private static void drawMoonBeam(ServerLevel level, Vec3 ground, double height, int count) {
+        int steps = Math.max(10, count / 4);
+        for (int i = 0; i < steps; i++) {
+            double y = ground.y + 0.2 + height * i / Math.max(1.0, steps - 1.0);
+            double radius = 0.30 + (i % 3) * 0.08;
+            double angle = i * 0.92 + level.getGameTime() * 0.18;
+            level.sendParticles(ParticleTypes.END_ROD,
+                ground.x + Math.cos(angle) * radius, y, ground.z + Math.sin(angle) * radius,
+                Math.max(1, count / steps), 0.08, 0.10, 0.08, 0.0);
+        }
+    }
+
+    private static Vec3 directionToNearestEnemy(ServerLevel level, ServerPlayer player, double range) {
+        LivingEntity nearest = null;
+        double best = range * range;
+        for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(range))) {
+            if (target == player || PowerSystem.isProtectedAlly(player, target)) continue;
+            double distance = player.distanceToSqr(target);
+            if (distance < best) {
+                best = distance;
+                nearest = target;
+            }
+        }
+        if (nearest == null) return horizontal(player.getLookAngle());
+        return horizontal(nearest.position().subtract(player.position()));
     }
 
     private static ItemEntity createVisual(ServerLevel level, Item item, Vec3 position, boolean glowing) {
@@ -732,6 +840,26 @@ public final class MoonPowerSystem {
             this.level = level; this.owner = owner; this.ids = ids; this.center = center; this.direction = direction;
             this.startTick = startTick; this.expireTick = expireTick; this.stage = stage; this.empowered = empowered;
             this.hit = hit; this.returning = returning;
+        }
+    }
+
+    private static final class LunarSeal {
+        private final ServerLevel level;
+        private final UUID owner;
+        private final Vec3 center;
+        private final long startTick;
+        private final long triggerTick;
+        private final long expireTick;
+        private final double radius;
+        private final int stage;
+        private final boolean empowered;
+        private int phase;
+
+        private LunarSeal(ServerLevel level, UUID owner, Vec3 center, long startTick, long triggerTick,
+                          long expireTick, double radius, int stage, boolean empowered, int phase) {
+            this.level = level; this.owner = owner; this.center = center; this.startTick = startTick;
+            this.triggerTick = triggerTick; this.expireTick = expireTick; this.radius = radius;
+            this.stage = stage; this.empowered = empowered; this.phase = phase;
         }
     }
 
