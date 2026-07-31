@@ -120,7 +120,7 @@ public final class PowerMenuScreen extends Screen {
         int headerTextWidth = Math.max(90, xpX - headerTextX - 12);
         String heading = fit(powerClass.displayName() + " GÜÇ AĞACI", headerTextWidth);
         graphics.text(font, heading, headerTextX, 18, 0xFF1A1008, true);
-        graphics.text(font, fit("Gücünü seç, ustalığını geliştir ve R ile kullan.", headerTextWidth), headerTextX, 35, 0xFFBFD0DA, false);
+        graphics.text(font, fit("Gücünü seç, ustalığını geliştir ve R ile kullan.", headerTextWidth), headerTextX, 35, 0xFF5C3D1E, false);
         graphics.text(font, fit(powerClass == PowerClass.ANOMALY ? "Sol/Sağ: güç değiştir   •   V/X: hasar seçimi   •   O / ESC: menü" : "Sol/Sağ: güç değiştir   •   K: kombo   •   O / ESC: menü", headerTextWidth), headerTextX, 49, 0xFF8799A5, false);
 
         graphics.fill(xpX, 20, xpX + xpWidth, 45, withAlpha(colors[2], 65));
@@ -172,12 +172,12 @@ public final class PowerMenuScreen extends Screen {
         int textWidth = Math.max(42, textRight - textX);
         String name = fit(displayName(powerClass, level), textWidth);
         int nameY = y + (veryCompact ? Math.max(4, (layout.rowHeight() - 8) / 2) : 6);
-        graphics.text(font, name, textX, nameY, unlocked ? 0xFF1A1008 : 0xFF8B969E, true);
+        graphics.text(font, name, textX, nameY, unlocked ? 0xFF2A1808 : 0xFF6A5640, true);
 
         String description = displayDescription(powerClass, level);
         if (!veryCompact) {
             // Ekran yüksekliği azalsa bile bütün sınıflarda güç açıklaması görünür kalır.
-            graphics.text(font, fit(description, textWidth), textX, y + 18, unlocked ? 0xFF91A8B5 : 0xFF8B969E, false);
+            graphics.text(font, fit(description, textWidth), textX, y + 18, unlocked ? 0xFF5C3D1E : 0xFF7A6550, false);
         }
 
         if (layout.rowHeight() >= 46) {
@@ -187,7 +187,7 @@ public final class PowerMenuScreen extends Screen {
             int chipX = Math.max(textX, textRight - chipWidth);
             graphics.fill(chipX, y + 5, chipX + chipWidth, y + 18, unlocked ? withAlpha(powerAccent, 50 + stage * 28) : 0x332B3238);
             graphics.outline(chipX, y + 5, chipWidth, 13, unlocked ? withAlpha(powerAccent, 180) : 0x5559636B);
-            graphics.text(font, chipText, chipX + 5, y + 8, unlocked ? 0xFF1A1008 : 0xFF77828A, false);
+            graphics.text(font, chipText, chipX + 5, y + 8, unlocked ? 0xFF2A1808 : 0xFF6A5640, false);
         }
 
         if (layout.rowHeight() >= 44) {
@@ -299,7 +299,7 @@ public final class PowerMenuScreen extends Screen {
         String titleLine = displayName(powerClass, selected) + "  •  " + controlHint(powerClass, selected) + (powerClass == PowerClass.ANOMALY ? "" : "  •  K: Kombo " + (ClientState.comboModeEnabled() ? "AÇIK" : "KAPALI"));
         String descriptionLine = displayDescription(powerClass, selected);
         graphics.text(font, fit(titleLine, layout.totalWidth() - 20), layout.totalLeft() + 10, y + 7, 0xFFFFFFFF, false);
-        graphics.text(font, fit(descriptionLine, layout.totalWidth() - 20), layout.totalLeft() + 10, y + 22, 0xFFB9C8D1, false);
+        graphics.text(font, fit(descriptionLine, layout.totalWidth() - 20), layout.totalLeft() + 10, y + 22, 0xFF5C3D1E, false);
     }
 
     private void drawClassEmblem(GuiGraphicsExtractor graphics, PowerClass powerClass, int x, int y, int accent) {

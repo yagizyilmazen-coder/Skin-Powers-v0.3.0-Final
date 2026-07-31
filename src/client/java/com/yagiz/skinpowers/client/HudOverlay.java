@@ -31,8 +31,8 @@ public final class HudOverlay {
         }
 
         float scale = config.hudScalePercent() / 100.0F;
-        int panelWidth = Math.max(160, Math.round(240 * scale));
-        int panelHeight = config.compactHud() ? Math.max(52, Math.round(62 * scale)) : Math.max(58, Math.round(72 * scale));
+        int panelWidth = Math.max(132, Math.round(190 * scale));
+        int panelHeight = config.compactHud() ? Math.max(40, Math.round(48 * scale)) : Math.max(46, Math.round(56 * scale));
         int x = config.hudRight() ? screenWidth - panelWidth - 6 : 6;
         int y = 6 + config.hudVerticalOffset();
         int accent = switch (powerClass) {
@@ -71,9 +71,9 @@ public final class HudOverlay {
         // Okunaklılık: yarı saydam koyu zemin (taşın üstünde)
         graphics.fill(x + 3, y + 3, x + panelWidth - 3, y + panelHeight - 3, 0xB0101010);
 
-        int iconSize = 14;
+        int iconSize = 12;
         int iconX = x + 8;
-        int iconY = y + 6;
+        int iconY = y + 5;
         graphics.fill(iconX - 2, iconY - 2, iconX + iconSize + 2, iconY + iconSize + 2, 0xCC0A0A0A);
         graphics.outline(iconX - 2, iconY - 2, iconSize + 4, iconSize + 4, withAlpha(accent, 200));
         PowerIconArt.draw(graphics, powerClass, ClientState.selectedPower(), iconX, iconY, iconSize, accent);
@@ -86,35 +86,35 @@ public final class HudOverlay {
         // Satır 1: başlık + mastery (ayrı kolonlar, çakışmaz)
         int masteryW = client.font.width(mastery) + 8;
         int mx = x + panelWidth - masteryW - 6;
-        graphics.fill(mx, y + 5, mx + masteryW, y + 17, 0xCC0A0A0A);
-        graphics.outline(mx, y + 5, masteryW, 12, withAlpha(accent, 200));
-        graphics.text(client.font, mastery, mx + 4, y + 7, accent, false);
+        graphics.fill(mx, y + 4, mx + masteryW, y + 15, 0xCC0A0A0A);
+        graphics.outline(mx, y + 4, masteryW, 11, withAlpha(accent, 200));
+        graphics.text(client.font, mastery, mx + 4, y + 6, accent, false);
 
         int titleMax = Math.max(20, mx - textX - 6);
-        graphics.text(client.font, fit(client, title, titleMax), textX, y + 7, 0xFFF5F0E6, true);
+        graphics.text(client.font, fit(client, title, titleMax), textX, y + 6, 0xFFF5F0E6, true);
 
         // Satır 2: güç adı · etiket
         String powerLine = ClientState.powerName() + " · " + PowerIconArt.tag(powerClass, ClientState.selectedPower());
-        graphics.text(client.font, fit(client, powerLine, panelWidth - 20), x + 8, y + 22, 0xFFD0C8B8, false);
+        graphics.text(client.font, fit(client, powerLine, panelWidth - 20), x + 8, y + 18, 0xFFD0C8B8, false);
 
         // Satır 3: R durumu
         int cooldown = ClientState.cooldownTicks();
         String ready = cooldown <= 0 ? "R HAZIR" : String.format(java.util.Locale.ROOT, "R %.1fs", cooldown / 20.0);
         int readyColor = cooldown <= 0 ? 0xFF7DFFB0 : 0xFFFFC86A;
         int readyW = client.font.width(ready) + 8;
-        graphics.fill(x + 7, y + 33, x + 7 + readyW, y + 44, 0xCC0A0A0A);
-        graphics.outline(x + 7, y + 33, readyW, 11, withAlpha(readyColor, 180));
-        graphics.text(client.font, ready, x + 11, y + 35, readyColor, false);
+        graphics.fill(x + 7, y + 28, x + 7 + readyW, y + 38, 0xCC0A0A0A);
+        graphics.outline(x + 7, y + 28, readyW, 10, withAlpha(readyColor, 180));
+        graphics.text(client.font, ready, x + 11, y + 30, readyColor, false);
 
         // Satır 4: durum (R kutusunun sağında veya altta)
         String status = statusLine(powerClass);
-        int statusX = x + 7 + readyW + 6;
+        int statusX = x + 7 + readyW + 5;
         int statusMax = panelWidth - (statusX - x) - 8;
         if (statusMax < 40) {
             // Dar ekranda alta yaz
-            graphics.text(client.font, fit(client, status, panelWidth - 16), x + 8, y + 47, 0xFFB8B0A0, false);
+            graphics.text(client.font, fit(client, status, panelWidth - 16), x + 8, y + 40, 0xFFB8B0A0, false);
         } else {
-            graphics.text(client.font, fit(client, status, statusMax), statusX, y + 35, 0xFFB8B0A0, false);
+            graphics.text(client.font, fit(client, status, statusMax), statusX, y + 30, 0xFFB8B0A0, false);
         }
     }
 
@@ -148,7 +148,7 @@ public final class HudOverlay {
     private static int drawAwakeningStatus(GuiGraphicsExtractor graphics, Minecraft client, PowerClass powerClass, int x, int y, int width, int accent, ClientConfig config) {
         if (!config.showAwakeningBar()) return 0;
         boolean active = ClientState.classAwakeningTicks() > 0;
-        int height = 22;
+        int height = 18;
         drawCobbleRect(graphics, x, y, width, height);
         graphics.outline(x, y, width, height, withAlpha(accent, 200));
         graphics.fill(x + 3, y + 3, x + width - 3, y + height - 3, 0xB0101010);
@@ -164,13 +164,13 @@ public final class HudOverlay {
                 ? String.format(java.util.Locale.ROOT, "G UYANIŞ · %%%.0f", ClientState.awakeningEnergy())
                 : String.format(java.util.Locale.ROOT, "UYANIŞ · %%%.0f", ClientState.awakeningEnergy());
         }
-        graphics.text(client.font, fit(client, label, width - 16), x + 8, y + 5, 0xFFF0E8D8, false);
+        graphics.text(client.font, fit(client, label, width - 16), x + 8, y + 3, 0xFFF0E8D8, false);
         int barLeft = x + 8;
         int barRight = x + width - 8;
-        int barTop = y + 15;
-        graphics.fill(barLeft, barTop, barRight, barTop + 4, 0xFF0A0A0A);
+        int barTop = y + 12;
+        graphics.fill(barLeft, barTop, barRight, barTop + 3, 0xFF0A0A0A);
         int fill = Math.round((barRight - barLeft) * ratio);
-        if (fill > 0) graphics.fill(barLeft, barTop, barLeft + fill, barTop + 4, accent);
+        if (fill > 0) graphics.fill(barLeft, barTop, barLeft + fill, barTop + 3, accent);
         return height + 4;
     }
 
