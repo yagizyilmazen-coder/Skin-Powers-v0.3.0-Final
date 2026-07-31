@@ -64,20 +64,20 @@ public final class HudOverlay {
         int panelHeight,
         int accent
     ) {
-        int body = panelBody(powerClass);
-        int bodyDeep = panelDeep(powerClass);
-        graphics.fill(x + 1, y + 2, x + panelWidth + 1, y + panelHeight + 2, 0x40000000);
-        graphics.fillGradient(x, y, x + panelWidth, y + panelHeight, body, bodyDeep);
-        graphics.fill(x, y, x + panelWidth, y + 2, withAlpha(accent, 120));
-        graphics.fill(x, y, x + 3, y + panelHeight, accent);
-        graphics.outline(x, y, panelWidth, panelHeight, withAlpha(accent, 160));
-        graphics.outline(x + 1, y + 1, panelWidth - 2, panelHeight - 2, 0x22000000);
+        // Cobblestone panel (prosedürel taş + harç)
+        drawCobbleRect(graphics, x, y, panelWidth, panelHeight);
+        // İnce aksan çerçeve (sınıf rengi)
+        graphics.outline(x, y, panelWidth, panelHeight, withAlpha(accent, 200));
+        graphics.outline(x + 1, y + 1, panelWidth - 2, panelHeight - 2, 0x55000000);
+        // Üst aksan çizgisi
+        graphics.fill(x + 2, y + 2, x + panelWidth - 2, y + 4, withAlpha(accent, 160));
 
-        int iconSize = Math.min(14, panelHeight - 10);
+        int iconSize = Math.min(14, panelHeight - 12);
         int iconX = x + 8;
-        int iconY = y + 5;
-        graphics.fill(iconX - 2, iconY - 2, iconX + iconSize + 2, iconY + iconSize + 2, withAlpha(accent, 35));
-        graphics.outline(iconX - 2, iconY - 2, iconSize + 4, iconSize + 4, withAlpha(accent, 110));
+        int iconY = y + 7;
+        // Taş yuvası
+        graphics.fill(iconX - 2, iconY - 2, iconX + iconSize + 2, iconY + iconSize + 2, 0xAA1A1A1A);
+        graphics.outline(iconX - 2, iconY - 2, iconSize + 4, iconSize + 4, withAlpha(accent, 180));
         PowerIconArt.draw(graphics, powerClass, ClientState.selectedPower(), iconX, iconY, iconSize, accent);
         int textStartX = iconX + iconSize + 7;
 
@@ -85,23 +85,27 @@ public final class HudOverlay {
         String mastery = PowerCatalog.masteryStageName(stage);
         String title = powerClass.displayName() + "  ·  S" + ClientState.selectedPower();
         int titleWidth = panelWidth - (textStartX - x) - 14 - client.font.width(mastery);
-        graphics.text(client.font, fit(client, title, titleWidth), textStartX, y + 5, 0xFFF2F7FA, true);
+        // Okunaklı yazı için koyu şerit
+        graphics.fill(textStartX - 2, y + 4, x + panelWidth - 5, y + 16, 0xAA0A0A0A);
+        graphics.text(client.font, fit(client, title, titleWidth), textStartX, y + 6, 0xFFF5F0E6, true);
+
         int masteryW = client.font.width(mastery) + 8;
         int mx = x + panelWidth - masteryW - 6;
-        graphics.fill(mx, y + 3, mx + masteryW, y + 15, withAlpha(accent, 55));
-        graphics.outline(mx, y + 3, masteryW, 12, withAlpha(accent, 180));
-        graphics.text(client.font, mastery, mx + 4, y + 5, accent, false);
+        graphics.fill(mx, y + 4, mx + masteryW, y + 16, 0xCC1A1208);
+        graphics.outline(mx, y + 4, masteryW, 12, withAlpha(accent, 200));
+        graphics.text(client.font, mastery, mx + 4, y + 6, accent, false);
 
+        graphics.fill(x + 6, y + 18, x + panelWidth - 6, y + 28, 0x990A0A0A);
         String powerLine = ClientState.powerName() + "  ·  " + PowerIconArt.tag(powerClass, ClientState.selectedPower());
-        graphics.text(client.font, fit(client, powerLine, panelWidth - 20), x + 10, y + 17, 0xFFA8B8C4, false);
+        graphics.text(client.font, fit(client, powerLine, panelWidth - 20), x + 10, y + 19, 0xFFD8D0C0, false);
 
         int cooldown = ClientState.cooldownTicks();
         String ready = cooldown <= 0 ? "R  HAZIR" : String.format(java.util.Locale.ROOT, "R  %.1fs", cooldown / 20.0);
         int readyColor = cooldown <= 0 ? 0xFF7DFFB0 : 0xFFFFC86A;
         int readyW = client.font.width(ready) + 10;
-        graphics.fill(x + 8, y + 27, x + 8 + readyW, y + 38, cooldown <= 0 ? 0x3320A060 : 0x334A3010);
-        graphics.outline(x + 8, y + 27, readyW, 11, withAlpha(readyColor, 140));
-        graphics.text(client.font, ready, x + 13, y + 29, readyColor, false);
+        graphics.fill(x + 8, y + 29, x + 8 + readyW, y + 40, 0xBB0A0A0A);
+        graphics.outline(x + 8, y + 29, readyW, 11, withAlpha(readyColor, 180));
+        graphics.text(client.font, ready, x + 13, y + 31, readyColor, false);
 
         String status = switch (powerClass) {
             case FLIGHT -> ClientState.dragonFormTicks() > 0
@@ -132,26 +136,24 @@ public final class HudOverlay {
             case SAND -> ClientState.sandScreenTicks() > 0 ? "Görüşte kum: suya girerek temizle" : "Çöl akışı hazır";
             default -> "";
         };
-        int statusY = Math.min(y + panelHeight - 12, y + 41);
-        graphics.text(client.font, fit(client, status, panelWidth - 18), x + 10, statusY, 0xFF8FA0AE, false);
+        int statusY = Math.min(y + panelHeight - 12, y + 42);
+        graphics.fill(x + 6, statusY - 1, x + panelWidth - 6, statusY + 11, 0x990A0A0A);
+        graphics.text(client.font, fit(client, status, panelWidth - 18), x + 10, statusY, 0xFFC8C0B0, false);
     }
 
     private static int drawAwakeningStatus(GuiGraphicsExtractor graphics, Minecraft client, PowerClass powerClass, int x, int y, int width, int accent, ClientConfig config) {
         if (!config.showAwakeningBar()) return 0;
         int height = ClientState.classAwakeningTicks() > 0 ? 28 : 20;
-        int body = panelBody(powerClass);
-        int bodyDeep = panelDeep(powerClass);
-        graphics.fill(x + 1, y + 2, x + width + 1, y + height + 2, 0x40000000);
-        graphics.fillGradient(x, y, x + width, y + height, body, bodyDeep);
-        graphics.fill(x, y, x + 3, y + height, accent);
-        graphics.outline(x, y, width, height, withAlpha(accent, 150));
+        drawCobbleRect(graphics, x, y, width, height);
+        graphics.outline(x, y, width, height, withAlpha(accent, 180));
+        graphics.fill(x + 2, y + 2, x + width - 2, y + 3, withAlpha(accent, 120));
 
         int barLeft = x + 8;
         int barRight = x + width - 8;
         int barTop = y + 6;
         int barBottom = barTop + 6;
-        graphics.fill(barLeft, barTop, barRight, barBottom, 0xFF0C1018);
-        graphics.outline(barLeft, barTop, barRight - barLeft, barBottom - barTop, 0x44000000);
+        graphics.fill(barLeft, barTop, barRight, barBottom, 0xFF1A1208);
+        graphics.outline(barLeft, barTop, barRight - barLeft, barBottom - barTop, 0x66000000);
         float ratio;
         String label;
         if (ClientState.classAwakeningTicks() > 0) {
@@ -166,57 +168,67 @@ public final class HudOverlay {
         int fill = Math.round((barRight - barLeft) * ratio);
         if (fill > 0) {
             graphics.fill(barLeft, barTop, barLeft + fill, barBottom, accent);
-            graphics.fill(barLeft, barTop, barLeft + fill, barTop + 2, withAlpha(0xFFFFFFFF, 50));
+            graphics.fill(barLeft, barTop, barLeft + fill, barTop + 2, withAlpha(0xFFFFFFFF, 55));
         }
-        int labelColor = powerClass == PowerClass.MOON ? 0xFF6BB8FF : 0xFFE8F0F6;
+        graphics.fill(x + 6, y + (height > 22 ? 14 : 6), x + width - 6, y + (height > 22 ? 25 : 17), 0xAA0A0A0A);
+        int labelColor = powerClass == PowerClass.MOON ? 0xFF6BB8FF : 0xFFF0E8D8;
         graphics.text(client.font, fit(client, label, width - 16), x + 8, y + (height > 22 ? 15 : 7), labelColor, false);
         return height + 4;
     }
 
-    /** @return HUD'un kapladığı ek yükseklik. */
     private static int drawComboStatus(GuiGraphicsExtractor graphics, Minecraft client, int x, int y, int width, int accent) {
         if (!ClientState.comboModeEnabled()) return 0;
         boolean active = ClientState.comboTicks() > 0;
         int height = active ? 38 : 20;
         int gold = active ? 0xFFFFD35C : 0xFFB8964A;
-        graphics.fill(x + 1, y + 2, x + width + 1, y + height + 2, 0x40000000);
-        graphics.fillGradient(x, y, x + width, y + height, 0xE8121008, 0xE8080A10);
-        graphics.fill(x, y, x + 3, y + height, gold);
-        graphics.outline(x, y, width, height, withAlpha(gold, 170));
+        drawCobbleRect(graphics, x, y, width, height);
+        graphics.outline(x, y, width, height, withAlpha(gold, 200));
+        graphics.fill(x + 2, y + 2, x + width - 2, y + 4, withAlpha(gold, 140));
+        graphics.fill(x + 6, y + 5, x + width - 6, y + 16, 0xAA0A0A0A);
         graphics.text(client.font, "KOMBO", x + 10, y + 6, gold, true);
         if (active) {
             String name = ClientState.comboName().isBlank() ? "KOMBO HAZIR" : ClientState.comboName();
             String next = String.format(java.util.Locale.ROOT, "%s  ·  %.1fs", ClientState.comboNextPowerName(), ClientState.comboTicks() / 20.0);
+            graphics.fill(x + 6, y + 17, x + width - 6, y + height - 3, 0x990A0A0A);
             graphics.text(client.font, fit(client, name, width - 18), x + 10, y + 18, accent, true);
-            graphics.text(client.font, fit(client, next, width - 18), x + 10, y + 28, 0xFFD8E0E8, false);
+            graphics.text(client.font, fit(client, next, width - 18), x + 10, y + 28, 0xFFE8E0D0, false);
         }
         return height + 4;
     }
 
-    private static int panelBody(PowerClass powerClass) {
-        return switch (powerClass) {
-            case WARDEN -> 0xE0061218;
-            case FLIGHT -> 0xE00C0616;
-            case FIRE -> 0xE0140806;
-            case MOON -> 0xE0060A14;
-            case ANOMALY -> 0xE00A0614;
-            case MAGNETIC -> 0xE0080C10;
-            case SAND -> 0xE0120C06;
-            default -> 0xE0080A0E;
+    /** Prosedürel cobblestone paneli — gerçekten taş gibi görünsün. */
+    private static void drawCobbleRect(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+        // Harç zemini
+        g.fill(x, y, x + w, y + h, 0xFF3A3A3A);
+        // Taş blokları (8x6 grid kaydırmalı)
+        final int[] STONE = {
+            0xFF7A7A7A, 0xFF6B6B6B, 0xFF8A8A8A, 0xFF5E5E5E,
+            0xFF757060, 0xFF686860, 0xFF909090, 0xFF4F4F4F,
+            0xFF6E6A62, 0xFF828282, 0xFF555550, 0xFF9A9A92
         };
-    }
-
-    private static int panelDeep(PowerClass powerClass) {
-        return switch (powerClass) {
-            case WARDEN -> 0xE002080C;
-            case FLIGHT -> 0xE0060410;
-            case FIRE -> 0xE00A0402;
-            case MOON -> 0xE0020610;
-            case ANOMALY -> 0xE0060410;
-            case MAGNETIC -> 0xE004080C;
-            case SAND -> 0xE00A0804;
-            default -> 0xE004060A;
-        };
+        int tileW = 8;
+        int tileH = 6;
+        int row = 0;
+        for (int py = y; py < y + h; py += tileH, row++) {
+            int offset = (row % 2 == 0) ? 0 : tileW / 2;
+            for (int px = x - offset; px < x + w; px += tileW) {
+                int sx = Math.max(x, px);
+                int ex = Math.min(x + w, px + tileW - 1);
+                int ey = Math.min(y + h, py + tileH - 1);
+                if (ex <= sx || ey <= py) continue;
+                int seed = (px * 31 + py * 17 + row * 13) & 0x7FFFFFFF;
+                int color = STONE[seed % STONE.length];
+                g.fill(sx, py, ex, ey, color);
+                // Taş kenar gölgesi
+                if (ex - sx > 2 && ey - py > 2) {
+                    g.fill(sx, ey - 1, ex, ey, 0x33000000);
+                    g.fill(ex - 1, py, ex, ey, 0x22000000);
+                    g.fill(sx, py, Math.min(sx + 1, ex), ey, 0x22FFFFFF);
+                }
+            }
+        }
+        // Dış harç çizgisi
+        g.outline(x, y, w, h, 0xFF2A2A2A);
     }
 
     private static int withAlpha(int color, int alpha) {
