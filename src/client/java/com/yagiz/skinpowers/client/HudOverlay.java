@@ -46,7 +46,8 @@ public final class HudOverlay {
             default -> 0xFFBFC9D2;
         };
 
-        drawPowerPanel(graphics, client, powerClass, x, y, panelWidth, panelHeight, accent);
+        int powerAccent = PowerIconArt.shade(accent, ClientState.selectedPower());
+        drawPowerPanel(graphics, client, powerClass, x, y, panelWidth, panelHeight, powerAccent);
         int awakeningHeight = drawAwakeningStatus(graphics, client, powerClass, x, y + panelHeight + 4, panelWidth, accent, config);
         int comboHeight = drawComboStatus(graphics, client, x, y + panelHeight + awakeningHeight + 4, panelWidth, accent);
         drawAncientStatus(graphics, client, screenWidth, screenHeight, x, y, panelWidth, panelHeight + awakeningHeight + comboHeight + 4);
@@ -67,13 +68,20 @@ public final class HudOverlay {
         graphics.fill(x, y, x + 4, y + panelHeight, accent);
         graphics.outline(x, y, panelWidth, panelHeight, accent);
 
+        int iconSize = Math.min(14, panelHeight - 8);
+        int iconX = x + 7;
+        int iconY = y + 4;
+        PowerIconArt.draw(graphics, powerClass, ClientState.selectedPower(), iconX, iconY, iconSize, accent);
+        int textStartX = iconX + iconSize + 5;
+
         int stage = ClientState.masteryStage(ClientState.selectedPower());
         String mastery = PowerCatalog.masteryStageName(stage);
         String title = powerClass.displayName() + "  S" + ClientState.selectedPower();
-        int titleWidth = panelWidth - 20 - client.font.width(mastery);
-        graphics.text(client.font, fit(client, title, titleWidth), x + 9, y + 5, 0xFFFFFFFF, true);
+        int titleWidth = panelWidth - (textStartX - x) - 11 - client.font.width(mastery);
+        graphics.text(client.font, fit(client, title, titleWidth), textStartX, y + 5, 0xFFFFFFFF, true);
         graphics.text(client.font, mastery, x + panelWidth - client.font.width(mastery) - 7, y + 5, accent, true);
-        graphics.text(client.font, fit(client, ClientState.powerName(), panelWidth - 18), x + 9, y + 16, 0xFFDCE7ED, false);
+        String powerLine = ClientState.powerName() + "  •  " + PowerIconArt.tag(powerClass, ClientState.selectedPower());
+        graphics.text(client.font, fit(client, powerLine, panelWidth - 18), x + 9, y + 16, 0xFFDCE7ED, false);
 
         int cooldown = ClientState.cooldownTicks();
         String ready = cooldown <= 0 ? "R: HAZIR" : String.format(java.util.Locale.ROOT, "R: %.1f sn", cooldown / 20.0);

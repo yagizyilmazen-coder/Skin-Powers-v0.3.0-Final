@@ -138,19 +138,28 @@ public final class PowerMenuScreen extends Screen {
         int uses = ClientState.masteryUses(level);
         int stage = ClientState.masteryStage(level);
         boolean veryCompact = layout.rowHeight() < 30;
+        int powerAccent = PowerIconArt.shade(colors[2], level);
 
         int rowColor = selected ? 0xE5283946 : (unlocked ? 0xD3131D25 : 0xC40C1117);
         graphics.fill(layout.listLeft(), y, layout.listLeft() + layout.listWidth(), y + layout.rowHeight(), rowColor);
-        graphics.fill(layout.listLeft(), y, layout.listLeft() + 5, y + layout.rowHeight(), selected ? colors[2] : (unlocked ? withAlpha(colors[2], 125) : 0xFF35404A));
-        graphics.outline(layout.listLeft(), y, layout.listWidth(), layout.rowHeight(), selected ? colors[2] : 0x66798791);
+        graphics.fill(layout.listLeft(), y, layout.listLeft() + 5, y + layout.rowHeight(), selected ? powerAccent : (unlocked ? withAlpha(powerAccent, 125) : 0xFF35404A));
+        graphics.outline(layout.listLeft(), y, layout.listWidth(), layout.rowHeight(), selected ? powerAccent : 0x66798791);
 
         int badgeSize = Math.max(18, Math.min(34, layout.rowHeight() - 6));
         int badgeX = layout.listLeft() + 10;
         int badgeY = y + (layout.rowHeight() - badgeSize) / 2;
-        graphics.fill(badgeX, badgeY, badgeX + badgeSize, badgeY + badgeSize, unlocked ? withAlpha(colors[2], selected ? 200 : 95) : 0xFF222A31);
-        graphics.outline(badgeX, badgeY, badgeSize, badgeSize, unlocked ? colors[2] : 0xFF59636C);
-        String roman = roman(level);
-        graphics.text(font, roman, badgeX + (badgeSize - font.width(roman)) / 2, badgeY + Math.max(4, (badgeSize - 8) / 2), 0xFFFFFFFF, true);
+        graphics.fill(badgeX, badgeY, badgeX + badgeSize, badgeY + badgeSize, unlocked ? withAlpha(powerAccent, selected ? 90 : 55) : 0xFF222A31);
+        graphics.outline(badgeX, badgeY, badgeSize, badgeSize, unlocked ? powerAccent : 0xFF59636C);
+        int iconInset = Math.max(2, badgeSize / 9);
+        PowerIconArt.draw(graphics, powerClass, level, badgeX + iconInset, badgeY + iconInset, badgeSize - iconInset * 2, unlocked ? powerAccent : 0xFF59636C);
+        if (badgeSize >= 22) {
+            String roman = roman(level);
+            int tagSize = Math.max(9, badgeSize / 3);
+            int tagX = badgeX + badgeSize - tagSize;
+            int tagY = badgeY + badgeSize - tagSize;
+            graphics.fill(tagX, tagY, badgeX + badgeSize, badgeY + badgeSize, 0xE0060A0F);
+            graphics.text(font, roman, tagX + Math.max(1, (tagSize - font.width(roman)) / 2), tagY + Math.max(1, (tagSize - 7) / 2), 0xFFFFFFFF, true);
+        }
 
         int buttonReserve = layout.listWidth() < 330 ? 96 : 118;
         int textX = badgeX + badgeSize + 10;
@@ -168,11 +177,12 @@ public final class PowerMenuScreen extends Screen {
 
         if (layout.rowHeight() >= 46) {
             String stageName = PowerCatalog.masteryStageName(stage);
-            int chipWidth = font.width(stageName) + 10;
+            String chipText = PowerIconArt.tag(powerClass, level) + "  •  " + stageName;
+            int chipWidth = font.width(chipText) + 10;
             int chipX = Math.max(textX, textRight - chipWidth);
-            graphics.fill(chipX, y + 5, chipX + chipWidth, y + 18, unlocked ? withAlpha(colors[2], 50 + stage * 28) : 0x332B3238);
-            graphics.outline(chipX, y + 5, chipWidth, 13, unlocked ? withAlpha(colors[2], 180) : 0x5559636B);
-            graphics.text(font, stageName, chipX + 5, y + 8, unlocked ? 0xFFFFFFFF : 0xFF77828A, false);
+            graphics.fill(chipX, y + 5, chipX + chipWidth, y + 18, unlocked ? withAlpha(powerAccent, 50 + stage * 28) : 0x332B3238);
+            graphics.outline(chipX, y + 5, chipWidth, 13, unlocked ? withAlpha(powerAccent, 180) : 0x5559636B);
+            graphics.text(font, chipText, chipX + 5, y + 8, unlocked ? 0xFFFFFFFF : 0xFF77828A, false);
         }
 
         if (layout.rowHeight() >= 44) {
@@ -180,13 +190,13 @@ public final class PowerMenuScreen extends Screen {
             graphics.fill(textX, barY, textX + textWidth, barY + 3, 0xFF202933);
             if (unlocked) {
                 int filled = Math.max(2, (int) (textWidth * PowerCatalog.masteryProgress(uses)));
-                graphics.fill(textX, barY, textX + Math.min(textWidth, filled), barY + 3, colors[2]);
+                graphics.fill(textX, barY, textX + Math.min(textWidth, filled), barY + 3, powerAccent);
             }
         }
 
         if (selected) {
             float pulse = (float) ((Math.sin(now / 210.0) + 1.0) * 0.5);
-            graphics.outline(layout.listLeft() - 2, y - 2, layout.listWidth() + 4, layout.rowHeight() + 4, withAlpha(colors[2], 80 + (int) (90 * pulse)));
+            graphics.outline(layout.listLeft() - 2, y - 2, layout.listWidth() + 4, layout.rowHeight() + 4, withAlpha(powerAccent, 80 + (int) (90 * pulse)));
         }
     }
 
@@ -209,11 +219,27 @@ public final class PowerMenuScreen extends Screen {
         int selected = ClientState.selectedPower();
         int uses = ClientState.masteryUses(selected);
         int stage = ClientState.masteryStage(selected);
-        graphics.text(font, "SEÇİLİ GÜÇ", left + 15, top + 17, colors[2], true);
-        graphics.text(font, roman(selected), left + 15, top + 38, 0xFFFFFFFF, true);
-        graphics.text(font, fit(displayName(powerClass, selected), width - 58), left + 42, top + 38, 0xFFFFFFFF, true);
+        int powerAccent = PowerIconArt.shade(colors[2], selected);
 
-        int lineY = top + 62;
+        int iconSize = 32;
+        int iconX = left + width - iconSize - 14;
+        int iconY = top + 12;
+        graphics.fill(iconX - 4, iconY - 4, iconX + iconSize + 4, iconY + iconSize + 4, withAlpha(powerAccent, 45));
+        graphics.outline(iconX - 4, iconY - 4, iconSize + 8, iconSize + 8, withAlpha(powerAccent, 160));
+        PowerIconArt.draw(graphics, powerClass, selected, iconX, iconY, iconSize, powerAccent);
+
+        graphics.text(font, "SEÇİLİ GÜÇ", left + 15, top + 17, powerAccent, true);
+        graphics.text(font, roman(selected), left + 15, top + 38, 0xFFFFFFFF, true);
+        graphics.text(font, fit(displayName(powerClass, selected), width - iconSize - 74), left + 42, top + 38, 0xFFFFFFFF, true);
+
+        String tag = PowerIconArt.tag(powerClass, selected);
+        int tagWidth = font.width(tag) + 10;
+        graphics.fill(left + 15, top + 50, left + 15 + tagWidth, top + 61, withAlpha(powerAccent, 90));
+        graphics.outline(left + 15, top + 50, tagWidth, 11, withAlpha(powerAccent, 200));
+        graphics.text(font, tag, left + 20, top + 52, 0xFFFFFFFF, false);
+        graphics.text(font, fit(PowerIconArt.flavor(powerClass, selected), width - tagWidth - 40), left + 25 + tagWidth, top + 52, 0xFFCFE0EA, false);
+
+        int lineY = top + 68;
         for (String line : wrap(displayDescription(powerClass, selected), width - 30, 4)) {
             graphics.text(font, line, left + 15, lineY, 0xFFC4D1D9, false);
             lineY += 12;
