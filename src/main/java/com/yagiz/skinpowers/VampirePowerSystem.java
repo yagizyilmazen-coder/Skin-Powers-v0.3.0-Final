@@ -1,6 +1,5 @@
 package com.yagiz.skinpowers;
 
-import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -14,7 +13,6 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Vector3f;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -68,7 +66,7 @@ public final class VampirePowerSystem {
         }
         Float armor = BLOOD_ARMOR.get(player.getUUID());
         if (armor != null && armor > 0.05F) {
-            level.sendParticles(redDust(), player.getX(), player.getY() + 1.0, player.getZ(), 2, 0.3, 0.4, 0.3, 0.0);
+            level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, player.getX(), player.getY() + 1.0, player.getZ(), 2, 0.3, 0.4, 0.3, 0.0);
         }
     }
 
@@ -126,7 +124,7 @@ public final class VampirePowerSystem {
         int hits = 0;
         for (int i = 1; i <= 6; i++) {
             Vec3 p = eye.add(look.scale(i * 1.1));
-            level.sendParticles(redDust(), p.x, p.y, p.z, 4, 0.15, 0.15, 0.15, 0.0);
+            level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, p.x, p.y, p.z, 4, 0.15, 0.15, 0.15, 0.0);
             AABB box = new AABB(p, p).inflate(1.1);
             for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box)) {
                 if (e == player || !e.isAlive()) continue;
@@ -331,12 +329,8 @@ public final class VampirePowerSystem {
     }
 
     private static void bloodFx(ServerLevel level, Vec3 pos, int count) {
-        level.sendParticles(redDust(), pos.x, pos.y, pos.z, count, 0.35, 0.45, 0.35, 0.0);
-        level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, pos.x, pos.y, pos.z, Math.max(3, count / 4), 0.25, 0.3, 0.25, 0.0);
-    }
-
-    private static DustParticleOptions redDust() {
-        return new DustParticleOptions(new Vector3f(0.7F, 0.05F, 0.08F), 1.2F);
+        level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, pos.x, pos.y, pos.z, count, 0.35, 0.45, 0.35, 0.0);
+        level.sendParticles(ParticleTypes.CRIMSON_SPORE, pos.x, pos.y, pos.z, Math.max(3, count / 3), 0.25, 0.3, 0.25, 0.02);
     }
 
     private static LivingEntity findTarget(ServerPlayer player, double range, double width) {
