@@ -211,6 +211,23 @@ public final class SkinSelectionScreen extends Screen {
             graphics.fill(x + 5, y + 6, x + 5 + font.width(recommendedText) + 7, y + 19, withAlpha(ACCENTS[index], recommended ? 180 : 125));
             graphics.text(font, recommendedText, x + 9, y + 8, 0xFFFFFFFF, true);
         }
+
+        int iconRowY = scoreY + 11;
+        int iconRowSpace = buttonTop - 3 - iconRowY;
+        if (w >= 70 && iconRowSpace >= 8) {
+            int count = 6;
+            int gap2 = 2;
+            int iconSize = Math.max(6, Math.min(12, (w - 12 - gap2 * (count - 1)) / count));
+            int rowWidth = iconSize * count + gap2 * (count - 1);
+            int iconX = x + (w - rowWidth) / 2;
+            int iconY = iconRowY + Math.max(0, (iconRowSpace - iconSize) / 2);
+            PowerClass previewClass = CLASSES[index];
+            for (int level = 1; level <= count; level++) {
+                int iconAccent = withAlpha(PowerIconArt.shade(ACCENTS[index], level), (recommended || secondRecommended) ? 235 : 190);
+                PowerIconArt.draw(graphics, previewClass, level, iconX, iconY, iconSize, iconAccent);
+                iconX += iconSize + gap2;
+            }
+        }
     }
 
     private void drawAvatar(GuiGraphicsExtractor graphics, long now) {
