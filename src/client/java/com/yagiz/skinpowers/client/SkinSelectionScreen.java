@@ -34,11 +34,20 @@ public final class SkinSelectionScreen extends Screen {
     private boolean analysisFinished;
     private int selectedIndex = -1;
     private long selectedAt;
+    private long choicesResolvedAt;
 
     /** Seçilebilir iki sınıf (skin önerisi veya yedek çift). */
     private int primaryIndex = 0;
     private int secondaryIndex = 1;
     private boolean choicesResolved;
+
+    /** 0 = yok, 1 = sol büyük, 2 = sağ büyük, 3+ = alt kilit index+3 */
+    private int hoveredSlot = 0;
+    private float primaryHover;
+    private float secondaryHover;
+    private final float[] lockedHover = new float[5];
+    private int lockShakeSlot = -1;
+    private long lockShakeAt;
 
     private Button primaryButton;
     private Button secondaryButton;
@@ -101,6 +110,7 @@ public final class SkinSelectionScreen extends Screen {
             secondaryIndex = b;
         }
         choicesResolved = true;
+        choicesResolvedAt = Util.getMillis();
     }
 
     private void select(int index) {
@@ -108,6 +118,12 @@ public final class SkinSelectionScreen extends Screen {
         selectedIndex = index;
         selectedAt = Util.getMillis();
         ClientPlayNetworking.send(new ClientCommandPayload("CHOOSE:" + CLASSES[index].name()));
+    }
+
+    private static float approach(float current, float target, float speed) {
+        if (current < target) return Math.min(target, current + speed);
+        if (current > target) return Math.max(target, current - speed);
+        return current;
     }
 
     private boolean isSelectable(int index) {
@@ -132,12 +148,39 @@ public final class SkinSelectionScreen extends Screen {
     @Override
     public void tick() {
         super.tick();
+        boolean anim = ClientConfig.get().menuAnimations() && !ClientConfig.get().performanceMode();
+        float speed = anim ? 0.18F : 1.0F;
+        primaryHover = approach(primaryHover, hoveredSlot == 1 ? 1.0F : 0.0F, speed);
+        secondaryHover = approach(secondaryHover, hoveredSlot == 2 ? 1.0F : 0.0F, speed);
+        for (int i = 0; i < lockedHover.length; i++) {
+            lockedHover[i] = approach(lockedHover[i], hoveredSlot == i + 3 ? 1.0F : 0.0F, speed);
+        }
+
         if (selectedIndex < 0 || minecraft == null) return;
+        // Seçim onayı animasyonu bitsin diye biraz daha uzun tut
         if (ClientState.powerClass() == CLASSES[selectedIndex]) {
-            if (Util.getMillis() - selectedAt > 250L) minecraft.setScreen(null);
+            if (Util.getMillis() - selectedAt > 520L) minecraft.setScreen(null);
             return;
         }
         if (Util.getMillis() - selectedAt > 3000L) selectedIndex = -1;
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && choicesResolved && selectedIndex < 0) {
+            ScreenLayout layout = layout();
+            int[] locked = lockedIndices();
+            for (int i = 0; i < locked.length; i++) {
+                int x = layout.smallStartX() + i * (layout.smallWidth() + layout.smallGap());
+                int y = layout.smallY();
+                if (mouseX >= x && mouseX < x + layout.smallWidth() && mouseY >= y && mouseY < y + layout.smallHeight()) {
+                    lockShakeSlot = i;
+                    lockShakeAt = Util.getMillis();
+                    break;
+                }
+            }
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
@@ -146,14 +189,23 @@ public final class SkinSelectionScreen extends Screen {
 
         long now = Util.getMillis();
         ClientConfig config = ClientConfig.get();
-        float animationFactor = config.menuAnimations() ? config.cardAnimationSpeedPercent() / 100.0F : 8.0F;
-        float totalProgress = clamp01((now - openedAt) / (900.0F / animationFactor));
+        boolean anim = config.menuAnimations() && !config.performanceMode();
+        float animationFactor = anim ? config.cardAnimationSpeedPercent() / 100.0F : 8.0F;
+        float totalProgress = clamp01((now - openedAt) / (1000.0F / Math.max(0.25F, animationFactor)));
+        // Analiz bitince kartlar ikinci bir "reveal" ile otursun
+        float reveal = choicesResolved
+            ? clamp01((now - choicesResolvedAt) / (anim ? 480.0F : 1.0F))
+            : 0.0F;
+        float revealSmooth = smoothStep(reveal);
         ScreenLayout layout = layout();
         positionChoiceButtons(layout);
+        updateHover(mouseX, mouseY, layout);
 
-        // Başlık
+        // Başlık — hafif fade
+        float titleAlpha = clamp01(totalProgress * 1.4F);
         String titleText = fit(title.getString(), Math.max(80, width - 40));
-        graphics.text(font, titleText, (width - font.width(titleText)) / 2, layout.compact() ? 8 : 10, 0xFFFFFFFF, true);
+        graphics.text(font, titleText, (width - font.width(titleText)) / 2, layout.compact() ? 8 : 10,
+            withAlpha(0x00FFFFFF, (int) (255 * titleAlpha)), true);
 
         // Durum satırı
         String scanText;
@@ -165,7 +217,8 @@ public final class SkinSelectionScreen extends Screen {
             scanText = "Skin alınamadı — iki rastgele sınıf açıldı, diğerleri kilitli";
         }
         scanText = fit(scanText, Math.max(100, width - 20));
-        graphics.text(font, scanText, (width - font.width(scanText)) / 2, layout.compact() ? 20 : 24, analysisFinished ? 0xFF9BEFD9 : 0xFFE7F4FF, false);
+        graphics.text(font, scanText, (width - font.width(scanText)) / 2, layout.compact() ? 20 : 24,
+            analysisFinished ? 0xFF9BEFD9 : 0xFFE7F4FF, false);
 
         // Küçük skin avatar (sol üst, compact değilse)
         if (!layout.compact() && !config.performanceMode()) {
@@ -173,41 +226,82 @@ public final class SkinSelectionScreen extends Screen {
         }
 
         // İki büyük kart
-        float bigProgress = ClientUiRules.staggeredProgress(totalProgress, 0, 2, 0.18F);
-        float bigProgress2 = ClientUiRules.staggeredProgress(totalProgress, 1, 2, 0.18F);
+        float bigProgress = ClientUiRules.staggeredProgress(totalProgress, 0, 2, 0.22F) * Math.max(0.35F, revealSmooth);
+        float bigProgress2 = ClientUiRules.staggeredProgress(totalProgress, 1, 2, 0.22F) * Math.max(0.35F, revealSmooth);
         if (choicesResolved) {
-            int shake1 = shakeOffset(primaryIndex, now);
-            int shake2 = shakeOffset(secondaryIndex, now);
-            int y1 = layout.bigY() + (int) ((1.0F - bigProgress) * 28.0F);
-            int y2 = layout.bigY() + (int) ((1.0F - bigProgress2) * 28.0F);
-            drawBigCard(graphics, primaryIndex, 1, layout.bigLeftX() + shake1, y1, layout.bigWidth(), layout.bigHeight(), bigProgress, now);
-            drawBigCard(graphics, secondaryIndex, 2, layout.bigRightX() + shake2, y2, layout.bigWidth(), layout.bigHeight(), bigProgress2, now);
+            int shake1 = selectShake(primaryIndex, now);
+            int shake2 = selectShake(secondaryIndex, now);
+            int float1 = anim ? (int) Math.round(Math.sin(now / 640.0) * 2.2) : 0;
+            int float2 = anim ? (int) Math.round(Math.sin(now / 640.0 + 1.3) * 2.2) : 0;
+            int hoverLift1 = Math.round(primaryHover * 5.0F);
+            int hoverLift2 = Math.round(secondaryHover * 5.0F);
+            int grow1 = Math.round(primaryHover * 4.0F);
+            int grow2 = Math.round(secondaryHover * 4.0F);
+            // Seçim anında kart büyüyüp parlasın
+            float selectBurst1 = selectBurst(primaryIndex, now);
+            float selectBurst2 = selectBurst(secondaryIndex, now);
+            grow1 += Math.round(selectBurst1 * 8.0F);
+            grow2 += Math.round(selectBurst2 * 8.0F);
+
+            int y1 = layout.bigY() + (int) ((1.0F - bigProgress) * 36.0F) - hoverLift1 + float1;
+            int y2 = layout.bigY() + (int) ((1.0F - bigProgress2) * 36.0F) - hoverLift2 + float2;
+            int x1 = layout.bigLeftX() - grow1 / 2 + shake1;
+            int x2 = layout.bigRightX() - grow2 / 2 + shake2;
+            int w1 = layout.bigWidth() + grow1;
+            int w2 = layout.bigWidth() + grow2;
+            int h1 = layout.bigHeight() + hoverLift1 / 2 + Math.round(selectBurst1 * 4);
+            int h2 = layout.bigHeight() + hoverLift2 / 2 + Math.round(selectBurst2 * 4);
+
+            drawBigCard(graphics, primaryIndex, 1, x1, y1, w1, h1, bigProgress, now, primaryHover, selectBurst1);
+            drawBigCard(graphics, secondaryIndex, 2, x2, y2, w2, h2, bigProgress2, now, secondaryHover, selectBurst2);
         } else {
-            // Analiz bitene kadar yer tutucu
-            drawPlaceholderBig(graphics, layout.bigLeftX(), layout.bigY(), layout.bigWidth(), layout.bigHeight());
-            drawPlaceholderBig(graphics, layout.bigRightX(), layout.bigY(), layout.bigWidth(), layout.bigHeight());
+            drawPlaceholderBig(graphics, layout.bigLeftX(), layout.bigY(), layout.bigWidth(), layout.bigHeight(), now);
+            drawPlaceholderBig(graphics, layout.bigRightX(), layout.bigY(), layout.bigWidth(), layout.bigHeight(), now);
         }
 
-        // Butonlar
+        // Butonlar — kartla birlikte kaysın
         if (primaryButton != null) {
             primaryButton.setMessage(Component.literal(analysisFinished && choicesResolved ? "SEÇ" : "..."));
             primaryButton.active = bigProgress >= 0.85F && selectedIndex < 0 && analysisFinished && choicesResolved;
-            primaryButton.setY(layout.bigY() + (int) ((1.0F - bigProgress) * 28.0F) + layout.bigHeight() - primaryButton.getHeight() - 8);
+            int hoverLift1 = Math.round(primaryHover * 5.0F);
+            int float1 = anim ? (int) Math.round(Math.sin(now / 640.0) * 2.2) : 0;
+            primaryButton.setY(layout.bigY() + (int) ((1.0F - bigProgress) * 36.0F) - hoverLift1 + float1
+                + layout.bigHeight() - primaryButton.getHeight() - 8);
+            primaryButton.setX(layout.bigLeftX() + (layout.bigWidth() - primaryButton.getWidth()) / 2);
         }
         if (secondaryButton != null) {
             secondaryButton.setMessage(Component.literal(analysisFinished && choicesResolved ? "SEÇ" : "..."));
             secondaryButton.active = bigProgress2 >= 0.85F && selectedIndex < 0 && analysisFinished && choicesResolved;
-            secondaryButton.setY(layout.bigY() + (int) ((1.0F - bigProgress2) * 28.0F) + layout.bigHeight() - secondaryButton.getHeight() - 8);
+            int hoverLift2 = Math.round(secondaryHover * 5.0F);
+            int float2 = anim ? (int) Math.round(Math.sin(now / 640.0 + 1.3) * 2.2) : 0;
+            secondaryButton.setY(layout.bigY() + (int) ((1.0F - bigProgress2) * 36.0F) - hoverLift2 + float2
+                + layout.bigHeight() - secondaryButton.getHeight() - 8);
+            secondaryButton.setX(layout.bigRightX() + (layout.bigWidth() - secondaryButton.getWidth()) / 2);
         }
 
         // Altta kilitli 5 küçük kart
         int[] locked = lockedIndices();
         for (int i = 0; i < locked.length; i++) {
             int classIndex = locked[i];
-            float p = ClientUiRules.staggeredProgress(totalProgress, i, locked.length, 0.28F);
-            int x = layout.smallStartX() + i * (layout.smallWidth() + layout.smallGap());
-            int y = layout.smallY() + (int) ((1.0F - p) * 18.0F);
-            drawSmallCard(graphics, classIndex, x, y, layout.smallWidth(), layout.smallHeight(), p, now, mouseX, mouseY);
+            float p = ClientUiRules.staggeredProgress(totalProgress, i, Math.max(1, locked.length), 0.32F) * Math.max(0.4F, revealSmooth);
+            int baseX = layout.smallStartX() + i * (layout.smallWidth() + layout.smallGap());
+            int lockShake = 0;
+            if (lockShakeSlot == i && now - lockShakeAt < 380L) {
+                float t = (now - lockShakeAt) / 380.0F;
+                lockShake = (int) Math.round(Math.sin(t * Math.PI * 6.0) * (1.0 - t) * 5.0);
+            }
+            int hoverLift = Math.round(lockedHover[i] * 3.0F);
+            int x = baseX + lockShake;
+            int y = layout.smallY() + (int) ((1.0F - p) * 22.0F) - hoverLift;
+            drawSmallCard(graphics, classIndex, x, y, layout.smallWidth(), layout.smallHeight() + hoverLift / 2,
+                p, now, mouseX, mouseY, lockedHover[i], lockShakeSlot == i && now - lockShakeAt < 380L);
+        }
+
+        // Seçim flaşı
+        if (selectedIndex >= 0 && now - selectedAt < 420L) {
+            float flash = 1.0F - (now - selectedAt) / 420.0F;
+            int a = Math.round(55 * flash);
+            graphics.fill(0, 0, width, height, (a << 24) | (ACCENTS[selectedIndex] & 0x00FFFFFF));
         }
 
         if (!analysisFinished && config.scanAnimation()) {
@@ -221,11 +315,46 @@ public final class SkinSelectionScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, delta);
     }
 
-    private int shakeOffset(int classIndex, long now) {
+    private int selectShake(int classIndex, long now) {
         if (selectedIndex != classIndex) return 0;
         long elapsed = now - selectedAt;
-        if (elapsed >= 420L) return 0;
-        return (int) Math.round(Math.sin(elapsed * 0.085) * (1.0 - elapsed / 420.0) * 7.0);
+        if (elapsed >= 480L) return 0;
+        return (int) Math.round(Math.sin(elapsed * 0.11) * (1.0 - elapsed / 480.0) * 8.0);
+    }
+
+    private float selectBurst(int classIndex, long now) {
+        if (selectedIndex != classIndex) return 0.0F;
+        long elapsed = now - selectedAt;
+        if (elapsed >= 520L) return 0.0F;
+        float t = elapsed / 520.0F;
+        // Hızlı büyüyüp yavaş sön
+        return (float) (Math.sin(t * Math.PI) * (1.0 - t * 0.35));
+    }
+
+    private void updateHover(int mouseX, int mouseY, ScreenLayout layout) {
+        hoveredSlot = 0;
+        if (!choicesResolved || selectedIndex >= 0) return;
+        int by = layout.bigY();
+        int bh = layout.bigHeight();
+        if (mouseY >= by - 6 && mouseY < by + bh + 8) {
+            if (mouseX >= layout.bigLeftX() - 4 && mouseX < layout.bigLeftX() + layout.bigWidth() + 4) {
+                hoveredSlot = 1;
+                return;
+            }
+            if (mouseX >= layout.bigRightX() - 4 && mouseX < layout.bigRightX() + layout.bigWidth() + 4) {
+                hoveredSlot = 2;
+                return;
+            }
+        }
+        int[] locked = lockedIndices();
+        for (int i = 0; i < locked.length; i++) {
+            int x = layout.smallStartX() + i * (layout.smallWidth() + layout.smallGap());
+            int y = layout.smallY();
+            if (mouseX >= x && mouseX < x + layout.smallWidth() && mouseY >= y && mouseY < y + layout.smallHeight()) {
+                hoveredSlot = i + 3;
+                return;
+            }
+        }
     }
 
     private int[] lockedIndices() {
@@ -238,11 +367,15 @@ public final class SkinSelectionScreen extends Screen {
         return locked;
     }
 
-    private void drawPlaceholderBig(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+    private void drawPlaceholderBig(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
+        float pulse = (float) ((Math.sin(now / 280.0) + 1.0) * 0.5);
         g.fillGradient(x, y, x + w, y + h, 0xFF0A1018, 0xFF152030);
-        g.outline(x, y, w, h, 0x6635D7D0);
+        g.outline(x, y, w, h, withAlpha(0xFF35D7D0, 80 + (int) (70 * pulse)));
+        // Tarama çizgisi
+        int scanY = y + 8 + (int) ((now % 1200L) / 1200.0 * Math.max(1, h - 16));
+        g.fill(x + 4, scanY, x + w - 4, scanY + 2, 0x5535D7D0);
         String t = "...";
-        g.text(font, t, x + (w - font.width(t)) / 2, y + h / 2 - 4, 0xFF8AB8C8, false);
+        g.text(font, t, x + (w - font.width(t)) / 2, y + h / 2 - 4, withAlpha(0x008AB8C8, 160 + (int) (80 * pulse)), false);
     }
 
     private void drawBigCard(
@@ -254,15 +387,29 @@ public final class SkinSelectionScreen extends Screen {
         int w,
         int h,
         float progress,
-        long now
+        long now,
+        float hover,
+        float selectBurst
     ) {
-        int alpha = (int) (255 * progress);
+        int alpha = (int) (255 * clamp01(progress));
         graphics.fillGradient(x, y, x + w, y + h, withAlpha(TOP_COLORS[index], alpha), withAlpha(BOTTOM_COLORS[index], alpha));
 
         float pulse = (float) ((Math.sin(now / 260.0) + 1.0) * 0.5);
         int outlineAlpha = rank == 1 ? 190 + (int) (65 * pulse) : 160 + (int) (50 * pulse);
+        outlineAlpha = Math.min(255, outlineAlpha + Math.round(hover * 50) + Math.round(selectBurst * 80));
         graphics.outline(x, y, w, h, withAlpha(ACCENTS[index], outlineAlpha));
-        graphics.outline(x - 2, y - 2, w + 4, h + 4, withAlpha(ACCENTS[index], (rank == 1 ? 70 : 45) + (int) (50 * pulse)));
+        graphics.outline(x - 2, y - 2, w + 4, h + 4,
+            withAlpha(ACCENTS[index], (rank == 1 ? 70 : 45) + (int) (50 * pulse) + Math.round(hover * 40) + Math.round(selectBurst * 70)));
+        if (hover > 0.05F || selectBurst > 0.05F) {
+            int glow = Math.round((hover * 28) + (selectBurst * 45));
+            graphics.outline(x - 4, y - 4, w + 8, h + 8, withAlpha(ACCENTS[index], glow));
+        }
+
+        // Üstten aşağı parlama süpürmesi (idle)
+        if (progress > 0.7F && ClientConfig.get().menuAnimations() && !ClientConfig.get().performanceMode()) {
+            int sweep = y + (int) ((now / 18L) % Math.max(1, h));
+            graphics.fill(x + 3, sweep, x + w - 3, Math.min(y + h - 3, sweep + 3), withAlpha(ACCENTS[index], 18 + Math.round(hover * 20)));
+        }
 
         int btnH = layout().compact() ? 18 : 20;
         int artBottom = Math.max(y + 40, y + h - btnH - 36);
@@ -270,16 +417,13 @@ public final class SkinSelectionScreen extends Screen {
         drawClassArt(graphics, index, x, y, w, artBottom - y, now);
         graphics.disableScissor();
 
-        // Rozet
-        String badge = rank == 1 ? "1. ÖNERİ" : "2. ÖNERİ";
-        if (!result.hasRecommendation() && analysisFinished) {
-            badge = rank == 1 ? "AÇIK" : "AÇIK";
-        }
+        // Rozet — nabız
+        String badge = (!result.hasRecommendation() && analysisFinished) ? "AÇIK" : (rank == 1 ? "1. ÖNERİ" : "2. ÖNERİ");
         int badgeW = font.width(badge) + 10;
-        graphics.fill(x + 6, y + 6, x + 6 + badgeW, y + 18, withAlpha(ACCENTS[index], rank == 1 ? 200 : 150));
+        int badgePulse = rank == 1 ? 200 + (int) (40 * pulse) : 150 + (int) (30 * pulse);
+        graphics.fill(x + 6, y + 6, x + 6 + badgeW, y + 18, withAlpha(ACCENTS[index], Math.min(255, badgePulse + Math.round(hover * 30))));
         graphics.text(font, badge, x + 11, y + 8, 0xFF0A0E14, false);
 
-        // Uyum yüzdesi
         if (result.hasRecommendation()) {
             int score = (int) Math.round(result.score(index) * 100.0);
             String scoreText = "%" + score;
@@ -293,7 +437,6 @@ public final class SkinSelectionScreen extends Screen {
             graphics.text(font, sub, x + (w - font.width(sub)) / 2, artBottom + 16, 0xFFE0E8F0, false);
         }
 
-        // Güç ikonları
         if (progress > 0.55F && w >= 90) {
             int iconSize = Math.min(12, Math.max(8, w / 14));
             int gap = 3;
@@ -302,11 +445,25 @@ public final class SkinSelectionScreen extends Screen {
             int iconY = artBottom + (w >= 100 ? 28 : 18);
             if (iconY + iconSize < y + h - btnH - 10) {
                 for (int level = 1; level <= 6; level++) {
-                    int iconAccent = withAlpha(PowerIconArt.shade(ACCENTS[index], level), 220);
-                    PowerIconArt.draw(graphics, CLASSES[index], level, iconX, iconY, iconSize, iconAccent);
+                    // İkonlar sırayla belirsin
+                    float iconPop = clamp01((progress - 0.55F) / 0.35F);
+                    float staggered = ClientUiRules.staggeredProgress(iconPop, level - 1, 6, 0.45F);
+                    if (staggered <= 0.05F) continue;
+                    int popLift = Math.round((1.0F - staggered) * 4.0F);
+                    int iconAccent = withAlpha(PowerIconArt.shade(ACCENTS[index], level), Math.round(220 * staggered));
+                    PowerIconArt.draw(graphics, CLASSES[index], level, iconX, iconY - popLift, iconSize, iconAccent);
                     iconX += iconSize + gap;
                 }
             }
+        }
+
+        // Seçim mühür çemberi
+        if (selectBurst > 0.05F) {
+            int cx = x + w / 2;
+            int cy = y + h / 2;
+            int radius = Math.round(12 + selectBurst * Math.min(w, h) * 0.42F);
+            graphics.outline(cx - radius, cy - radius, radius * 2, radius * 2, withAlpha(ACCENTS[index], Math.round(180 * selectBurst)));
+            graphics.outline(cx - radius - 3, cy - radius - 3, radius * 2 + 6, radius * 2 + 6, withAlpha(0xFFFFFFFF, Math.round(90 * selectBurst)));
         }
     }
 
@@ -320,33 +477,38 @@ public final class SkinSelectionScreen extends Screen {
         float progress,
         long now,
         int mouseX,
-        int mouseY
+        int mouseY,
+        float hover,
+        boolean shaking
     ) {
-        int alpha = (int) (200 * progress);
+        int alpha = (int) (255 * clamp01(progress));
         graphics.fillGradient(x, y, x + w, y + h, withAlpha(TOP_COLORS[index], alpha), withAlpha(BOTTOM_COLORS[index], alpha));
-        graphics.outline(x, y, w, h, withAlpha(0xFF6A7380, 140));
+        int outlineA = 100 + Math.round(hover * 70) + (shaking ? 60 : 0);
+        graphics.outline(x, y, w, h, withAlpha(ACCENTS[index], outlineA));
+        if (hover > 0.1F || shaking) {
+            graphics.outline(x - 1, y - 1, w + 2, h + 2, withAlpha(ACCENTS[index], Math.round(hover * 50) + (shaking ? 40 : 0)));
+        }
 
-        // Karartma (kilitli)
-        graphics.fill(x, y, x + w, y + h, 0x99060A10);
-
-        int artH = Math.max(20, h - 22);
+        int labelH = 14;
+        int artH = Math.max(24, h - labelH);
         graphics.enableScissor(x + 1, y + 1, x + w - 1, y + artH);
         drawClassArt(graphics, index, x, y, w, artH, now);
         graphics.disableScissor();
-        graphics.fill(x, y, x + w, y + artH, 0x66000000);
 
-        String titleText = fit(TITLES[index], w - 6);
-        graphics.text(font, titleText, x + (w - font.width(titleText)) / 2, y + h - 14, 0xFF9AA3AD, false);
+        graphics.fill(x, y, x + w, y + artH, 0x40081018);
 
-        // Kilit simgesi
-        String lock = "🔒";
-        // Bazı fontlarda emoji yok; metin yedegi
         String lockText = "KİLİT";
-        if (w >= 48) {
-            graphics.text(font, lockText, x + (w - font.width(lockText)) / 2, y + 6, 0xFFE8C07A, true);
-        }
+        int badgeW = font.width(lockText) + 8;
+        int badgeFlash = shaking ? (int) ((Math.sin(now / 40.0) + 1.0) * 40.0) : 0;
+        graphics.fill(x + 3, y + 3, x + 3 + badgeW, y + 14, 0xCC1A1208);
+        graphics.outline(x + 3, y + 3, badgeW, 11, withAlpha(0xFFC9A15A, 200 + badgeFlash));
+        graphics.text(font, lockText, x + 7, y + 5, 0xFFFFD89A, false);
 
-        if (mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h && progress > 0.8F) {
+        graphics.fill(x, y + artH, x + w, y + h, 0xDD0A0E14);
+        String titleText = fit(TITLES[index], w - 6);
+        graphics.text(font, titleText, x + (w - font.width(titleText)) / 2, y + artH + 3, 0xFFD0D8E0, false);
+
+        if (hover > 0.4F && progress > 0.8F) {
             String tip = "Yalnızca 1. ve 2. öneri seçilebilir";
             int tipW = font.width(tip) + 10;
             int tipX = Math.max(4, Math.min(width - tipW - 4, mouseX + 8));
@@ -430,207 +592,224 @@ public final class SkinSelectionScreen extends Screen {
         }
     }
 
+    /** Kart boyuna göre ölçek: küçük kartlarda da ana silüet okunur. */
+    private static float artScale(int w, int h) {
+        return Math.max(0.45F, Math.min(1.35F, Math.min(w / 100.0F, h / 70.0F)));
+    }
+
     private void drawAncientCity(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
-        int floor = y + h - 16;
+        float s = artScale(w, h);
+        int floor = y + h - Math.max(6, Math.round(10 * s));
         g.fillGradient(x, y, x + w, y + h, 0xFF03070B, 0xFF0B2631);
         g.fill(x, floor, x + w, y + h, 0xFF061018);
-        for (int i = 0; i < 6; i++) {
-            int towerX = x + 3 + i * Math.max(8, (w - 7) / 6);
-            int towerH = 15 + (i % 3) * 9;
-            g.fill(towerX, floor - towerH, towerX + 5, floor, 0xFF102733);
-            g.fill(towerX + 1, floor - towerH + 3, towerX + 4, floor - towerH + 7, 0xFF22BDB8);
+        int towers = Math.max(3, Math.min(6, w / 18));
+        for (int i = 0; i < towers; i++) {
+            int towerX = x + 2 + i * Math.max(6, (w - 4) / towers);
+            int towerH = Math.round((10 + (i % 3) * 7) * s);
+            int tw = Math.max(3, Math.round(5 * s));
+            g.fill(towerX, floor - towerH, towerX + tw, floor, 0xFF102733);
+            g.fill(towerX + 1, floor - towerH + 2, towerX + tw - 1, floor - towerH + Math.max(4, Math.round(6 * s)), 0xFF22BDB8);
         }
-
-        // Oyun içindeki Warden'ın geniş gövde, uzun kol, boynuz ve parlayan göğüs yapısına yakın piksel çizimi.
         int cx = x + w / 2;
-        int bottom = floor - 2;
-        int top = Math.max(y + 12, bottom - Math.min(72, h - 19));
-        int bodyHalf = Math.max(10, Math.min(18, w / 6));
-        int horn = Math.max(7, bodyHalf / 2);
-        g.fill(cx - bodyHalf, top + 16, cx + bodyHalf, bottom, 0xFF0B171D);
-        g.fill(cx - bodyHalf + 3, top + 7, cx + bodyHalf - 3, top + 23, 0xFF101C23);
-        g.fill(cx - bodyHalf - horn, top + 5, cx - bodyHalf + 3, top + 10, 0xFF176071);
-        g.fill(cx + bodyHalf - 3, top + 5, cx + bodyHalf + horn, top + 10, 0xFF176071);
-        g.fill(cx - bodyHalf - 7, top + 21, cx - bodyHalf, bottom - 5, 0xFF091216);
-        g.fill(cx + bodyHalf, top + 21, cx + bodyHalf + 7, bottom - 5, 0xFF091216);
-        g.fill(cx - bodyHalf + 2, bottom - 3, cx - 3, bottom + 5, 0xFF071014);
-        g.fill(cx + 3, bottom - 3, cx + bodyHalf - 2, bottom + 5, 0xFF071014);
+        int bodyH = Math.max(22, Math.min(h - 8, Math.round(48 * s)));
+        int bottom = floor - 1;
+        int top = bottom - bodyH;
+        int bodyHalf = Math.max(6, Math.min(w / 4, Math.round(14 * s)));
+        int horn = Math.max(4, bodyHalf / 2);
+        g.fill(cx - bodyHalf, top + Math.round(10 * s), cx + bodyHalf, bottom, 0xFF0B171D);
+        g.fill(cx - bodyHalf + 2, top + Math.round(4 * s), cx + bodyHalf - 2, top + Math.round(16 * s), 0xFF101C23);
+        g.fill(cx - bodyHalf - horn, top + Math.round(2 * s), cx - bodyHalf + 2, top + Math.round(7 * s), 0xFF176071);
+        g.fill(cx + bodyHalf - 2, top + Math.round(2 * s), cx + bodyHalf + horn, top + Math.round(7 * s), 0xFF176071);
+        int armW = Math.max(3, Math.round(6 * s));
+        g.fill(cx - bodyHalf - armW, top + Math.round(14 * s), cx - bodyHalf, bottom - Math.round(4 * s), 0xFF091216);
+        g.fill(cx + bodyHalf, top + Math.round(14 * s), cx + bodyHalf + armW, bottom - Math.round(4 * s), 0xFF091216);
         int glow = 145 + (int) ((Math.sin(now / 220.0) + 1.0) * 45.0);
-        for (int rib = 0; rib < 3; rib++) {
-            int ry = top + 25 + rib * 7;
-            g.fill(cx - 8 - rib, ry, cx - 2, ry + 4, withAlpha(0xFF43E5DC, glow));
-            g.fill(cx + 2, ry, cx + 8 + rib, ry + 4, withAlpha(0xFF43E5DC, glow));
+        int ribs = h < 50 ? 2 : 3;
+        for (int rib = 0; rib < ribs; rib++) {
+            int ry = top + Math.round(16 * s) + rib * Math.max(4, Math.round(6 * s));
+            int rw = Math.max(3, Math.round(6 * s)) + rib;
+            g.fill(cx - rw, ry, cx - 1, ry + Math.max(2, Math.round(3 * s)), withAlpha(0xFF43E5DC, glow));
+            g.fill(cx + 1, ry, cx + rw, ry + Math.max(2, Math.round(3 * s)), withAlpha(0xFF43E5DC, glow));
         }
-        g.fill(cx - 7, top + 12, cx - 3, top + 16, 0xFFE7FFFF);
-        g.fill(cx + 3, top + 12, cx + 7, top + 16, 0xFFE7FFFF);
+        int eye = Math.max(2, Math.round(3 * s));
+        g.fill(cx - Math.round(5 * s), top + Math.round(8 * s), cx - Math.round(5 * s) + eye, top + Math.round(8 * s) + eye, 0xFFE7FFFF);
+        g.fill(cx + Math.round(3 * s), top + Math.round(8 * s), cx + Math.round(3 * s) + eye, top + Math.round(8 * s) + eye, 0xFFE7FFFF);
     }
 
     private void drawDragonStorm(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
+        float s = artScale(w, h);
         g.fillGradient(x, y, x + w, y + h, 0xFF05010B, 0xFF411063);
-        int drift = ClientConfig.get().animatedBackgrounds() ? (int) ((now / 34L) % Math.max(1, w + 60)) : 0;
-        // Mor fırtına bulutları ve uzaktaki dağlar.
-        for (int i = -1; i < 5; i++) {
-            int cx = x + ((i * 47 + drift) % (w + 70)) - 35;
-            int cy = y + 13 + (i & 1) * 18;
-            g.fill(cx, cy, cx + 43, cy + 8, 0x493D175A);
-            g.fill(cx + 9, cy - 6, cx + 31, cy + 10, 0x603F1B60);
-        }
-        int ground = y + h - 15;
+        int ground = y + h - Math.max(5, Math.round(10 * s));
         g.fill(x, ground, x + w, y + h, 0xFF09050F);
-        for (int i = 0; i < 5; i++) {
-            int mx = x + i * Math.max(12, w / 4) - 6;
-            int mh = 12 + (i % 3) * 8;
-            g.fill(mx, ground - mh, mx + Math.max(16, w / 3), ground, i % 2 == 0 ? 0xFF140A20 : 0xFF21102E);
+        for (int i = 0; i < 4; i++) {
+            int mx = x + i * Math.max(10, w / 4) - 4;
+            int mh = Math.round((8 + (i % 3) * 6) * s);
+            g.fill(mx, ground - mh, mx + Math.max(12, w / 4), ground, i % 2 == 0 ? 0xFF140A20 : 0xFF21102E);
         }
-
         int cx = x + w / 2;
-        int cy = y + Math.max(37, h / 2 + 2);
-        int flap = ClientConfig.get().menuAnimations() ? (int) Math.round(Math.sin(now / 210.0) * 4.0) : 0;
+        int cy = y + Math.max(Math.round(18 * s), h / 2);
+        int flap = ClientConfig.get().menuAnimations() ? (int) Math.round(Math.sin(now / 210.0) * Math.max(2, 3 * s)) : 0;
         int pulse = 150 + (int) ((Math.sin(now / 170.0) + 1.0) * 45.0);
-
-        // Büyük ejderha gölgesi, boynuzlar, baş ve kuyruk.
-        g.fill(cx - 7, cy - 23, cx + 7, cy + 20, 0xE90B0611);
-        g.fill(cx - 13, cy - 25, cx - 4, cy - 18, 0xFF170721);
-        g.fill(cx + 4, cy - 25, cx + 13, cy - 18, 0xFF170721);
-        g.fill(cx - 4, cy + 16, cx + 4, cy + 34, 0xD713071D);
-
-        // Katmanlı mor enerji kanatları.
-        g.fill(cx - 38, cy - 18 + flap, cx - 7, cy - 10 + flap, 0xC14B1370);
-        g.fill(cx + 7, cy - 18 + flap, cx + 38, cy - 10 + flap, 0xC14B1370);
-        g.fill(cx - 32, cy - 9 + flap, cx - 7, cy + 3 + flap, 0xD16B1A98);
-        g.fill(cx + 7, cy - 9 + flap, cx + 32, cy + 3 + flap, 0xD16B1A98);
-        g.fill(cx - 24, cy + 2 + flap, cx - 7, cy + 16 + flap, 0xE68D37C1);
-        g.fill(cx + 7, cy + 2 + flap, cx + 24, cy + 16 + flap, 0xE68D37C1);
-        g.outline(cx - 38, cy - 18 + flap, 31, 34, withAlpha(0xFFDCA1FF, pulse));
-        g.outline(cx + 7, cy - 18 + flap, 31, 34, withAlpha(0xFFDCA1FF, pulse));
-
-        // Parlayan gözler ve göğüs çekirdeği.
-        g.fill(cx - 6, cy - 18, cx - 2, cy - 14, 0xFFFFFFFF);
-        g.fill(cx + 2, cy - 18, cx + 6, cy - 14, 0xFFFFFFFF);
-        g.fill(cx - 3, cy - 4, cx + 3, cy + 4, withAlpha(0xFFE9B6FF, pulse));
-
-        // İnce mor yıldırım çizgileri; foto-hassasiyet modunda sabit ve daha soluk.
-        if (!ClientConfig.get().photosensitiveMode()) {
-            int bolt = (int) ((now / 120L) % Math.max(1, w));
-            g.fill(x + bolt, y + 6, x + bolt + 2, y + 21, 0x8FDFA6FF);
-            g.fill(x + bolt - 5, y + 20, x + bolt + 2, y + 23, 0x7FC56CFF);
-        }
+        int bodyW = Math.max(4, Math.round(6 * s));
+        int bodyH = Math.max(14, Math.round(28 * s));
+        g.fill(cx - bodyW, cy - Math.round(16 * s), cx + bodyW, cy + Math.round(12 * s), 0xE90B0611);
+        g.fill(cx - Math.round(10 * s), cy - Math.round(18 * s), cx - Math.round(3 * s), cy - Math.round(12 * s), 0xFF170721);
+        g.fill(cx + Math.round(3 * s), cy - Math.round(18 * s), cx + Math.round(10 * s), cy - Math.round(12 * s), 0xFF170721);
+        int wing = Math.max(10, Math.round(28 * s));
+        int wingH = Math.max(8, Math.round(20 * s));
+        g.fill(cx - wing, cy - Math.round(12 * s) + flap, cx - bodyW, cy - Math.round(6 * s) + flap, 0xC14B1370);
+        g.fill(cx + bodyW, cy - Math.round(12 * s) + flap, cx + wing, cy - Math.round(6 * s) + flap, 0xC14B1370);
+        g.fill(cx - Math.round(wing * 0.75F), cy - Math.round(5 * s) + flap, cx - bodyW, cy + Math.round(4 * s) + flap, 0xD16B1A98);
+        g.fill(cx + bodyW, cy - Math.round(5 * s) + flap, cx + Math.round(wing * 0.75F), cy + Math.round(4 * s) + flap, 0xD16B1A98);
+        g.outline(cx - wing, cy - Math.round(12 * s) + flap, wing - bodyW, wingH, withAlpha(0xFFDCA1FF, pulse));
+        g.outline(cx + bodyW, cy - Math.round(12 * s) + flap, wing - bodyW, wingH, withAlpha(0xFFDCA1FF, pulse));
+        int eye = Math.max(2, Math.round(3 * s));
+        g.fill(cx - Math.round(4 * s), cy - Math.round(12 * s), cx - Math.round(4 * s) + eye, cy - Math.round(12 * s) + eye, 0xFFFFFFFF);
+        g.fill(cx + Math.round(2 * s), cy - Math.round(12 * s), cx + Math.round(2 * s) + eye, cy - Math.round(12 * s) + eye, 0xFFFFFFFF);
+        g.fill(cx - Math.round(2 * s), cy - Math.round(2 * s), cx + Math.round(2 * s), cy + Math.round(3 * s), withAlpha(0xFFE9B6FF, pulse));
     }
 
     private void drawLavaCave(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
-        g.fill(x, y, x + w, y + 15, 0xFF190604);
-        for (int i = 0; i < 7; i++) {
-            int px = x + i * Math.max(9, w / 7);
-            int length = 12 + (i % 3) * 9;
-            g.fill(px, y + 10, px + 7, y + 10 + length, 0xFF2C0A05);
+        float s = artScale(w, h);
+        g.fillGradient(x, y, x + w, y + h, 0xFF1A0604, 0xFF3A1008);
+        int spikes = Math.max(3, Math.min(7, w / 16));
+        for (int i = 0; i < spikes; i++) {
+            int px = x + i * Math.max(7, w / spikes);
+            int length = Math.round((8 + (i % 3) * 6) * s);
+            g.fill(px, y + Math.round(6 * s), px + Math.max(3, Math.round(5 * s)), y + Math.round(6 * s) + length, 0xFF2C0A05);
         }
-        int lavaY = y + h - 20;
+        int lavaY = y + h - Math.max(8, Math.round(14 * s));
         g.fillGradient(x, lavaY, x + w, y + h, 0xFFFF8A10, 0xFFB31808);
-        int wave = (int) ((Math.sin(now / 170.0) + 1.0) * 3.0);
-        for (int i = 0; i < 6; i++) {
-            int bx = x + 8 + i * Math.max(12, (w - 16) / 6);
-            g.fill(bx, lavaY - wave - (i % 2) * 4, bx + 5, lavaY + 2, 0xFFFFD24A);
+        int wave = (int) ((Math.sin(now / 170.0) + 1.0) * Math.max(1, 2 * s));
+        for (int i = 0; i < Math.max(3, w / 20); i++) {
+            int bx = x + 4 + i * Math.max(8, (w - 8) / Math.max(3, w / 20));
+            g.fill(bx, lavaY - wave - (i % 2) * 2, bx + Math.max(3, Math.round(4 * s)), lavaY + 1, 0xFFFFD24A);
         }
-
-        // Görünür Cehennem Küresi simgesi.
-        int orbit = (int) Math.round(Math.sin(now / 260.0) * Math.max(3, w / 16.0));
+        int orbit = (int) Math.round(Math.sin(now / 260.0) * Math.max(2, w / 18.0));
         int cx = x + w / 2 + orbit;
-        int cy = y + Math.max(38, h / 2 - 5);
-        g.fill(cx - 15, cy - 3, cx - 6, cy + 4, 0x88FF6A00);
-        g.fill(cx - 10, cy - 8, cx - 2, cy + 9, 0xBBFF8B12);
-        g.fill(cx - 7, cy - 11, cx + 8, cy + 11, 0xFFFF6A00);
-        g.fill(cx - 3, cy - 7, cx + 9, cy + 7, 0xFFFFC52A);
-        g.fill(cx, cy - 4, cx + 6, cy + 4, 0xFFFFFFB0);
+        int cy = y + Math.max(Math.round(16 * s), h / 2 - Math.round(4 * s));
+        int r = Math.max(6, Math.round(10 * s));
+        g.fill(cx - r - 4, cy - 2, cx - r + 2, cy + 3, 0x88FF6A00);
+        g.fill(cx - r, cy - r, cx + r, cy + r, 0xFFFF6A00);
+        g.fill(cx - r / 2, cy - r / 2, cx + r / 2 + 2, cy + r / 2, 0xFFFFC52A);
+        g.fill(cx - 1, cy - 2, cx + Math.max(2, r / 3), cy + 2, 0xFFFFFFB0);
     }
 
     private void drawMoon(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
+        float s = artScale(w, h);
         g.fillGradient(x, y, x + w, y + h, 0xFF040817, 0xFF34456F);
-        int horizon = y + h - 18;
+        int horizon = y + h - Math.max(5, Math.round(10 * s));
         g.fill(x, horizon, x + w, y + h, 0xFF080B16);
-        for (int i = 0; i < 8; i++) {
-            int sx = x + 6 + (i * 29) % Math.max(12, w - 12);
-            int sy = y + 7 + (i * 17) % Math.max(12, h - 34);
+        int stars = Math.max(4, Math.min(10, w / 12));
+        for (int i = 0; i < stars; i++) {
+            int sx = x + 3 + (i * 29) % Math.max(8, w - 8);
+            int sy = y + 4 + (i * 17) % Math.max(8, Math.max(1, h - 16));
             int blink = 135 + (int) ((Math.sin(now / 260.0 + i) + 1.0) * 55.0);
             g.fill(sx, sy, sx + 2, sy + 2, withAlpha(0xFFFFFFFF, blink));
         }
         int cx = x + w / 2;
-        int cy = y + Math.max(35, h / 2);
+        int cy = y + Math.max(Math.round(16 * s), h / 2);
         int pulse = 160 + (int) ((Math.sin(now / 210.0) + 1.0) * 45.0);
-        int radius = Math.max(15, Math.min(27, w / 5));
+        int radius = Math.max(8, Math.min(Math.round(22 * s), Math.min(w, h) / 3));
         g.fill(cx - radius, cy - radius, cx + radius, cy + radius, withAlpha(0xFFE7EDFF, pulse));
-        g.fill(cx - radius / 3, cy - radius - 2, cx + radius + 4, cy + radius + 2, 0xFF10182D);
+        g.fill(cx - radius / 3, cy - radius - 1, cx + radius + 2, cy + radius + 1, 0xFF10182D);
         g.outline(cx - radius, cy - radius, radius * 2, radius * 2, 0xFFDCE6FF);
-        int orbit = ClientConfig.get().menuAnimations() ? (int) Math.round(Math.sin(now / 180.0) * 5.0) : 0;
-        g.fill(cx - radius - 13 + orbit, cy - 2, cx - radius - 4 + orbit, cy + 3, 0xFFAFC6FF);
-        g.fill(cx + radius + 4 - orbit, cy - 2, cx + radius + 13 - orbit, cy + 3, 0xFF9474D6);
-        g.fill(cx - 2, horizon - 15, cx + 2, horizon, 0xFF66769F);
+        int orbit = ClientConfig.get().menuAnimations() ? (int) Math.round(Math.sin(now / 180.0) * Math.max(2, 4 * s)) : 0;
+        int sat = Math.max(3, Math.round(5 * s));
+        g.fill(cx - radius - sat - 2 + orbit, cy - 1, cx - radius - 2 + orbit, cy + 2, 0xFFAFC6FF);
+        g.fill(cx + radius + 2 - orbit, cy - 1, cx + radius + sat + 2 - orbit, cy + 2, 0xFF9474D6);
+        g.fill(cx - 1, horizon - Math.max(6, Math.round(10 * s)), cx + 2, horizon, 0xFF66769F);
     }
 
     private void drawMagneticForge(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
+        float s = artScale(w, h);
         g.fillGradient(x, y, x + w, y + h, 0xFF10161D, 0xFF52606B);
-        int ground = y + h - 15;
+        int ground = y + h - Math.max(4, Math.round(8 * s));
         g.fill(x, ground, x + w, y + h, 0xFF161B20);
+        // Anvil / forge silhouette
         int cx = x + w / 2;
-        int cy = y + Math.max(32, h / 2);
+        int cy = y + Math.max(Math.round(14 * s), h / 2);
         int pulse = 130 + (int) ((Math.sin(now / 180.0) + 1.0) * 52.0);
-        // İki kutuplu gerçek metal çekirdek ve bakır sargılar.
-        g.fill(cx - 20, cy - 9, cx - 4, cy + 9, 0xFFB7C2CB);
-        g.fill(cx + 4, cy - 9, cx + 20, cy + 9, 0xFF707D88);
-        g.fill(cx - 4, cy - 13, cx + 4, cy + 13, withAlpha(0xFFD47E3F, pulse));
-        for (int i = 0; i < 4; i++) {
-            int orbit = (int) Math.round(Math.sin(now / 210.0 + i * 1.57) * Math.max(7, w / 5.5));
-            int oy = cy + (int) Math.round(Math.cos(now / 210.0 + i * 1.57) * 12.0);
-            g.fill(cx + orbit - 3, oy - 3, cx + orbit + 3, oy + 3, i % 2 == 0 ? 0xFFC4D0D9 : 0xFFC6793C);
+        int pole = Math.max(5, Math.round(12 * s));
+        int poleH = Math.max(6, Math.round(10 * s));
+        g.fill(cx - pole - Math.round(4 * s), cy - poleH / 2, cx - Math.round(2 * s), cy + poleH / 2, 0xFFB7C2CB);
+        g.fill(cx + Math.round(2 * s), cy - poleH / 2, cx + pole + Math.round(4 * s), cy + poleH / 2, 0xFF707D88);
+        g.fill(cx - Math.round(3 * s), cy - Math.round(10 * s), cx + Math.round(3 * s), cy + Math.round(10 * s), withAlpha(0xFFD47E3F, pulse));
+        // Anvil base
+        int aw = Math.max(14, Math.round(28 * s));
+        int ah = Math.max(4, Math.round(7 * s));
+        g.fill(cx - aw / 2, cy + Math.round(8 * s), cx + aw / 2, cy + Math.round(8 * s) + ah, 0xFF8A959E);
+        g.fill(cx - aw / 3, cy + Math.round(8 * s) + ah, cx + aw / 3, ground, 0xFF5A646E);
+        int orbs = h < 45 ? 2 : 4;
+        for (int i = 0; i < orbs; i++) {
+            double ang = now / 210.0 + i * (Math.PI * 2.0 / orbs);
+            int ox = (int) Math.round(Math.sin(ang) * Math.max(6, w / 5.0));
+            int oy = (int) Math.round(Math.cos(ang) * Math.max(5, 9 * s));
+            int os = Math.max(2, Math.round(3 * s));
+            g.fill(cx + ox - os, cy + oy - os, cx + ox + os, cy + oy + os, i % 2 == 0 ? 0xFFC4D0D9 : 0xFFC6793C);
         }
-        g.fill(x + 5, y + 8, x + 8, ground, 0x554ED6FF);
-        g.fill(x + w - 8, y + 8, x + w - 5, ground, 0x55FF6E4A);
+        g.fill(x + 2, y + 4, x + Math.max(3, Math.round(4 * s)), ground, 0x554ED6FF);
+        g.fill(x + w - Math.max(3, Math.round(4 * s)), y + 4, x + w - 2, ground, 0x55FF6E4A);
     }
 
     private void drawDesertTemple(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
-        g.fillGradient(x, y, x + w, y + h, 0xFF6C431B, 0xFFE0B55D);
-        int ground = y + h - 14;
+        float s = artScale(w, h);
+        g.fillGradient(x, y, x + w, y + h, 0xFF5A3814, 0xFFE0B55D);
+        int ground = y + h - Math.max(4, Math.round(8 * s));
         g.fill(x, ground, x + w, y + h, 0xFFD6AA51);
-        // Kumtaşı tapınak: Minecraft kum/kumtaşı bloklarını çağrıştıran kare gövdeler.
         int cx = x + w / 2;
-        int templeW = Math.max(24, w / 2);
+        int templeW = Math.max(16, Math.min(w - 8, Math.round(w * 0.55F)));
         int left = cx - templeW / 2;
-        g.fill(left, ground - 28, left + templeW, ground, 0xFFE7CF8A);
-        g.fill(left + 5, ground - 39, left + templeW - 5, ground - 28, 0xFFF1DB9B);
-        g.fill(cx - 5, ground - 23, cx + 5, ground, 0xFF76502A);
-        int drift = ClientConfig.get().animatedBackgrounds() ? (int) ((now / 55L) % Math.max(1, w + 22)) : 0;
-        for (int i = 0; i < 7; i++) {
-            int sx = x + ((i * 23 + drift) % (w + 18)) - 9;
-            int sy = y + 12 + (i * 13) % Math.max(18, h - 34);
-            g.fill(sx, sy, sx + 7, sy + 5, i % 2 == 0 ? 0xFFDDB96B : 0xFFEAD28C);
+        int bodyH = Math.max(12, Math.round(22 * s));
+        int roofH = Math.max(6, Math.round(10 * s));
+        g.fill(left, ground - bodyH, left + templeW, ground, 0xFFE7CF8A);
+        g.fill(left + Math.round(3 * s), ground - bodyH - roofH, left + templeW - Math.round(3 * s), ground - bodyH, 0xFFF1DB9B);
+        // Door
+        int doorW = Math.max(4, Math.round(6 * s));
+        g.fill(cx - doorW / 2, ground - Math.round(14 * s), cx + doorW / 2, ground, 0xFF76502A);
+        // Pillars
+        int pw = Math.max(2, Math.round(3 * s));
+        g.fill(left + 2, ground - bodyH, left + 2 + pw, ground, 0xFFC4A86A);
+        g.fill(left + templeW - 2 - pw, ground - bodyH, left + templeW - 2, ground, 0xFFC4A86A);
+        int drift = ClientConfig.get().animatedBackgrounds() ? (int) ((now / 55L) % Math.max(1, w + 16)) : 0;
+        int grains = Math.max(3, Math.min(6, w / 18));
+        for (int i = 0; i < grains; i++) {
+            int sx = x + ((i * 23 + drift) % Math.max(1, w + 12)) - 6;
+            int sy = y + 6 + (i * 11) % Math.max(10, Math.max(1, h - 18));
+            g.fill(sx, sy, sx + Math.max(3, Math.round(5 * s)), sy + Math.max(2, Math.round(3 * s)), i % 2 == 0 ? 0xFFDDB96B : 0xFFEAD28C);
         }
-        int wave = (int) Math.round(Math.sin(now / 190.0) * 3.0);
-        g.fill(x + 4, ground - 7 + wave, x + w - 4, ground - 2 + wave, 0x99F3D27C);
+        int wave = (int) Math.round(Math.sin(now / 190.0) * Math.max(1, 2 * s));
+        g.fill(x + 2, ground - Math.max(3, Math.round(5 * s)) + wave, x + w - 2, ground - 1 + wave, 0x99F3D27C);
     }
 
     private void drawAnomalyGlitch(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
+        float s = artScale(w, h);
         g.fillGradient(x, y, x + w, y + h, 0xFF030108, 0xFF291248);
         int shift = (int) ((now / 85L) % Math.max(1, w));
-        for (int i = 0; i < 14; i++) {
-            int gy = y + 8 + (i * 17) % Math.max(18, h - 12);
-            int gx = x + ((i * 31 + shift * (i % 3 + 1)) % Math.max(1, w + 24)) - 12;
-            int length = 8 + (i % 4) * 9;
+        int lines = Math.max(5, Math.min(12, h / 6));
+        for (int i = 0; i < lines; i++) {
+            int gy = y + 4 + (i * Math.max(6, h / lines)) % Math.max(6, h - 6);
+            int gx = x + ((i * 31 + shift * (i % 3 + 1)) % Math.max(1, w + 16)) - 8;
+            int length = Math.max(5, Math.round((6 + (i % 4) * 6) * s));
             int color = switch (i % 3) {
                 case 0 -> 0xAA5CE5E5;
                 case 1 -> 0xAAB65CFF;
                 default -> 0x88E94B63;
             };
-            g.fill(gx, gy, Math.min(x + w, gx + length), gy + 2, color);
+            g.fill(gx, gy, Math.min(x + w, gx + length), gy + Math.max(1, Math.round(2 * s)), color);
         }
         int cx = x + w / 2;
-        int cy = y + Math.max(30, h / 2);
-        int jitter = (int) Math.round(Math.sin(now / 90.0) * 3.0);
-        g.fill(cx - 18 + jitter, cy - 20, cx + 18 + jitter, cy + 20, 0x66000000);
-        g.outline(cx - 18 - jitter, cy - 20, 36, 40, 0xFFB65CFF);
-        g.outline(cx - 15 + jitter, cy - 17, 30, 34, 0xFF5CE5E5);
+        int cy = y + Math.max(Math.round(14 * s), h / 2);
+        int jitter = (int) Math.round(Math.sin(now / 90.0) * Math.max(1, 2 * s));
+        int boxW = Math.max(12, Math.round(24 * s));
+        int boxH = Math.max(14, Math.round(26 * s));
+        g.fill(cx - boxW / 2 + jitter, cy - boxH / 2, cx + boxW / 2 + jitter, cy + boxH / 2, 0x88000000);
+        g.outline(cx - boxW / 2 - jitter, cy - boxH / 2, boxW, boxH, 0xFFB65CFF);
+        g.outline(cx - boxW / 2 + 2 + jitter, cy - boxH / 2 + 2, boxW - 4, boxH - 4, 0xFF5CE5E5);
         g.text(font, "?", cx - font.width("?") / 2 + jitter, cy - 5, 0xFFFFFFFF, true);
-        if ((now / 300L) % 3L == 0L) {
+        if (h >= 40 && (now / 300L) % 3L == 0L) {
             String error = "404";
-            g.text(font, error, cx - font.width(error) / 2 - jitter, cy + 11, 0xFFE94B63, false);
+            g.text(font, error, cx - font.width(error) / 2 - jitter, cy + Math.max(4, Math.round(6 * s)), 0xFFE94B63, false);
         }
     }
 
@@ -638,27 +817,27 @@ public final class SkinSelectionScreen extends Screen {
         if (cachedLayout != null && cachedLayoutWidth == width && cachedLayoutHeight == height) {
             return cachedLayout;
         }
-        boolean compact = width < 520 || height < 340;
-        int side = compact ? 8 : 18;
-        int gap = compact ? 8 : 14;
+        boolean compact = width < 520 || height < 360;
+        int side = compact ? 8 : 16;
+        int gap = compact ? 8 : 12;
         int available = width - side * 2 - gap;
-        int bigWidth = Math.max(120, Math.min(210, available / 2));
+        int bigWidth = Math.max(120, Math.min(220, available / 2));
         int totalBig = bigWidth * 2 + gap;
         int bigLeftX = Math.max(side, (width - totalBig) / 2);
         int bigRightX = bigLeftX + bigWidth + gap;
 
-        int topReserve = compact ? 34 : 42;
-        int bottomReserve = compact ? 58 : 72;
-        int bigHeight = Math.max(120, Math.min(compact ? 168 : 210, height - topReserve - bottomReserve - 8));
-        int bigY = topReserve;
-
         int smallCount = 5;
-        int smallGap = compact ? 4 : 6;
-        int smallHeight = compact ? 44 : 54;
-        int smallWidth = Math.max(48, Math.min(90, (width - side * 2 - smallGap * (smallCount - 1)) / smallCount));
+        int smallGap = compact ? 5 : 8;
+        int smallHeight = compact ? 64 : 78;
+        int smallWidth = Math.max(56, Math.min(110, (width - side * 2 - smallGap * (smallCount - 1)) / smallCount));
         int smallTotal = smallWidth * smallCount + smallGap * (smallCount - 1);
         int smallStartX = Math.max(side, (width - smallTotal) / 2);
         int smallY = height - smallHeight - (compact ? 6 : 10);
+
+        int topReserve = compact ? 32 : 40;
+        int bottomReserve = smallHeight + (compact ? 10 : 14);
+        int bigHeight = Math.max(110, Math.min(compact ? 160 : 200, height - topReserve - bottomReserve - 6));
+        int bigY = topReserve;
 
         cachedLayoutWidth = width;
         cachedLayoutHeight = height;
@@ -691,6 +870,11 @@ public final class SkinSelectionScreen extends Screen {
 
     private static float clamp01(float value) {
         return Math.max(0.0F, Math.min(1.0F, value));
+    }
+
+    private static float smoothStep(float value) {
+        float v = clamp01(value);
+        return v * v * (3.0F - 2.0F * v);
     }
 
     private record ScreenLayout(
