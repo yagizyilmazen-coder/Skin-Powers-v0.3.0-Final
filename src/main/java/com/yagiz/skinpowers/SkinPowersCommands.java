@@ -33,7 +33,7 @@ public final class SkinPowersCommands {
             .then(selfClass("ay", PowerClass.MOON))
             .then(selfClass("anomali", PowerClass.ANOMALY))
             .then(selfClass("manyetik", PowerClass.MAGNETIC))
-            .then(selfClass("kum", PowerClass.SAND)));
+            .then(selfClass("kum", PowerClass.VAMPIRE)));
 
         // Dünya olaylarını yalnızca yetkili oyuncular elle başlatabilir.
         root.then(Commands.literal("olay")
@@ -119,7 +119,7 @@ public final class SkinPowersCommands {
                     .then(targetClass("ay", PowerClass.MOON))
                     .then(targetClass("anomali", PowerClass.ANOMALY))
                     .then(targetClass("manyetik", PowerClass.MAGNETIC))
-                    .then(targetClass("kum", PowerClass.SAND))))
+                    .then(targetClass("kum", PowerClass.VAMPIRE))))
             .then(Commands.literal("reset")
                 .then(Commands.argument("oyuncu", EntityArgument.player())
                     .executes(context -> resetPlayer(context.getSource(), EntityArgument.getPlayer(context, "oyuncu")))))

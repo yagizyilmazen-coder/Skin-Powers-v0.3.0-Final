@@ -17,18 +17,18 @@ import net.minecraft.util.Util;
  * - Skin okunamazsa yine 2 sınıf büyük/seçilebilir; diğerleri kilitli (rastgele sabit çift)
  */
 public final class SkinSelectionScreen extends Screen {
-    private static final String[] TITLES = {"WARDEN", "KADİM EJDERHA", "ATEŞ", "AY", "ANOMALİ", "MANYETİK", "KUM"};
+    private static final String[] TITLES = {"WARDEN", "KADİM EJDERHA", "ATEŞ", "AY", "ANOMALİ", "MANYETİK", "VAMPİR"};
     private static final String[] SUBTITLES = {
         "Derinliğin gücü", "Mor kıyametin kanatları", "Alevin hâkimiyeti",
-        "Tutulmanın hükmü", "Gerçekliğin hatası", "Metalin kutupları", "Çölün şekillenen gücü"
+        "Tutulmanın hükmü", "Gerçekliğin hatası", "Metalin kutupları", "Kanın ebedi açlığı"
     };
     private static final PowerClass[] CLASSES = {
         PowerClass.WARDEN, PowerClass.FLIGHT, PowerClass.FIRE, PowerClass.MOON,
-        PowerClass.ANOMALY, PowerClass.MAGNETIC, PowerClass.SAND
+        PowerClass.ANOMALY, PowerClass.MAGNETIC, PowerClass.VAMPIRE
     };
     private static final int[] TOP_COLORS = {0xFF07111C, 0xFF08020F, 0xFF5B0B08, 0xFF060A1C, 0xFF05010B, 0xFF121820, 0xFF4C2F13};
     private static final int[] BOTTOM_COLORS = {0xFF16384B, 0xFF451070, 0xFFFF6B18, 0xFF596B9E, 0xFF291248, 0xFF586875, 0xFFD2A34D};
-    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFCE72FF, 0xFFFFC22E, 0xFFD9E4FF, 0xFFB65CFF, 0xFFC5D2DE, 0xFFFFD273};
+    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFCE72FF, 0xFFFFC22E, 0xFFD9E4FF, 0xFFB65CFF, 0xFFC5D2DE, 0xFFE04040};
 
     private final long openedAt = Util.getMillis();
     private SkinAnalyzer.Result result = SkinAnalyzer.Result.unavailable();
@@ -409,19 +409,29 @@ public final class SkinSelectionScreen extends Screen {
             graphics.outline(x - 4, y - 4, w + 8, h + 8, withAlpha(ACCENTS[index], glow));
         }
 
-        // Üstten aşağı parlama süpürmesi (idle)
-        if (progress > 0.7F && ClientConfig.get().menuAnimations() && !ClientConfig.get().performanceMode()) {
-            int sweep = y + (int) ((now / 18L) % Math.max(1, h));
-            graphics.fill(x + 3, sweep, x + w - 3, Math.min(y + h - 3, sweep + 3), withAlpha(ACCENTS[index], 18 + Math.round(hover * 20)));
-        }
-
         int btnH = layout().compact() ? 18 : 20;
-        int artBottom = Math.max(y + 40, y + h - btnH - 36);
+        // Alt metin bandı: başlık + alt yazı + ikonlar + buton boşluğu — sahneye binmesin
+        boolean showSub = w >= 100;
+        boolean showIcons = w >= 100 && progress > 0.55F;
+        int textBand = 4 + 12 + (showSub ? 12 : 0) + (showIcons ? 14 : 0) + 6 + btnH + 8;
+        textBand = Math.min(textBand, h / 2);
+        int artBottom = y + h - textBand;
+
+        // Sahne yalnızca üst bölgede
         graphics.enableScissor(x + 2, y + 2, x + w - 2, artBottom);
-        drawClassArt(graphics, index, x, y, w, artBottom - y, now);
+        drawClassArt(graphics, index, x, y, w, Math.max(8, artBottom - y), now);
+        // Idle süpürme yalnızca sahnede
+        if (progress > 0.7F && ClientConfig.get().menuAnimations() && !ClientConfig.get().performanceMode()) {
+            int sweep = y + 4 + (int) ((now / 18L) % Math.max(1, artBottom - y - 8));
+            graphics.fill(x + 3, sweep, x + w - 3, Math.min(artBottom - 2, sweep + 3), withAlpha(ACCENTS[index], 18 + Math.round(hover * 20)));
+        }
         graphics.disableScissor();
 
-        // Rozet — nabız
+        // Metin bandı: düz koyu panel (yazı asla piksel sahnenin üstüne binmez)
+        graphics.fill(x + 1, artBottom, x + w - 1, y + h - 1, 0xF0080C14);
+        graphics.fill(x + 1, artBottom, x + w - 1, artBottom + 1, withAlpha(ACCENTS[index], 90));
+
+        // Rozet — nabız (sahne üzerinde, ama kendi arka planı var)
         String badge = (!result.hasRecommendation() && analysisFinished) ? "AÇIK" : (rank == 1 ? "1. ÖNERİ" : "2. ÖNERİ");
         int badgeW = font.width(badge) + 10;
         int badgePulse = rank == 1 ? 200 + (int) (40 * pulse) : 150 + (int) (30 * pulse);
@@ -431,29 +441,37 @@ public final class SkinSelectionScreen extends Screen {
         if (result.hasRecommendation()) {
             int score = (int) Math.round(result.score(index) * 100.0);
             String scoreText = "%" + score;
+            int sw = font.width(scoreText) + 6;
+            graphics.fill(x + w - sw - 6, y + 6, x + w - 6, y + 18, 0xCC060A10);
             graphics.text(font, scoreText, x + w - font.width(scoreText) - 8, y + 8, withAlpha(ACCENTS[index], 230), true);
         }
 
+        int ty = artBottom + 4;
         String titleText = fit(TITLES[index], w - 16);
-        graphics.text(font, titleText, x + (w - font.width(titleText)) / 2, artBottom + 4, 0xFFFFFFFF, true);
-        if (w >= 100) {
+        graphics.text(font, titleText, x + (w - font.width(titleText)) / 2, ty, 0xFFFFFFFF, true);
+        ty += 12;
+        if (showSub) {
             String sub = fit(SUBTITLES[index], w - 16);
-            graphics.text(font, sub, x + (w - font.width(sub)) / 2, artBottom + 16, 0xFFE0E8F0, false);
+            graphics.text(font, sub, x + (w - font.width(sub)) / 2, ty, 0xFFC8D4DE, false);
+            ty += 12;
         }
 
-        if (progress > 0.55F && w >= 90) {
-            int iconSize = Math.min(12, Math.max(8, w / 14));
+        if (showIcons) {
+            int iconSize = Math.min(11, Math.max(8, w / 16));
             int gap = 3;
             int total = iconSize * 6 + gap * 5;
             int iconX = x + Math.max(6, (w - total) / 2);
-            int iconY = artBottom + (w >= 100 ? 28 : 18);
-            if (iconY + iconSize < y + h - btnH - 10) {
+            int iconY = ty;
+            // İkonlar butonun üstünde kalsın
+            if (iconY + iconSize <= y + h - btnH - 10) {
                 for (int level = 1; level <= 6; level++) {
-                    // İkonlar sırayla belirsin
                     float iconPop = clamp01((progress - 0.55F) / 0.35F);
                     float staggered = ClientUiRules.staggeredProgress(iconPop, level - 1, 6, 0.45F);
-                    if (staggered <= 0.05F) continue;
-                    int popLift = Math.round((1.0F - staggered) * 4.0F);
+                    if (staggered <= 0.05F) {
+                        iconX += iconSize + gap;
+                        continue;
+                    }
+                    int popLift = Math.round((1.0F - staggered) * 3.0F);
                     int iconAccent = withAlpha(PowerIconArt.shade(ACCENTS[index], level), Math.round(220 * staggered));
                     PowerIconArt.draw(graphics, CLASSES[index], level, iconX, iconY - popLift, iconSize, iconAccent);
                     iconX += iconSize + gap;
@@ -461,11 +479,11 @@ public final class SkinSelectionScreen extends Screen {
             }
         }
 
-        // Seçim mühür çemberi
+        // Seçim mühür çemberi — sahnede
         if (selectBurst > 0.05F) {
             int cx = x + w / 2;
-            int cy = y + h / 2;
-            int radius = Math.round(12 + selectBurst * Math.min(w, h) * 0.42F);
+            int cy = y + Math.max(20, (artBottom - y) / 2);
+            int radius = Math.round(10 + selectBurst * Math.min(w, artBottom - y) * 0.38F);
             graphics.outline(cx - radius, cy - radius, radius * 2, radius * 2, withAlpha(ACCENTS[index], Math.round(180 * selectBurst)));
             graphics.outline(cx - radius - 3, cy - radius - 3, radius * 2 + 6, radius * 2 + 6, withAlpha(0xFFFFFFFF, Math.round(90 * selectBurst)));
         }
@@ -493,33 +511,38 @@ public final class SkinSelectionScreen extends Screen {
             graphics.outline(x - 1, y - 1, w + 2, h + 2, withAlpha(ACCENTS[index], Math.round(hover * 50) + (shaking ? 40 : 0)));
         }
 
-        int labelH = 14;
-        int artH = Math.max(24, h - labelH);
+        int labelH = 15;
+        int artH = Math.max(20, h - labelH);
         graphics.enableScissor(x + 1, y + 1, x + w - 1, y + artH);
         drawClassArt(graphics, index, x, y, w, artH, now);
         graphics.disableScissor();
 
-        graphics.fill(x, y, x + w, y + artH, 0x40081018);
+        graphics.fill(x + 1, y + 1, x + w - 1, y + artH, 0x30060A10);
 
         String lockText = "KİLİT";
         int badgeW = font.width(lockText) + 8;
         int badgeFlash = shaking ? (int) ((Math.sin(now / 40.0) + 1.0) * 40.0) : 0;
-        graphics.fill(x + 3, y + 3, x + 3 + badgeW, y + 14, 0xCC1A1208);
+        graphics.fill(x + 3, y + 3, x + 3 + badgeW, y + 14, 0xEE1A1208);
         graphics.outline(x + 3, y + 3, badgeW, 11, withAlpha(0xFFC9A15A, 200 + badgeFlash));
         graphics.text(font, lockText, x + 7, y + 5, 0xFFFFD89A, false);
 
-        graphics.fill(x, y + artH, x + w, y + h, 0xDD0A0E14);
-        String titleText = fit(TITLES[index], w - 6);
-        graphics.text(font, titleText, x + (w - font.width(titleText)) / 2, y + artH + 3, 0xFFD0D8E0, false);
+        // İsim bandı — sahnenin dışında
+        graphics.fill(x + 1, y + artH, x + w - 1, y + h - 1, 0xF00A0E14);
+        graphics.fill(x + 1, y + artH, x + w - 1, y + artH + 1, withAlpha(ACCENTS[index], 70));
+        String titleText = fit(TITLES[index], w - 8);
+        graphics.text(font, titleText, x + (w - font.width(titleText)) / 2, y + artH + 3, 0xFFE0E6EC, false);
 
-        if (hover > 0.4F && progress > 0.8F) {
+        // Tooltip kartın üstünde, tam metin
+        if (hover > 0.35F && progress > 0.8F) {
             String tip = "Yalnızca 1. ve 2. öneri seçilebilir";
-            int tipW = font.width(tip) + 10;
-            int tipX = Math.max(4, Math.min(width - tipW - 4, mouseX + 8));
-            int tipY = Math.max(4, mouseY - 16);
-            graphics.fill(tipX, tipY, tipX + tipW, tipY + 14, 0xEE0A1018);
-            graphics.outline(tipX, tipY, tipW, 14, 0xFF5CE5E5);
-            graphics.text(font, tip, tipX + 5, tipY + 3, 0xFFE8F4FF, false);
+            int tipW = font.width(tip) + 12;
+            int tipH = 14;
+            int tipX = Math.max(4, Math.min(width - tipW - 4, x + (w - tipW) / 2));
+            int tipY = y - tipH - 4;
+            if (tipY < 4) tipY = y + h + 3;
+            graphics.fill(tipX, tipY, tipX + tipW, tipY + tipH, 0xF010141C);
+            graphics.outline(tipX, tipY, tipW, tipH, 0xFF5CE5E5);
+            graphics.text(font, tip, tipX + 6, tipY + 3, 0xFFE8F4FF, false);
         }
     }
 

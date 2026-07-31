@@ -134,7 +134,8 @@ public final class AwakeningSystem {
                 }
                 if (now % 18L == 0L) pulseEnemies(player, level, 9.0, 7.0F, 0.8, 0.35, ParticleTypes.WITCH);
             }
-            case MAGNETIC, SAND -> ExpansionPowerSystem.tickAwakening(player, data, level, now);
+            case MAGNETIC -> ExpansionPowerSystem.tickAwakening(player, data, level, now);
+            case VAMPIRE -> {}
             case FLIGHT -> {
                 if (!player.isCreative() && !player.isSpectator() && !player.getAbilities().mayfly) {
                     player.getAbilities().mayfly = true;
@@ -174,7 +175,7 @@ public final class AwakeningSystem {
     }
 
     private static void emitFinalPulse(ServerPlayer player, PlayerPowerData data, ServerLevel level, PowerClass powerClass) {
-        if (powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.SAND) {
+        if (powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.VAMPIRE) {
             ExpansionPowerSystem.finishAwakening(player, level, powerClass);
             return;
         }
@@ -250,7 +251,7 @@ public final class AwakeningSystem {
             case ANOMALY -> ParticleTypes.WITCH;
             case FLIGHT -> ParticleTypes.REVERSE_PORTAL;
             case MAGNETIC -> ParticleTypes.CRIT;
-            case SAND -> ParticleTypes.POOF;
+            case VAMPIRE -> ParticleTypes.DAMAGE_INDICATOR;
             default -> ParticleTypes.END_ROD;
         };
     }
@@ -263,7 +264,7 @@ public final class AwakeningSystem {
             case ANOMALY -> ParticleTypes.REVERSE_PORTAL;
             case FLIGHT -> ParticleTypes.WITCH;
             case MAGNETIC -> ParticleTypes.END_ROD;
-            case SAND -> ParticleTypes.LARGE_SMOKE;
+            case VAMPIRE -> ParticleTypes.LARGE_SMOKE;
             default -> ParticleTypes.END_ROD;
         };
     }
@@ -276,7 +277,7 @@ public final class AwakeningSystem {
             case ANOMALY -> "Sistem Çökmesi";
             case FLIGHT -> "Mor Kıyamet";
             case MAGNETIC -> "Manyetik Çekirdek";
-            case SAND -> "Çölün Kalbi";
+            case VAMPIRE -> "Kan Lordu";
             default -> "Uyanış";
         };
     }
@@ -289,7 +290,7 @@ public final class AwakeningSystem {
             case ANOMALY -> 0.55F;
             case FLIGHT -> 0.72F;
             case MAGNETIC -> 0.48F;
-            case SAND -> 0.88F;
+            case VAMPIRE -> 0.88F;
             default -> 1.0F;
         };
     }
