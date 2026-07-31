@@ -9,10 +9,22 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 
+/**
+ * Sınıf seçim ekranı (vitrin düzeni):
+ * - Ortada skin'in 1. ve 2. önerisi büyük kartlar (yalnızca bunlar seçilebilir)
+ * - Altta kalan 5 sınıf küçük ve kilitli
+ * - Skin okunamazsa yine 2 sınıf büyük/seçilebilir; diğerleri kilitli (rastgele sabit çift)
+ */
 public final class SkinSelectionScreen extends Screen {
     private static final String[] TITLES = {"WARDEN", "KADİM EJDERHA", "ATEŞ", "AY", "ANOMALİ", "MANYETİK", "KUM"};
-    private static final String[] SUBTITLES = {"Derinliğin gücü", "Mor kıyametin kanatları", "Alevin hâkimiyeti", "Tutulmanın hükmü", "Gerçekliğin hatası", "Metalin kutupları", "Çölün şekillenen gücü"};
-    private static final PowerClass[] CLASSES = {PowerClass.WARDEN, PowerClass.FLIGHT, PowerClass.FIRE, PowerClass.MOON, PowerClass.ANOMALY, PowerClass.MAGNETIC, PowerClass.SAND};
+    private static final String[] SUBTITLES = {
+        "Derinliğin gücü", "Mor kıyametin kanatları", "Alevin hâkimiyeti",
+        "Tutulmanın hükmü", "Gerçekliğin hatası", "Metalin kutupları", "Çölün şekillenen gücü"
+    };
+    private static final PowerClass[] CLASSES = {
+        PowerClass.WARDEN, PowerClass.FLIGHT, PowerClass.FIRE, PowerClass.MOON,
+        PowerClass.ANOMALY, PowerClass.MAGNETIC, PowerClass.SAND
+    };
     private static final int[] TOP_COLORS = {0xFF07111C, 0xFF08020F, 0xFF5B0B08, 0xFF060A1C, 0xFF05010B, 0xFF121820, 0xFF4C2F13};
     private static final int[] BOTTOM_COLORS = {0xFF16384B, 0xFF451070, 0xFFFF6B18, 0xFF596B9E, 0xFF291248, 0xFF586875, 0xFFD2A34D};
     private static final int[] ACCENTS = {0xFF35D7D0, 0xFFCE72FF, 0xFFFFC22E, 0xFFD9E4FF, 0xFFB65CFF, 0xFFC5D2DE, 0xFFFFD273};
@@ -22,8 +34,15 @@ public final class SkinSelectionScreen extends Screen {
     private boolean analysisFinished;
     private int selectedIndex = -1;
     private long selectedAt;
-    private final Button[] selectButtons = new Button[CLASSES.length];
-    private CardLayout cachedLayout;
+
+    /** Seçilebilir iki sınıf (skin önerisi veya yedek çift). */
+    private int primaryIndex = 0;
+    private int secondaryIndex = 1;
+    private boolean choicesResolved;
+
+    private Button primaryButton;
+    private Button secondaryButton;
+    private ScreenLayout cachedLayout;
     private int cachedLayoutWidth = -1;
     private int cachedLayoutHeight = -1;
 
@@ -33,30 +52,55 @@ public final class SkinSelectionScreen extends Screen {
 
     @Override
     protected void init() {
-        CardLayout layout = layout();
-        for (int i = 0; i < CLASSES.length; i++) {
-            final int index = i;
-            int buttonWidth = Math.max(28, layout.cardWidth() - (layout.compact() ? 6 : 24));
-            int x = layout.startX() + i * (layout.cardWidth() + layout.gap()) + (layout.cardWidth() - buttonWidth) / 2;
-            int buttonHeight = layout.compact() ? 18 : 20;
-            int y = layout.cardY() + layout.cardHeight() - buttonHeight - 7;
-            selectButtons[i] = Button.builder(Component.translatable("screen.skinpowers.select"), button -> select(index))
-                .bounds(x, y + 35, buttonWidth, buttonHeight)
-                .build();
-            selectButtons[i].active = false;
-            addRenderableWidget(selectButtons[i]);
-        }
+        cachedLayout = null;
+        ScreenLayout layout = layout();
+
+        primaryButton = Button.builder(Component.literal("SEÇ"), button -> select(primaryIndex))
+            .bounds(0, 0, 80, 20)
+            .build();
+        secondaryButton = Button.builder(Component.literal("SEÇ"), button -> select(secondaryIndex))
+            .bounds(0, 0, 80, 20)
+            .build();
+        primaryButton.active = false;
+        secondaryButton.active = false;
+        addRenderableWidget(primaryButton);
+        addRenderableWidget(secondaryButton);
+        positionChoiceButtons(layout);
 
         if (minecraft != null && minecraft.player != null) {
             SkinAnalyzer.analyzeAsync(minecraft.player.getGameProfile(), true).thenAccept(analyzed ->
                 minecraft.execute(() -> {
                     result = analyzed;
                     analysisFinished = true;
+                    resolveChoices();
+                    positionChoiceButtons(layout());
                 })
             );
         } else {
             analysisFinished = true;
+            resolveChoices();
         }
+    }
+
+    private void resolveChoices() {
+        if (result.hasRecommendation()) {
+            int best = result.bestIndex();
+            int second = result.secondIndex();
+            if (best < 0) best = 0;
+            if (second < 0 || second == best) {
+                second = (best + 1) % CLASSES.length;
+            }
+            primaryIndex = best;
+            secondaryIndex = second;
+        } else {
+            // Skin yok: bu oturum için sabit, rastgele görünen çift
+            int a = (int) Math.floorMod(openedAt, CLASSES.length);
+            int b = (int) Math.floorMod(openedAt / 11L, CLASSES.length - 1);
+            if (b >= a) b++;
+            primaryIndex = a;
+            secondaryIndex = b;
+        }
+        choicesResolved = true;
     }
 
     private void select(int index) {
@@ -67,31 +111,32 @@ public final class SkinSelectionScreen extends Screen {
     }
 
     private boolean isSelectable(int index) {
-        if (!analysisFinished || index < 0 || index >= CLASSES.length) return false;
-        // Gerçek skin analizi başarılıysa yalnızca en yüksek ve ikinci en yüksek puanlı sınıf seçilebilir.
-        // Skin alınamadığında oyuncuyu kilitlememek için bütün sınıflar geçici olarak seçilebilir.
-        return ClientUiRules.classChoiceAllowed(
-            analysisFinished,
-            result.hasRecommendation(),
-            index,
-            CLASSES.length,
-            result.bestIndex(),
-            result.secondIndex()
-        );
+        if (!analysisFinished || !choicesResolved || index < 0 || index >= CLASSES.length) return false;
+        return index == primaryIndex || index == secondaryIndex;
+    }
+
+    private void positionChoiceButtons(ScreenLayout layout) {
+        if (primaryButton == null || secondaryButton == null) return;
+        int btnH = layout.compact() ? 18 : 20;
+        int btnW = Math.max(56, Math.min(100, layout.bigWidth() - 24));
+        primaryButton.setWidth(btnW);
+        primaryButton.setHeight(btnH);
+        secondaryButton.setWidth(btnW);
+        secondaryButton.setHeight(btnH);
+        primaryButton.setX(layout.bigLeftX() + (layout.bigWidth() - btnW) / 2);
+        primaryButton.setY(layout.bigY() + layout.bigHeight() - btnH - 8);
+        secondaryButton.setX(layout.bigRightX() + (layout.bigWidth() - btnW) / 2);
+        secondaryButton.setY(layout.bigY() + layout.bigHeight() - btnH - 8);
     }
 
     @Override
     public void tick() {
         super.tick();
         if (selectedIndex < 0 || minecraft == null) return;
-
-        // Ekran yalnızca sunucu seçimi gerçekten onayladıktan sonra kapanır.
         if (ClientState.powerClass() == CLASSES[selectedIndex]) {
             if (Util.getMillis() - selectedAt > 250L) minecraft.setScreen(null);
             return;
         }
-
-        // Paket reddedilir veya bağlantı gecikirse seçim düğmelerini tekrar kullanılabilir yap.
         if (Util.getMillis() - selectedAt > 3000L) selectedIndex = -1;
     }
 
@@ -103,178 +148,259 @@ public final class SkinSelectionScreen extends Screen {
         ClientConfig config = ClientConfig.get();
         float animationFactor = config.menuAnimations() ? config.cardAnimationSpeedPercent() / 100.0F : 8.0F;
         float totalProgress = clamp01((now - openedAt) / (900.0F / animationFactor));
-        CardLayout layout = layout();
-        String titleText = fit(title.getString(), Math.max(80, width - (layout.compact() ? 150 : 250)));
-        int titleAreaWidth = layout.compact() ? width - 78 : width;
-        graphics.text(font, titleText, Math.max(7, (titleAreaWidth - font.width(titleText)) / 2), layout.compact() ? 9 : 12, 0xFFFFFFFF, true);
+        ScreenLayout layout = layout();
+        positionChoiceButtons(layout);
 
+        // Başlık
+        String titleText = fit(title.getString(), Math.max(80, width - 40));
+        graphics.text(font, titleText, (width - font.width(titleText)) / 2, layout.compact() ? 8 : 10, 0xFFFFFFFF, true);
+
+        // Durum satırı
         String scanText;
         if (!analysisFinished) {
             scanText = Component.translatable("screen.skinpowers.scan").getString();
-        } else if (!result.fromSkin()) {
-            scanText = "Skin alınamadı — puan uydurulmadı, sınıfı kendin seç";
         } else if (result.hasRecommendation()) {
             scanText = "Skin tarandı — yalnızca 1. ve 2. öneri seçilebilir";
         } else {
-            scanText = "Skin tarandı — belirgin bir sınıf rengi bulunamadı";
+            scanText = "Skin alınamadı — iki rastgele sınıf açıldı, diğerleri kilitli";
         }
         scanText = fit(scanText, Math.max(100, width - 20));
-        graphics.text(font, scanText, (width - font.width(scanText)) / 2, layout.compact() ? 26 : 28, analysisFinished ? 0xFF9BEFD9 : 0xFFE7F4FF, false);
+        graphics.text(font, scanText, (width - font.width(scanText)) / 2, layout.compact() ? 20 : 24, analysisFinished ? 0xFF9BEFD9 : 0xFFE7F4FF, false);
 
-        if (!layout.compact() && !ClientConfig.get().performanceMode()) drawAvatar(graphics, now);
-
-        for (int i = 0; i < CLASSES.length; i++) {
-            float cardProgress = ClientUiRules.staggeredProgress(totalProgress, i, CLASSES.length, 0.34F);
-            int baseX = layout.startX() + i * (layout.cardWidth() + layout.gap());
-            int shake = 0;
-            if (selectedIndex == i) {
-                long elapsed = now - selectedAt;
-                if (elapsed < 420L) shake = (int) Math.round(Math.sin(elapsed * 0.085) * (1.0 - elapsed / 420.0) * 7.0);
-            }
-            int y = layout.cardY() + (int) ((1.0F - cardProgress) * 35.0F);
-            drawCard(graphics, i, baseX + shake, y, layout.cardWidth(), layout.cardHeight(), cardProgress, now);
-
-            // Seçim düğmesi karttan ayrı kalmaz; kartla aynı animasyon grubunda yükselir.
-            Button selectButton = selectButtons[i];
-            if (selectButton != null) {
-                int buttonHeight = layout.compact() ? 18 : 20;
-                selectButton.setY(y + layout.cardHeight() - buttonHeight - 7);
-                boolean selectable = isSelectable(i);
-                String buttonText = selectable ? "SEÇ" : (analysisFinished ? (layout.cardWidth() < 68 ? "KİLİT" : "KİLİTLİ") : "...");
-                selectButton.setMessage(Component.literal(buttonText));
-                // Düğme, kartın son animasyon karesine matematiksel olarak bağlı değildir.
-                // Böylece ikinci öneri Anomali olsa bile tıklanabilir kalır.
-                selectButton.active = cardProgress >= 0.85F && selectedIndex < 0 && selectable;
-            }
+        // Küçük skin avatar (sol üst, compact değilse)
+        if (!layout.compact() && !config.performanceMode()) {
+            drawAvatarCorner(graphics, now, 14, 38);
         }
 
-        if (!analysisFinished && ClientConfig.get().scanAnimation()) {
+        // İki büyük kart
+        float bigProgress = ClientUiRules.staggeredProgress(totalProgress, 0, 2, 0.18F);
+        float bigProgress2 = ClientUiRules.staggeredProgress(totalProgress, 1, 2, 0.18F);
+        if (choicesResolved) {
+            int shake1 = shakeOffset(primaryIndex, now);
+            int shake2 = shakeOffset(secondaryIndex, now);
+            int y1 = layout.bigY() + (int) ((1.0F - bigProgress) * 28.0F);
+            int y2 = layout.bigY() + (int) ((1.0F - bigProgress2) * 28.0F);
+            drawBigCard(graphics, primaryIndex, 1, layout.bigLeftX() + shake1, y1, layout.bigWidth(), layout.bigHeight(), bigProgress, now);
+            drawBigCard(graphics, secondaryIndex, 2, layout.bigRightX() + shake2, y2, layout.bigWidth(), layout.bigHeight(), bigProgress2, now);
+        } else {
+            // Analiz bitene kadar yer tutucu
+            drawPlaceholderBig(graphics, layout.bigLeftX(), layout.bigY(), layout.bigWidth(), layout.bigHeight());
+            drawPlaceholderBig(graphics, layout.bigRightX(), layout.bigY(), layout.bigWidth(), layout.bigHeight());
+        }
+
+        // Butonlar
+        if (primaryButton != null) {
+            primaryButton.setMessage(Component.literal(analysisFinished && choicesResolved ? "SEÇ" : "..."));
+            primaryButton.active = bigProgress >= 0.85F && selectedIndex < 0 && analysisFinished && choicesResolved;
+            primaryButton.setY(layout.bigY() + (int) ((1.0F - bigProgress) * 28.0F) + layout.bigHeight() - primaryButton.getHeight() - 8);
+        }
+        if (secondaryButton != null) {
+            secondaryButton.setMessage(Component.literal(analysisFinished && choicesResolved ? "SEÇ" : "..."));
+            secondaryButton.active = bigProgress2 >= 0.85F && selectedIndex < 0 && analysisFinished && choicesResolved;
+            secondaryButton.setY(layout.bigY() + (int) ((1.0F - bigProgress2) * 28.0F) + layout.bigHeight() - secondaryButton.getHeight() - 8);
+        }
+
+        // Altta kilitli 5 küçük kart
+        int[] locked = lockedIndices();
+        for (int i = 0; i < locked.length; i++) {
+            int classIndex = locked[i];
+            float p = ClientUiRules.staggeredProgress(totalProgress, i, locked.length, 0.28F);
+            int x = layout.smallStartX() + i * (layout.smallWidth() + layout.smallGap());
+            int y = layout.smallY() + (int) ((1.0F - p) * 18.0F);
+            drawSmallCard(graphics, classIndex, x, y, layout.smallWidth(), layout.smallHeight(), p, now, mouseX, mouseY);
+        }
+
+        if (!analysisFinished && config.scanAnimation()) {
             int scanX = (int) ((now - openedAt) % 1400L / 1400.0 * width);
-            graphics.fill(scanX - 1, 42, scanX + 2, height - 12, 0x5535D7D0);
+            graphics.fill(scanX - 1, 36, scanX + 2, height - 10, 0x5535D7D0);
         }
+
         String signature = "Made by Yankalan";
         graphics.text(font, signature, width - font.width(signature) - 7, height - 11, 0xFF85D68A, true);
 
         super.extractRenderState(graphics, mouseX, mouseY, delta);
     }
 
-    private void drawCard(GuiGraphicsExtractor graphics, int index, int x, int y, int w, int h, float progress, long now) {
+    private int shakeOffset(int classIndex, long now) {
+        if (selectedIndex != classIndex) return 0;
+        long elapsed = now - selectedAt;
+        if (elapsed >= 420L) return 0;
+        return (int) Math.round(Math.sin(elapsed * 0.085) * (1.0 - elapsed / 420.0) * 7.0);
+    }
+
+    private int[] lockedIndices() {
+        if (!choicesResolved) return new int[0];
+        int[] locked = new int[CLASSES.length - 2];
+        int n = 0;
+        for (int i = 0; i < CLASSES.length; i++) {
+            if (i != primaryIndex && i != secondaryIndex) locked[n++] = i;
+        }
+        return locked;
+    }
+
+    private void drawPlaceholderBig(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+        g.fillGradient(x, y, x + w, y + h, 0xFF0A1018, 0xFF152030);
+        g.outline(x, y, w, h, 0x6635D7D0);
+        String t = "...";
+        g.text(font, t, x + (w - font.width(t)) / 2, y + h / 2 - 4, 0xFF8AB8C8, false);
+    }
+
+    private void drawBigCard(
+        GuiGraphicsExtractor graphics,
+        int index,
+        int rank,
+        int x,
+        int y,
+        int w,
+        int h,
+        float progress,
+        long now
+    ) {
         int alpha = (int) (255 * progress);
-        int top = withAlpha(TOP_COLORS[index], alpha);
-        int bottom = withAlpha(BOTTOM_COLORS[index], alpha);
-        graphics.fillGradient(x, y, x + w, y + h, top, bottom);
+        graphics.fillGradient(x, y, x + w, y + h, withAlpha(TOP_COLORS[index], alpha), withAlpha(BOTTOM_COLORS[index], alpha));
 
-        boolean recommended = analysisFinished && result.bestIndex() == index;
-        boolean secondRecommended = analysisFinished && result.secondIndex() == index;
         float pulse = (float) ((Math.sin(now / 260.0) + 1.0) * 0.5);
-        int outlineAlpha = recommended ? 180 + (int) (75 * pulse) : (secondRecommended ? 155 + (int) (55 * pulse) : 110);
+        int outlineAlpha = rank == 1 ? 190 + (int) (65 * pulse) : 160 + (int) (50 * pulse);
         graphics.outline(x, y, w, h, withAlpha(ACCENTS[index], outlineAlpha));
-        if (recommended || secondRecommended) {
-            graphics.outline(x - 2, y - 2, w + 4, h + 4, withAlpha(ACCENTS[index], (recommended ? 80 : 48) + (int) ((recommended ? 80 : 45) * pulse)));
-        }
+        graphics.outline(x - 2, y - 2, w + 4, h + 4, withAlpha(ACCENTS[index], (rank == 1 ? 70 : 45) + (int) (50 * pulse)));
 
-        int buttonHeight = layout().compact() ? 18 : 20;
-        int buttonTop = y + h - buttonHeight - 7;
-        boolean showSubtitle = !layout().compact() && w >= 96;
-        int textReserve = showSubtitle ? 48 : 34;
-        int artBottom = Math.max(y + 34, buttonTop - textReserve);
+        int btnH = layout().compact() ? 18 : 20;
+        int artBottom = Math.max(y + 40, y + h - btnH - 36);
         graphics.enableScissor(x + 2, y + 2, x + w - 2, artBottom);
-        switch (index) {
-            case 0 -> drawAncientCity(graphics, x, y, w, artBottom - y, now);
-            case 1 -> drawDragonStorm(graphics, x, y, w, artBottom - y, now);
-            case 2 -> drawLavaCave(graphics, x, y, w, artBottom - y, now);
-            case 3 -> drawMoon(graphics, x, y, w, artBottom - y, now);
-            case 4 -> drawAnomalyGlitch(graphics, x, y, w, artBottom - y, now);
-            case 5 -> drawMagneticForge(graphics, x, y, w, artBottom - y, now);
-            case 6 -> drawDesertTemple(graphics, x, y, w, artBottom - y, now);
-            default -> { }
-        }
+        drawClassArt(graphics, index, x, y, w, artBottom - y, now);
         graphics.disableScissor();
 
-        int score = (int) Math.round(result.score(index) * 100.0);
-        String titleText = fit(TITLES[index], w - 10);
-        String subtitleText = fit(SUBTITLES[index], w - 10);
-        graphics.text(font, titleText, x + (w - font.width(titleText)) / 2, artBottom + 5, 0xFFFFFFFF, true);
-        int scoreY;
-        if (showSubtitle) {
-            graphics.text(font, subtitleText, x + (w - font.width(subtitleText)) / 2, artBottom + 18, 0xFFE8EEF4, false);
-            scoreY = artBottom + 32;
-        } else {
-            scoreY = artBottom + 18;
+        // Rozet
+        String badge = rank == 1 ? "1. ÖNERİ" : "2. ÖNERİ";
+        if (!result.hasRecommendation() && analysisFinished) {
+            badge = rank == 1 ? "AÇIK" : "AÇIK";
         }
-        String scoreText = !analysisFinished ? (w < 82 ? "..." : "Taranıyor...")
-            : (result.fromSkin() ? (w < 82 ? "%" + score : "Eşleşme: %" + score) : "Eşleşme: —");
-        scoreText = fit(scoreText, w - 8);
-        graphics.text(font, scoreText, x + (w - font.width(scoreText)) / 2, scoreY, recommended ? ACCENTS[index] : 0xFFC8D0D8, false);
-        if (recommended || secondRecommended) {
-            String recommendedText = recommended ? "1. ÖNERİ" : "2. ÖNERİ";
-            graphics.fill(x + 5, y + 6, x + 5 + font.width(recommendedText) + 7, y + 19, withAlpha(ACCENTS[index], recommended ? 180 : 125));
-            graphics.text(font, recommendedText, x + 9, y + 8, 0xFFFFFFFF, true);
+        int badgeW = font.width(badge) + 10;
+        graphics.fill(x + 6, y + 6, x + 6 + badgeW, y + 18, withAlpha(ACCENTS[index], rank == 1 ? 200 : 150));
+        graphics.text(font, badge, x + 11, y + 8, 0xFF0A0E14, false);
+
+        // Uyum yüzdesi
+        if (result.hasRecommendation()) {
+            int score = (int) Math.round(result.score(index) * 100.0);
+            String scoreText = "%" + score;
+            graphics.text(font, scoreText, x + w - font.width(scoreText) - 8, y + 8, withAlpha(ACCENTS[index], 230), true);
         }
 
-        int iconRowY = scoreY + 11;
-        int iconRowSpace = buttonTop - 3 - iconRowY;
-        if (w >= 70 && iconRowSpace >= 8) {
-            int count = 6;
-            int gap2 = 2;
-            int iconSize = Math.max(6, Math.min(12, (w - 12 - gap2 * (count - 1)) / count));
-            int rowWidth = iconSize * count + gap2 * (count - 1);
-            int iconX = x + (w - rowWidth) / 2;
-            int iconY = iconRowY + Math.max(0, (iconRowSpace - iconSize) / 2);
-            PowerClass previewClass = CLASSES[index];
-            for (int level = 1; level <= count; level++) {
-                int iconAccent = withAlpha(PowerIconArt.shade(ACCENTS[index], level), (recommended || secondRecommended) ? 235 : 190);
-                PowerIconArt.draw(graphics, previewClass, level, iconX, iconY, iconSize, iconAccent);
-                iconX += iconSize + gap2;
+        String titleText = fit(TITLES[index], w - 16);
+        graphics.text(font, titleText, x + (w - font.width(titleText)) / 2, artBottom + 4, 0xFFFFFFFF, true);
+        if (w >= 100) {
+            String sub = fit(SUBTITLES[index], w - 16);
+            graphics.text(font, sub, x + (w - font.width(sub)) / 2, artBottom + 16, 0xFFE0E8F0, false);
+        }
+
+        // Güç ikonları
+        if (progress > 0.55F && w >= 90) {
+            int iconSize = Math.min(12, Math.max(8, w / 14));
+            int gap = 3;
+            int total = iconSize * 6 + gap * 5;
+            int iconX = x + Math.max(6, (w - total) / 2);
+            int iconY = artBottom + (w >= 100 ? 28 : 18);
+            if (iconY + iconSize < y + h - btnH - 10) {
+                for (int level = 1; level <= 6; level++) {
+                    int iconAccent = withAlpha(PowerIconArt.shade(ACCENTS[index], level), 220);
+                    PowerIconArt.draw(graphics, CLASSES[index], level, iconX, iconY, iconSize, iconAccent);
+                    iconX += iconSize + gap;
+                }
             }
         }
     }
 
-    private void drawAvatar(GuiGraphicsExtractor graphics, long now) {
-        int centerX = width / 2;
-        int top = 43;
-        int sway = (int) Math.round(Math.sin(now / 520.0) * 2.0);
-        int x = centerX + sway;
+    private void drawSmallCard(
+        GuiGraphicsExtractor graphics,
+        int index,
+        int x,
+        int y,
+        int w,
+        int h,
+        float progress,
+        long now,
+        int mouseX,
+        int mouseY
+    ) {
+        int alpha = (int) (200 * progress);
+        graphics.fillGradient(x, y, x + w, y + h, withAlpha(TOP_COLORS[index], alpha), withAlpha(BOTTOM_COLORS[index], alpha));
+        graphics.outline(x, y, w, h, withAlpha(0xFF6A7380, 140));
 
-        graphics.fill(x - 22, top + 64, x + 22, top + 68, 0x44000000);
+        // Karartma (kilitli)
+        graphics.fill(x, y, x + w, y + h, 0x99060A10);
+
+        int artH = Math.max(20, h - 22);
+        graphics.enableScissor(x + 1, y + 1, x + w - 1, y + artH);
+        drawClassArt(graphics, index, x, y, w, artH, now);
+        graphics.disableScissor();
+        graphics.fill(x, y, x + w, y + artH, 0x66000000);
+
+        String titleText = fit(TITLES[index], w - 6);
+        graphics.text(font, titleText, x + (w - font.width(titleText)) / 2, y + h - 14, 0xFF9AA3AD, false);
+
+        // Kilit simgesi
+        String lock = "🔒";
+        // Bazı fontlarda emoji yok; metin yedegi
+        String lockText = "KİLİT";
+        if (w >= 48) {
+            graphics.text(font, lockText, x + (w - font.width(lockText)) / 2, y + 6, 0xFFE8C07A, true);
+        }
+
+        if (mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h && progress > 0.8F) {
+            String tip = "Yalnızca 1. ve 2. öneri seçilebilir";
+            int tipW = font.width(tip) + 10;
+            int tipX = Math.max(4, Math.min(width - tipW - 4, mouseX + 8));
+            int tipY = Math.max(4, mouseY - 16);
+            graphics.fill(tipX, tipY, tipX + tipW, tipY + 14, 0xEE0A1018);
+            graphics.outline(tipX, tipY, tipW, 14, 0xFF5CE5E5);
+            graphics.text(font, tip, tipX + 5, tipY + 3, 0xFFE8F4FF, false);
+        }
+    }
+
+    private void drawClassArt(GuiGraphicsExtractor graphics, int index, int x, int y, int w, int h, long now) {
+        switch (index) {
+            case 0 -> drawAncientCity(graphics, x, y, w, h, now);
+            case 1 -> drawDragonStorm(graphics, x, y, w, h, now);
+            case 2 -> drawLavaCave(graphics, x, y, w, h, now);
+            case 3 -> drawMoon(graphics, x, y, w, h, now);
+            case 4 -> drawAnomalyGlitch(graphics, x, y, w, h, now);
+            case 5 -> drawMagneticForge(graphics, x, y, w, h, now);
+            case 6 -> drawDesertTemple(graphics, x, y, w, h, now);
+            default -> { }
+        }
+    }
+
+    private void drawAvatarCorner(GuiGraphicsExtractor graphics, long now, int left, int top) {
+        int x = left + 19;
+        graphics.fill(x - 20, top + 58, x + 20, top + 62, 0x44000000);
         if (!result.hasSkinImage()) {
-            // Skin yüklenmediyse Steve benzeri sahte bir karakter çizilmez.
-            graphics.fill(x - 19, top + 7, x + 19, top + 55, 0xAA101722);
-            graphics.outline(x - 19, top + 7, 38, 48, 0xCC63FFF1);
+            graphics.fill(x - 17, top + 4, x + 17, top + 50, 0xAA101722);
+            graphics.outline(x - 17, top + 4, 34, 46, 0xCC63FFF1);
             String waiting = "?";
-            graphics.text(font, waiting, x - font.width(waiting) / 2, top + 25, 0xFFFFFFFF, true);
-            String label = "SKIN BEKLENİYOR";
-            graphics.text(font, label, x - font.width(label) / 2, top + 58, 0xFF9BEFD9, false);
+            graphics.text(font, waiting, x - font.width(waiting) / 2, top + 22, 0xFFFFFFFF, true);
         } else {
             int armSwing = (int) Math.round(Math.sin(now / 260.0) * 1.5);
             boolean modern = result.skinHeight() >= 64;
-
             drawSkinPart(graphics, 8, 8, 8, 8, x - 8, top, 2);
             drawSkinPart(graphics, 40, 8, 8, 8, x - 8, top, 2);
-
             drawSkinPart(graphics, 20, 20, 8, 12, x - 8, top + 16, 2);
             if (modern) drawSkinPart(graphics, 20, 36, 8, 12, x - 8, top + 16, 2);
-
             drawSkinPart(graphics, 44, 20, 4, 12, x - 16, top + 16 + armSwing, 2);
             if (modern) drawSkinPart(graphics, 44, 36, 4, 12, x - 16, top + 16 + armSwing, 2);
-
             int leftArmX = modern ? 36 : 44;
             int leftArmY = modern ? 52 : 20;
             drawSkinPart(graphics, leftArmX, leftArmY, 4, 12, x + 8, top + 16 - armSwing, 2);
             if (modern) drawSkinPart(graphics, 52, 52, 4, 12, x + 8, top + 16 - armSwing, 2);
-
             drawSkinPart(graphics, 4, 20, 4, 12, x - 8, top + 40, 2);
             if (modern) drawSkinPart(graphics, 4, 36, 4, 12, x - 8, top + 40, 2);
-
             int leftLegX = modern ? 20 : 4;
             int leftLegY = modern ? 52 : 20;
             drawSkinPart(graphics, leftLegX, leftLegY, 4, 12, x, top + 40, 2);
             if (modern) drawSkinPart(graphics, 4, 52, 4, 12, x, top + 40, 2);
         }
-
         if (ClientConfig.get().scanAnimation()) {
-            int scanY = top + (int) ((now - openedAt) % 900L / 900.0 * 66.0);
-            graphics.fill(x - 21, scanY, x + 21, scanY + 2, 0xAA63FFF1);
+            int scanY = top + (int) ((now - openedAt) % 900L / 900.0 * 58.0);
+            graphics.fill(x - 18, scanY, x + 18, scanY + 2, 0xAA63FFF1);
         }
     }
 
@@ -508,28 +634,40 @@ public final class SkinSelectionScreen extends Screen {
         }
     }
 
-    private CardLayout layout() {
-        if (cachedLayout != null && cachedLayoutWidth == width && cachedLayoutHeight == height) return cachedLayout;
-        int count = CLASSES.length;
-        boolean compact = width < 520 || height < 330;
-        int gap = compact ? 3 : Math.max(4, Math.min(8, width / 125));
-        int sideMargin = compact ? 5 : 14;
-        int availableWidth = Math.max(count * 30, width - sideMargin * 2 - gap * (count - 1));
-        int cardWidth = Math.max(30, Math.min(132, availableWidth / count));
-        int cardY = compact ? 44 : 112;
-        int maxHeight = Math.max(112, height - cardY - 20);
-        int preferredHeight = compact ? Math.max(142, (int) (cardWidth * 2.15)) : Math.max(178, (int) (cardWidth * 1.62));
-        int cardHeight = Math.min(maxHeight, preferredHeight);
-        int total = cardWidth * count + gap * (count - 1);
-        int startX = Math.max(4, (width - total) / 2);
-        if (!compact) cardY = Math.max(112, height - cardHeight - 20);
+    private ScreenLayout layout() {
+        if (cachedLayout != null && cachedLayoutWidth == width && cachedLayoutHeight == height) {
+            return cachedLayout;
+        }
+        boolean compact = width < 520 || height < 340;
+        int side = compact ? 8 : 18;
+        int gap = compact ? 8 : 14;
+        int available = width - side * 2 - gap;
+        int bigWidth = Math.max(120, Math.min(210, available / 2));
+        int totalBig = bigWidth * 2 + gap;
+        int bigLeftX = Math.max(side, (width - totalBig) / 2);
+        int bigRightX = bigLeftX + bigWidth + gap;
+
+        int topReserve = compact ? 34 : 42;
+        int bottomReserve = compact ? 58 : 72;
+        int bigHeight = Math.max(120, Math.min(compact ? 168 : 210, height - topReserve - bottomReserve - 8));
+        int bigY = topReserve;
+
+        int smallCount = 5;
+        int smallGap = compact ? 4 : 6;
+        int smallHeight = compact ? 44 : 54;
+        int smallWidth = Math.max(48, Math.min(90, (width - side * 2 - smallGap * (smallCount - 1)) / smallCount));
+        int smallTotal = smallWidth * smallCount + smallGap * (smallCount - 1);
+        int smallStartX = Math.max(side, (width - smallTotal) / 2);
+        int smallY = height - smallHeight - (compact ? 6 : 10);
+
         cachedLayoutWidth = width;
         cachedLayoutHeight = height;
-        cachedLayout = new CardLayout(startX, cardY, cardWidth, cardHeight, gap, compact);
+        cachedLayout = new ScreenLayout(bigLeftX, bigRightX, bigY, bigWidth, bigHeight, smallStartX, smallY, smallWidth, smallHeight, smallGap, compact);
         return cachedLayout;
     }
 
     private String fit(String text, int maxWidth) {
+        if (text == null) return "";
         if (font.width(text) <= maxWidth) return text;
         String suffix = "...";
         int length = text.length();
@@ -555,9 +693,17 @@ public final class SkinSelectionScreen extends Screen {
         return Math.max(0.0F, Math.min(1.0F, value));
     }
 
-    private static float smoothStep(float value) {
-        return value * value * (3.0F - 2.0F * value);
-    }
-
-    private record CardLayout(int startX, int cardY, int cardWidth, int cardHeight, int gap, boolean compact) {}
+    private record ScreenLayout(
+        int bigLeftX,
+        int bigRightX,
+        int bigY,
+        int bigWidth,
+        int bigHeight,
+        int smallStartX,
+        int smallY,
+        int smallWidth,
+        int smallHeight,
+        int smallGap,
+        boolean compact
+    ) {}
 }
