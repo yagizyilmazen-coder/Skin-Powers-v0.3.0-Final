@@ -119,13 +119,13 @@ public final class PowerMenuScreen extends Screen {
         int headerTextX = layout.totalLeft() + 62;
         int headerTextWidth = Math.max(90, xpX - headerTextX - 12);
         String heading = fit(powerClass.displayName() + " GÜÇ AĞACI", headerTextWidth);
-        graphics.text(font, heading, headerTextX, 18, 0xFF2A1C10, true);
+        graphics.text(font, heading, headerTextX, 18, 0xFF1A1008, true);
         graphics.text(font, fit("Gücünü seç, ustalığını geliştir ve R ile kullan.", headerTextWidth), headerTextX, 35, 0xFFBFD0DA, false);
         graphics.text(font, fit(powerClass == PowerClass.ANOMALY ? "Sol/Sağ: güç değiştir   •   V/X: hasar seçimi   •   O / ESC: menü" : "Sol/Sağ: güç değiştir   •   K: kombo   •   O / ESC: menü", headerTextWidth), headerTextX, 49, 0xFF8799A5, false);
 
         graphics.fill(xpX, 20, xpX + xpWidth, 45, withAlpha(colors[2], 65));
         graphics.outline(xpX, 20, xpWidth, 25, colors[2]);
-        graphics.text(font, xp, xpX + (xpWidth - font.width(xp)) / 2, 29, 0xFF2A1C10, true);
+        graphics.text(font, xp, xpX + (xpWidth - font.width(xp)) / 2, 29, 0xFF1A1008, true);
     }
 
     private void drawPowerRow(
@@ -145,9 +145,9 @@ public final class PowerMenuScreen extends Screen {
         int powerAccent = PowerIconArt.shade(colors[2], level);
 
         // Kitap satırı: parşömen kartı
-        int rowColor = selected ? 0xE8C4A878 : (unlocked ? 0xD8E2D4B0 : 0xC0B8A888);
+        int rowColor = selected ? 0xF0B89060 : (unlocked ? 0xE8D4C098 : 0xD0B8A070);
         graphics.fill(layout.listLeft(), y, layout.listLeft() + layout.listWidth(), y + layout.rowHeight(), rowColor);
-        graphics.fill(layout.listLeft(), y, layout.listLeft() + 5, y + layout.rowHeight(), selected ? powerAccent : (unlocked ? withAlpha(powerAccent, 160) : 0xFF6A5840));
+        graphics.fill(layout.listLeft(), y, layout.listLeft() + 5, y + layout.rowHeight(), selected ? powerAccent : (unlocked ? withAlpha(powerAccent, 160) : 0xFF4A3820));
         graphics.outline(layout.listLeft(), y, layout.listWidth(), layout.rowHeight(), selected ? powerAccent : 0x99604A30);
 
         int badgeSize = Math.max(18, Math.min(34, layout.rowHeight() - 6));
@@ -163,7 +163,7 @@ public final class PowerMenuScreen extends Screen {
             int tagX = badgeX + badgeSize - tagSize;
             int tagY = badgeY + badgeSize - tagSize;
             graphics.fill(tagX, tagY, badgeX + badgeSize, badgeY + badgeSize, 0xE0060A0F);
-            graphics.text(font, roman, tagX + Math.max(1, (tagSize - font.width(roman)) / 2), tagY + Math.max(1, (tagSize - 7) / 2), 0xFF2A1C10, true);
+            graphics.text(font, roman, tagX + Math.max(1, (tagSize - font.width(roman)) / 2), tagY + Math.max(1, (tagSize - 7) / 2), 0xFF1A1008, true);
         }
 
         int buttonReserve = layout.listWidth() < 330 ? 96 : 118;
@@ -172,7 +172,7 @@ public final class PowerMenuScreen extends Screen {
         int textWidth = Math.max(42, textRight - textX);
         String name = fit(displayName(powerClass, level), textWidth);
         int nameY = y + (veryCompact ? Math.max(4, (layout.rowHeight() - 8) / 2) : 6);
-        graphics.text(font, name, textX, nameY, unlocked ? 0xFF2A1C10 : 0xFF8B969E, true);
+        graphics.text(font, name, textX, nameY, unlocked ? 0xFF1A1008 : 0xFF8B969E, true);
 
         String description = displayDescription(powerClass, level);
         if (!veryCompact) {
@@ -187,7 +187,7 @@ public final class PowerMenuScreen extends Screen {
             int chipX = Math.max(textX, textRight - chipWidth);
             graphics.fill(chipX, y + 5, chipX + chipWidth, y + 18, unlocked ? withAlpha(powerAccent, 50 + stage * 28) : 0x332B3238);
             graphics.outline(chipX, y + 5, chipWidth, 13, unlocked ? withAlpha(powerAccent, 180) : 0x5559636B);
-            graphics.text(font, chipText, chipX + 5, y + 8, unlocked ? 0xFF2A1C10 : 0xFF77828A, false);
+            graphics.text(font, chipText, chipX + 5, y + 8, unlocked ? 0xFF1A1008 : 0xFF77828A, false);
         }
 
         if (layout.rowHeight() >= 44) {
@@ -236,19 +236,19 @@ public final class PowerMenuScreen extends Screen {
         PowerIconArt.draw(graphics, powerClass, selected, iconX, iconY, iconSize, powerAccent);
 
         graphics.text(font, "SEÇİLİ GÜÇ", left + 15, top + 17, powerAccent, true);
-        graphics.text(font, roman(selected), left + 15, top + 38, 0xFF2A1C10, true);
-        graphics.text(font, fit(displayName(powerClass, selected), width - iconSize - 74), left + 42, top + 38, 0xFF2A1C10, true);
+        graphics.text(font, roman(selected), left + 15, top + 38, 0xFF1A1008, true);
+        graphics.text(font, fit(displayName(powerClass, selected), width - iconSize - 74), left + 42, top + 38, 0xFF1A1008, true);
 
         String tag = PowerIconArt.tag(powerClass, selected);
         int tagWidth = font.width(tag) + 10;
         graphics.fill(left + 15, top + 50, left + 15 + tagWidth, top + 61, withAlpha(powerAccent, 90));
         graphics.outline(left + 15, top + 50, tagWidth, 11, withAlpha(powerAccent, 200));
-        graphics.text(font, tag, left + 20, top + 52, 0xFF2A1C10, false);
-        graphics.text(font, fit(PowerIconArt.flavor(powerClass, selected), width - tagWidth - 40), left + 25 + tagWidth, top + 52, 0xFF5A4A38, false);
+        graphics.text(font, tag, left + 20, top + 52, 0xFF1A1008, false);
+        graphics.text(font, fit(PowerIconArt.flavor(powerClass, selected), width - tagWidth - 40), left + 25 + tagWidth, top + 52, 0xFF3A2A18, false);
 
         int lineY = top + 68;
         for (String line : wrap(displayDescription(powerClass, selected), width - 30, 4)) {
-            graphics.text(font, line, left + 15, lineY, 0xFF4A3A28, false);
+            graphics.text(font, line, left + 15, lineY, 0xFF2A1C10, false);
             lineY += 12;
         }
 
@@ -256,33 +256,33 @@ public final class PowerMenuScreen extends Screen {
         graphics.fill(left + 15, dividerY, left + width - 15, dividerY + 1, withAlpha(colors[2], 110));
 
         String control = controlHint(powerClass, selected);
-        graphics.text(font, "KONTROL", left + 15, dividerY + 13, 0xFF6A5840, false);
-        graphics.text(font, control, left + 15, dividerY + 27, 0xFF2A1C10, true);
+        graphics.text(font, "KONTROL", left + 15, dividerY + 13, 0xFF4A3820, false);
+        graphics.text(font, control, left + 15, dividerY + 27, 0xFF1A1008, true);
 
         String cooldown = ClientState.cooldownTicks() <= 0
             ? "HAZIR"
             : String.format(java.util.Locale.ROOT, "%.1f saniye", ClientState.cooldownTicks() / 20.0);
-        graphics.text(font, "BEKLEME", left + 15, dividerY + 50, 0xFF6A5840, false);
-        graphics.text(font, cooldown, left + 15, dividerY + 64, ClientState.cooldownTicks() <= 0 ? 0xFF88F2A7 : 0xFFFFD27A, true);
+        graphics.text(font, "BEKLEME", left + 15, dividerY + 50, 0xFF4A3820, false);
+        graphics.text(font, cooldown, left + 15, dividerY + 64, ClientState.cooldownTicks() <= 0 ? 0xFF1A6030 : 0xFF6A4010, true);
 
         String status = activeStatus(powerClass, selected);
-        graphics.text(font, "DURUM", left + 15, dividerY + 87, 0xFF6A5840, false);
-        graphics.text(font, status, left + 15, dividerY + 101, 0xFF2A1C10, true);
+        graphics.text(font, "DURUM", left + 15, dividerY + 87, 0xFF4A3820, false);
+        graphics.text(font, status, left + 15, dividerY + 101, 0xFF1A1008, true);
 
         int masteryY = top + height - 68;
         int comboY = masteryY - 50;
         if (powerClass != PowerClass.ANOMALY && comboY > dividerY + 116) {
             graphics.fill(left + 15, comboY - 7, left + width - 15, comboY - 6, withAlpha(colors[2], 90));
             graphics.text(font, "KOMBİNASYON", left + 15, comboY + 2, 0xFFFFD35C, true);
-            graphics.text(font, fit(PowerCatalog.comboName(powerClass), width - 30), left + 15, comboY + 15, 0xFF2A1C10, true);
+            graphics.text(font, fit(PowerCatalog.comboName(powerClass), width - 30), left + 15, comboY + 15, 0xFF1A1008, true);
             graphics.text(font, fit(PowerCatalog.comboSequence(powerClass), width - 30), left + 15, comboY + 28, 0xFFC7D4DC, false);
             String comboMode = ClientState.comboModeEnabled() ? "K ile kapat" : "K ile aç";
-            graphics.text(font, comboMode, left + width - font.width(comboMode) - 15, comboY + 2, ClientState.comboModeEnabled() ? 0xFF8CFFB0 : 0xFFB8C8D3, false);
+            graphics.text(font, comboMode, left + width - font.width(comboMode) - 15, comboY + 2, ClientState.comboModeEnabled() ? 0xFF8CFFB0 : 0xFF3A2A18, false);
         }
         graphics.fill(left + 15, masteryY - 8, left + width - 15, masteryY - 7, withAlpha(colors[2], 100));
-        graphics.text(font, "USTALIK", left + 15, masteryY + 3, 0xFF6A5840, false);
+        graphics.text(font, "USTALIK", left + 15, masteryY + 3, 0xFF4A3820, false);
         String mastery = PowerCatalog.masteryStageName(stage) + "  •  " + uses + " kullanım";
-        graphics.text(font, mastery, left + 15, masteryY + 17, 0xFF2A1C10, true);
+        graphics.text(font, mastery, left + 15, masteryY + 17, 0xFF1A1008, true);
         int barWidth = width - 30;
         graphics.fill(left + 15, masteryY + 36, left + 15 + barWidth, masteryY + 42, 0xFF202933);
         graphics.fill(left + 15, masteryY + 36, left + 15 + Math.max(2, (int) (barWidth * PowerCatalog.masteryProgress(uses))), masteryY + 42, colors[2]);
@@ -569,7 +569,7 @@ public final class PowerMenuScreen extends Screen {
 
     /** Parşömen kağıdı. */
     private static void drawParchment(GuiGraphicsExtractor g, int x, int y, int w, int h) {
-        g.fillGradient(x, y, x + w, y + h, 0xFFEDE0C4, 0xFFD4C19A);
+        g.fillGradient(x, y, x + w, y + h, 0xFFE2D2A8, 0xFFC4B088);
         g.fill(x, y, x + w, y + 2, 0x33A08050);
         g.fill(x, y + h - 2, x + w, y + h, 0x44806040);
         g.fill(x, y, x + 2, y + h, 0x33A08050);
