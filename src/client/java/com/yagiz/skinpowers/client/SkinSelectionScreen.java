@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 
@@ -166,8 +167,11 @@ public final class SkinSelectionScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && choicesResolved && selectedIndex < 0) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
+        // Minecraft 26.1+: (double,double,int) kaldırıldı; MouseButtonEvent kullanılıyor.
+        if (event.button() == 0 && choicesResolved && selectedIndex < 0) {
+            double mouseX = event.x();
+            double mouseY = event.y();
             ScreenLayout layout = layout();
             int[] locked = lockedIndices();
             for (int i = 0; i < locked.length; i++) {
@@ -180,7 +184,7 @@ public final class SkinSelectionScreen extends Screen {
                 }
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubled);
     }
 
     @Override
