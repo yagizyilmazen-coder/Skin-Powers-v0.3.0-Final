@@ -104,9 +104,13 @@ public final class PowerMenuScreen extends Screen {
     private void drawHeader(GuiGraphicsExtractor graphics, Layout layout, PowerClass powerClass, int[] colors) {
         int top = 10;
         int bottom = 66;
-        graphics.fill(layout.totalLeft(), top, layout.totalLeft() + layout.totalWidth(), bottom, 0xD2070B11);
-        graphics.fill(layout.totalLeft(), top, layout.totalLeft() + 7, bottom, colors[2]);
+        graphics.fill(layout.totalLeft() + 2, top + 2, layout.totalLeft() + layout.totalWidth() + 2, bottom + 2, 0x50000000);
+        graphics.fillGradient(layout.totalLeft(), top, layout.totalLeft() + layout.totalWidth(), bottom,
+            withAlpha(colors[0], 230), withAlpha(colors[1], 230));
+        graphics.fill(layout.totalLeft(), top, layout.totalLeft() + 4, bottom, colors[2]);
+        graphics.fill(layout.totalLeft(), top, layout.totalLeft() + layout.totalWidth(), top + 2, withAlpha(colors[2], 140));
         graphics.outline(layout.totalLeft(), top, layout.totalWidth(), bottom - top, withAlpha(colors[2], 190));
+        graphics.outline(layout.totalLeft() + 1, top + 1, layout.totalWidth() - 2, bottom - top - 2, 0x18000000);
 
         drawClassEmblem(graphics, powerClass, layout.totalLeft() + 20, 21, colors[2]);
         String xp = "XP  " + ClientState.xpLevel();
@@ -212,9 +216,13 @@ public final class PowerMenuScreen extends Screen {
         int top = layout.rowTop() - 8;
         int width = layout.detailWidth();
         int height = contentBottom - layout.rowTop() + 16;
-        graphics.fill(left, top, left + width, top + height, 0xDA070B11);
-        graphics.outline(left, top, width, height, colors[2]);
-        graphics.fill(left, top, left + width, top + 5, colors[2]);
+        // Sınıf temalı detay paneli
+        graphics.fill(left + 2, top + 3, left + width + 2, top + height + 3, 0x50000000);
+        graphics.fillGradient(left, top, left + width, top + height, withAlpha(colors[0], 235), withAlpha(colors[1], 235));
+        graphics.outline(left, top, width, height, withAlpha(colors[2], 180));
+        graphics.fill(left, top, left + width, top + 4, colors[2]);
+        graphics.fill(left, top, left + 3, top + height, colors[2]);
+        graphics.outline(left + 1, top + 1, width - 2, height - 2, 0x18000000);
 
         int selected = ClientState.selectedPower();
         int uses = ClientState.masteryUses(selected);

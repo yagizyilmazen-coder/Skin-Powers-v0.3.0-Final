@@ -64,28 +64,44 @@ public final class HudOverlay {
         int panelHeight,
         int accent
     ) {
-        graphics.fill(x, y, x + panelWidth, y + panelHeight, 0xC005080D);
-        graphics.fill(x, y, x + 4, y + panelHeight, accent);
-        graphics.outline(x, y, panelWidth, panelHeight, accent);
+        int body = panelBody(powerClass);
+        int bodyDeep = panelDeep(powerClass);
+        graphics.fill(x + 1, y + 2, x + panelWidth + 1, y + panelHeight + 2, 0x40000000);
+        graphics.fillGradient(x, y, x + panelWidth, y + panelHeight, body, bodyDeep);
+        graphics.fill(x, y, x + panelWidth, y + 2, withAlpha(accent, 120));
+        graphics.fill(x, y, x + 3, y + panelHeight, accent);
+        graphics.outline(x, y, panelWidth, panelHeight, withAlpha(accent, 160));
+        graphics.outline(x + 1, y + 1, panelWidth - 2, panelHeight - 2, 0x22000000);
 
-        int iconSize = Math.min(14, panelHeight - 8);
-        int iconX = x + 7;
-        int iconY = y + 4;
+        int iconSize = Math.min(14, panelHeight - 10);
+        int iconX = x + 8;
+        int iconY = y + 5;
+        graphics.fill(iconX - 2, iconY - 2, iconX + iconSize + 2, iconY + iconSize + 2, withAlpha(accent, 35));
+        graphics.outline(iconX - 2, iconY - 2, iconSize + 4, iconSize + 4, withAlpha(accent, 110));
         PowerIconArt.draw(graphics, powerClass, ClientState.selectedPower(), iconX, iconY, iconSize, accent);
-        int textStartX = iconX + iconSize + 5;
+        int textStartX = iconX + iconSize + 7;
 
         int stage = ClientState.masteryStage(ClientState.selectedPower());
         String mastery = PowerCatalog.masteryStageName(stage);
-        String title = powerClass.displayName() + "  S" + ClientState.selectedPower();
-        int titleWidth = panelWidth - (textStartX - x) - 11 - client.font.width(mastery);
-        graphics.text(client.font, fit(client, title, titleWidth), textStartX, y + 5, 0xFFFFFFFF, true);
-        graphics.text(client.font, mastery, x + panelWidth - client.font.width(mastery) - 7, y + 5, accent, true);
-        String powerLine = ClientState.powerName() + "  •  " + PowerIconArt.tag(powerClass, ClientState.selectedPower());
-        graphics.text(client.font, fit(client, powerLine, panelWidth - 18), x + 9, y + 16, 0xFFDCE7ED, false);
+        String title = powerClass.displayName() + "  ·  S" + ClientState.selectedPower();
+        int titleWidth = panelWidth - (textStartX - x) - 14 - client.font.width(mastery);
+        graphics.text(client.font, fit(client, title, titleWidth), textStartX, y + 5, 0xFFF2F7FA, true);
+        int masteryW = client.font.width(mastery) + 8;
+        int mx = x + panelWidth - masteryW - 6;
+        graphics.fill(mx, y + 3, mx + masteryW, y + 15, withAlpha(accent, 55));
+        graphics.outline(mx, y + 3, masteryW, 12, withAlpha(accent, 180));
+        graphics.text(client.font, mastery, mx + 4, y + 5, accent, false);
+
+        String powerLine = ClientState.powerName() + "  ·  " + PowerIconArt.tag(powerClass, ClientState.selectedPower());
+        graphics.text(client.font, fit(client, powerLine, panelWidth - 20), x + 10, y + 17, 0xFFA8B8C4, false);
 
         int cooldown = ClientState.cooldownTicks();
-        String ready = cooldown <= 0 ? "R: HAZIR" : String.format(java.util.Locale.ROOT, "R: %.1f sn", cooldown / 20.0);
-        graphics.text(client.font, ready, x + 9, y + 29, cooldown <= 0 ? 0xFF8CFFB0 : 0xFFFFD27A, true);
+        String ready = cooldown <= 0 ? "R  HAZIR" : String.format(java.util.Locale.ROOT, "R  %.1fs", cooldown / 20.0);
+        int readyColor = cooldown <= 0 ? 0xFF7DFFB0 : 0xFFFFC86A;
+        int readyW = client.font.width(ready) + 10;
+        graphics.fill(x + 8, y + 27, x + 8 + readyW, y + 38, cooldown <= 0 ? 0x3320A060 : 0x334A3010);
+        graphics.outline(x + 8, y + 27, readyW, 11, withAlpha(readyColor, 140));
+        graphics.text(client.font, ready, x + 13, y + 29, readyColor, false);
 
         String status = switch (powerClass) {
             case FLIGHT -> ClientState.dragonFormTicks() > 0
@@ -116,35 +132,44 @@ public final class HudOverlay {
             case SAND -> ClientState.sandScreenTicks() > 0 ? "Görüşte kum: suya girerek temizle" : "Çöl akışı hazır";
             default -> "";
         };
-        int statusY = Math.min(y + panelHeight - 11, y + 40);
-        graphics.text(client.font, fit(client, status, panelWidth - 18), x + 9, statusY, 0xFFB8C8D3, false);
+        int statusY = Math.min(y + panelHeight - 12, y + 41);
+        graphics.text(client.font, fit(client, status, panelWidth - 18), x + 10, statusY, 0xFF8FA0AE, false);
     }
 
     private static int drawAwakeningStatus(GuiGraphicsExtractor graphics, Minecraft client, PowerClass powerClass, int x, int y, int width, int accent, ClientConfig config) {
         if (!config.showAwakeningBar()) return 0;
-        int height = ClientState.classAwakeningTicks() > 0 ? 27 : 18;
-        graphics.fill(x, y, x + width, y + height, 0xC5080710);
-        graphics.outline(x, y, width, height, accent);
-        int barLeft = x + 7;
-        int barRight = x + width - 7;
-        int barTop = y + 7;
-        int barBottom = barTop + 5;
-        graphics.fill(barLeft, barTop, barRight, barBottom, 0xFF191824);
+        int height = ClientState.classAwakeningTicks() > 0 ? 28 : 20;
+        int body = panelBody(powerClass);
+        int bodyDeep = panelDeep(powerClass);
+        graphics.fill(x + 1, y + 2, x + width + 1, y + height + 2, 0x40000000);
+        graphics.fillGradient(x, y, x + width, y + height, body, bodyDeep);
+        graphics.fill(x, y, x + 3, y + height, accent);
+        graphics.outline(x, y, width, height, withAlpha(accent, 150));
+
+        int barLeft = x + 8;
+        int barRight = x + width - 8;
+        int barTop = y + 6;
+        int barBottom = barTop + 6;
+        graphics.fill(barLeft, barTop, barRight, barBottom, 0xFF0C1018);
+        graphics.outline(barLeft, barTop, barRight - barLeft, barBottom - barTop, 0x44000000);
         float ratio;
         String label;
         if (ClientState.classAwakeningTicks() > 0) {
             ratio = Math.max(0.0F, Math.min(1.0F, ClientState.classAwakeningTicks() / 480.0F));
-            label = String.format(java.util.Locale.ROOT, "UYANIŞ AKTİF • %.1f sn", ClientState.classAwakeningTicks() / 20.0);
+            label = String.format(java.util.Locale.ROOT, "UYANIŞ AKTİF  ·  %.1fs", ClientState.classAwakeningTicks() / 20.0);
         } else {
             ratio = ClientState.awakeningEnergy() / 100.0F;
             label = ClientState.awakeningEnergy() >= 20.0F
-                ? String.format(java.util.Locale.ROOT, "G: UYANIŞ • %%%.0f", ClientState.awakeningEnergy())
-                : String.format(java.util.Locale.ROOT, "UYANIŞ • %%%.0f", ClientState.awakeningEnergy());
+                ? String.format(java.util.Locale.ROOT, "G  UYANIŞ  ·  %%%.0f", ClientState.awakeningEnergy())
+                : String.format(java.util.Locale.ROOT, "UYANIŞ  ·  %%%.0f", ClientState.awakeningEnergy());
         }
         int fill = Math.round((barRight - barLeft) * ratio);
-        if (fill > 0) graphics.fill(barLeft, barTop, barLeft + fill, barBottom, accent);
-        int labelColor = powerClass == PowerClass.MOON ? 0xFF4FA8FF : 0xFFF2E9FF;
-        graphics.text(client.font, fit(client, label, width - 14), x + 7, y + (height > 20 ? 16 : 5), labelColor, false);
+        if (fill > 0) {
+            graphics.fill(barLeft, barTop, barLeft + fill, barBottom, accent);
+            graphics.fill(barLeft, barTop, barLeft + fill, barTop + 2, withAlpha(0xFFFFFFFF, 50));
+        }
+        int labelColor = powerClass == PowerClass.MOON ? 0xFF6BB8FF : 0xFFE8F0F6;
+        graphics.text(client.font, fit(client, label, width - 16), x + 8, y + (height > 22 ? 15 : 7), labelColor, false);
         return height + 4;
     }
 
@@ -153,17 +178,49 @@ public final class HudOverlay {
         if (!ClientState.comboModeEnabled()) return 0;
         boolean active = ClientState.comboTicks() > 0;
         int height = active ? 38 : 20;
-        graphics.fill(x, y, x + width, y + height, 0xD0080D12);
-        graphics.fill(x, y, x + 4, y + height, 0xFFFFD35C);
-        graphics.outline(x, y, width, height, active ? 0xFFFFD35C : 0xFF987F45);
-        graphics.text(client.font, "KOMBO: AÇIK", x + 9, y + 6, 0xFFFFE49A, true);
+        int gold = active ? 0xFFFFD35C : 0xFFB8964A;
+        graphics.fill(x + 1, y + 2, x + width + 1, y + height + 2, 0x40000000);
+        graphics.fillGradient(x, y, x + width, y + height, 0xE8121008, 0xE8080A10);
+        graphics.fill(x, y, x + 3, y + height, gold);
+        graphics.outline(x, y, width, height, withAlpha(gold, 170));
+        graphics.text(client.font, "KOMBO", x + 10, y + 6, gold, true);
         if (active) {
             String name = ClientState.comboName().isBlank() ? "KOMBO HAZIR" : ClientState.comboName();
-            String next = String.format(java.util.Locale.ROOT, "%s • %.1f sn", ClientState.comboNextPowerName(), ClientState.comboTicks() / 20.0);
-            graphics.text(client.font, fit(client, name, width - 18), x + 9, y + 18, accent, true);
-            graphics.text(client.font, fit(client, next, width - 18), x + 9, y + 28, 0xFFFFFFFF, false);
+            String next = String.format(java.util.Locale.ROOT, "%s  ·  %.1fs", ClientState.comboNextPowerName(), ClientState.comboTicks() / 20.0);
+            graphics.text(client.font, fit(client, name, width - 18), x + 10, y + 18, accent, true);
+            graphics.text(client.font, fit(client, next, width - 18), x + 10, y + 28, 0xFFD8E0E8, false);
         }
         return height + 4;
+    }
+
+    private static int panelBody(PowerClass powerClass) {
+        return switch (powerClass) {
+            case WARDEN -> 0xE0061218;
+            case FLIGHT -> 0xE00C0616;
+            case FIRE -> 0xE0140806;
+            case MOON -> 0xE0060A14;
+            case ANOMALY -> 0xE00A0614;
+            case MAGNETIC -> 0xE0080C10;
+            case SAND -> 0xE0120C06;
+            default -> 0xE0080A0E;
+        };
+    }
+
+    private static int panelDeep(PowerClass powerClass) {
+        return switch (powerClass) {
+            case WARDEN -> 0xE002080C;
+            case FLIGHT -> 0xE0060410;
+            case FIRE -> 0xE00A0402;
+            case MOON -> 0xE0020610;
+            case ANOMALY -> 0xE0060410;
+            case MAGNETIC -> 0xE004080C;
+            case SAND -> 0xE00A0804;
+            default -> 0xE004060A;
+        };
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return (Math.max(0, Math.min(255, alpha)) << 24) | (color & 0x00FFFFFF);
     }
 
     private static void drawAncientStatus(
