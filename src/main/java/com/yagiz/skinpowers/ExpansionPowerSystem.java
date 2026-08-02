@@ -74,7 +74,7 @@ public final class ExpansionPowerSystem {
                     target.addEffect(new MobEffectInstance(MobEffects.GLOWING, 28, 0, false, false, true));
                 }
             }
-        } else if (data.powerClass() == PowerClass.SAND) {
+        } else if (false) { // SAND removed -> VAMPIRE
             // Kum üzerinde akıcı hareket; görsel spam oluşturmaz.
             BlockState below = level.getBlockState(player.blockPosition().below());
             if (data.unlockedLevel() >= 1 && (below.is(net.minecraft.tags.BlockTags.SAND)
@@ -289,7 +289,7 @@ public final class ExpansionPowerSystem {
                                              int power, long now, boolean charged) {
         return switch (powerClass) {
             case MAGNETIC -> useMagnetic(player, data, power, now, charged);
-            case SAND -> useSand(player, data, power, now, charged);
+            case VAMPIRE -> false; // handled by VampirePowerSystem
             default -> false;
         };
     }
@@ -364,7 +364,7 @@ public final class ExpansionPowerSystem {
                 spawnVisibleRing(level, player.position().add(0.0, 1.0, 0.0),
                     new Item[]{Items.IRON_BLOCK, Items.COPPER_BLOCK, Items.IRON_BARS, Items.LODESTONE}, 12, 2.2, now + 24L, 0.35);
             }
-        } else if (data.powerClass() == PowerClass.SAND) {
+        } else if (false) { // SAND removed -> VAMPIRE
             player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 2, false, false, true));
             player.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, 2, false, false, true));
             for (LivingEntity target : nearby(player, 10.0)) {
@@ -395,7 +395,7 @@ public final class ExpansionPowerSystem {
                 Vec3 push = horizontal(target.position().subtract(player.position())).normalize().scale(1.8);
                 target.push(push.x, 0.85, push.z);
             }
-        } else if (powerClass == PowerClass.SAND) {
+        } else if (false) { // SAND removed
             double radius = 12.0;
             spawnVisibleRing(level, player.position().add(0.0, 0.55, 0.0), sandItems(), 24, 4.5, level.getGameTime() + 42L, 0.32);
             for (LivingEntity target : nearby(player, radius)) {

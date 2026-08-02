@@ -15,7 +15,7 @@ public final class PowerCatalog {
         {"Ay Halkası", "Ay Mührü", "Yerçekimi Baskısı", "Ay Aynası", "Tutulma Hükmü", "Dolunay Canavarı"},
         {"Kırık Adım", "Tersine Çevir", "?", "Hasar Mevcut Değil", "Varlıktan Çıkar", "404: Gerçeklik Bulunamadı"},
         {"Manyetik Çekim", "Kutup İtişi", "Demir Yumruk", "Metal Fırtınası", "Ray Topu", "Manyetik Kafes"},
-        {"Kum Mermisi", "Kum Dalgası", "Çöl Aynası", "Kum Zırhı", "Kum Mezarı", "Kum Devleri"}
+        {"Isırık", "Kan Bağı", "Kan Dalgası", "Kan Zırhı", "Kan Çılgınlığı", "Lord Isırığı"}
     };
 
     private static final String[][] DESCRIPTIONS = {
@@ -69,12 +69,20 @@ public final class PowerCatalog {
             "Hedefi hareket eden demir parmaklık ve zincir halkalarına kapatır; süre sonunda kafes çöker."
         },
         {
-            "Gerçek kum ve kumtaşı parçalarından oluşan sıkıştırılmış mermi fırlatır; patlayınca hedefin ekranını 4 saniye kum kaplar.",
-            "Minecraft kum ve kumtaşı blok gövdelerinden oluşan geniş dalga ilerler; hedefleri sürükler ve görüşlerini kumla kaplar.",
-            "İki gerçek kumtaşı heykeli oluşturur; gelen ilk saldırıları heykellere aktararak kaçış sağlar.",
-            "Oyuncunun çevresinde dönen gerçek kum ve kumtaşı kabuğu darbe aldıkça parça parça kırılır.",
-            "Hedefin çevresinde kumtaşı duvarları yükselir; hedef suya girene veya süre bitene kadar gömülür.",
-            "Kum ve kumtaşından oluşan iki dev kol hedefi yakalar, havaya kaldırır ve yere çarpar."
+            "Yakın hedefi ısırır: hasar verir ve can çalar. Çalınan can max canına eklenir (en fazla +10 kalp, ölünce sıfırlanır).",
+            "Hedefe kan bağı kurar. Bağ süresince o hedefe vurdukça ekstra can çalarsın.",
+            "Önüne kan dalgası salar; birden fazla hedeften azar azar can çalar.",
+            "Çaldığın canın bir kısmını kısa süreli kan zırhına çevirir; hasarı emer.",
+            "Kısa süre her vuruşta güçlenmiş can çalma ve hız. Bitince hafif yorgunluk.",
+            "Lord ısırığı: yüksek hasar ve büyük kalıcı can çalma. Kurban yavaşlar ve bulanır; 5+ kalp çalındıysa zıplayamaz."
+        },
+        {
+            "Yakın hedefi ısırır: hasar verir ve can çalar. Çalınan can max canına eklenir (en fazla +10 kalp, ölünce sıfırlanır).",
+            "Hedefe kan bağı kurar. Bağ süresince o hedefe vurdukça ekstra can çalarsın.",
+            "Önüne kan dalgası salar; birden fazla hedeften azar azar can çalar.",
+            "Çaldığın canın bir kısmını kısa süreli kan zırhına çevirir; hasarı emer.",
+            "Kısa süre her vuruşta güçlenmiş can çalma ve hız. Bitince hafif yorgunluk.",
+            "Lord ısırığı: yüksek hasar ve büyük kalıcı can çalma. Kurban yavaşlar ve bulanır; 5+ kalp çalındıysa zıplayamaz."
         }
     };
 
@@ -83,7 +91,7 @@ public final class PowerCatalog {
     public static int maxLevel(PowerClass powerClass) {
         return powerClass == PowerClass.WARDEN || powerClass == PowerClass.FLIGHT || powerClass == PowerClass.FIRE
             || powerClass == PowerClass.MOON || powerClass == PowerClass.ANOMALY
-            || powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.SAND ? 6 : 5;
+            || powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.VAMPIRE ? 6 : 5;
     }
 
     public static String powerName(PowerClass powerClass, int oneBasedLevel) {
@@ -105,7 +113,7 @@ public final class PowerCatalog {
         if (powerClass == PowerClass.WARDEN && level == 6) return WARDEN_ANCIENT_CHARGE_XP;
         if (powerClass == PowerClass.ANOMALY) return ANOMALY_XP_COSTS[level - 1];
         if (powerClass == PowerClass.FLIGHT) return DRAGON_XP_COSTS[level - 1];
-        if (powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.SAND) return EXPANSION_XP_COSTS[level - 1];
+        if (powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.VAMPIRE) return EXPANSION_XP_COSTS[level - 1];
         if (powerClass == PowerClass.MOON) return EXPANSION_XP_COSTS[level - 1];
         return XP_COSTS[level - 1];
     }
@@ -117,7 +125,7 @@ public final class PowerCatalog {
             case FIRE -> 4;
             case MOON -> 3;
             case MAGNETIC -> 4;
-            case SAND -> 2;
+            case VAMPIRE -> 1;
             default -> 0;
         };
     }
@@ -129,7 +137,7 @@ public final class PowerCatalog {
             case FIRE -> 5;
             case MOON -> 1;
             case MAGNETIC -> 5;
-            case SAND -> 6;
+            case VAMPIRE -> 6;
             default -> 0;
         };
     }
@@ -141,7 +149,7 @@ public final class PowerCatalog {
             case FIRE -> "Cehennem Felaketi";
             case MOON -> "Tutulma Hükmü";
             case MAGNETIC -> "Kutup Kıyameti";
-            case SAND -> "Çöl Ezicisi";
+            case VAMPIRE -> "Kan Ziyafeti";
             default -> "-";
         };
     }

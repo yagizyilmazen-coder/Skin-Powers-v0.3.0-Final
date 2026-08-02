@@ -64,6 +64,10 @@ public final class PlayerPowerData {
     private long anomalyChoiceUntil = 0L;
     private double anomalyBonusHealth = 0.0;
     private long anomalyBonusHealthUntil = 0L;
+
+    /** Vampir: çalınan kalp (0..10). Ölünce sıfır. */
+    private float vampireStolenHearts = 0.0F;
+    private double vampireHealthBase = 0.0;
     private double anomalyHealthBaseBeforeBonus = -1.0;
     private long anomalyRealityUntil = 0L;
     private boolean anomalyRealityReviveAvailable = false;
@@ -117,6 +121,11 @@ public final class PlayerPowerData {
     public float anomalyStoredDamage() { return Math.max(0.0F, anomalyStoredDamage); }
     public long anomalyChoiceUntil() { return anomalyChoiceUntil; }
     public double anomalyBonusHealth() { return Math.max(0.0, anomalyBonusHealth); }
+
+    public float vampireStolenHearts() { return Math.max(0.0F, Math.min(10.0F, vampireStolenHearts)); }
+    public void setVampireStolenHearts(float hearts) { vampireStolenHearts = Math.max(0.0F, Math.min(10.0F, hearts)); }
+    public double vampireHealthBase() { return vampireHealthBase; }
+    public void setVampireHealthBase(double base) { vampireHealthBase = base; }
     public long anomalyBonusHealthUntil() { return anomalyBonusHealthUntil; }
     public double anomalyHealthBaseBeforeBonus() { return anomalyHealthBaseBeforeBonus; }
     public long anomalyRealityUntil() { return anomalyRealityUntil; }

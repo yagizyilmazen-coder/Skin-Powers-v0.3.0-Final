@@ -140,6 +140,7 @@ public final class PowerSystem {
         MoonPowerSystem.tickServer(server);
         ExpansionPowerSystem.tickServer(server);
         AnomalySystem.tickServer(server);
+        VampirePowerSystem.tickServer(server);
         AncientChargeSystem.tick(server);
         PowerCollisionSystem.tick(server);
         WorldEventSystem.tick(server);
@@ -165,7 +166,8 @@ public final class PowerSystem {
             case FLIGHT -> tickFlight(player, data, level, now);
             case FIRE -> tickFire(player, data, level, now);
             case MOON -> MoonPowerSystem.tickPlayer(player, data, level, now);
-            case MAGNETIC, SAND -> ExpansionPowerSystem.tickPlayer(player, data, level, now);
+            case MAGNETIC -> ExpansionPowerSystem.tickPlayer(player, data, level, now);
+            case VAMPIRE -> VampirePowerSystem.tickPlayer(player, data, level, now);
             case ANOMALY -> {
                 AnomalySystem.tickPlayer(player, data, level, now);
                 tickBorrowedClassEffects(player, data, level, now);
@@ -497,8 +499,8 @@ public final class PowerSystem {
             case FIRE -> useFire(player, data, power, now, normalCharged, comboStarter);
             case MOON -> MoonPowerSystem.use(player, data, power, now, normalCharged);
             case MAGNETIC -> ExpansionPowerSystem.useMagnetic(player, data, power, now, normalCharged);
-            case SAND -> ExpansionPowerSystem.useSand(player, data, power, now, normalCharged);
-            case ANOMALY -> AnomalySystem.use(player, data, power, now, normalCharged);
+            case VAMPIRE -> VampirePowerSystem.use(player, data, power, now, normalCharged);
+                        case ANOMALY -> AnomalySystem.use(player, data, power, now, normalCharged);
             default -> false;
         };
 
@@ -639,7 +641,7 @@ public final class PowerSystem {
             player.sendSystemMessage(Component.literal("Anomali: güçleri R ile kullan. Hasar seçimi hazırken V kalbe, X hedefe dönüştürür."));
         } else if (data.powerClass() == PowerClass.MAGNETIC) {
             player.sendSystemMessage(Component.literal("Manyetik güçleri R ile kullan. Metal Fırtınasını ikinci R basışıyla fırlat."));
-        } else if (data.powerClass() == PowerClass.SAND) {
+        } else if (data.powerClass() == PowerClass.VAMPIRE) {
             player.sendSystemMessage(Component.literal("Kum güçleri R ile kullan. Kum görüş etkisi 4 saniye veya suya girene kadar sürer."));
         }
         if (changed) {
@@ -1465,7 +1467,7 @@ public final class PowerSystem {
                 }
                 yield used;
             }
-            case SAND -> {
+            case VAMPIRE -> {
                 boolean used = ExpansionPowerSystem.useSand(player, data, 6, now, true);
                 if (used) {
                     data.setCooldown(6, now, Math.max(900, 1200 - stage * 65));
@@ -1487,7 +1489,8 @@ public final class PowerSystem {
             case FLIGHT -> useFlight(player, data, copiedPower, now, charged);
             case FIRE -> useFire(player, data, copiedPower, now, charged, false);
             case MOON -> MoonPowerSystem.use(player, data, copiedPower, now, charged);
-            case MAGNETIC, SAND -> ExpansionPowerSystem.executeCopiedPower(player, data, copiedClass, copiedPower, now, charged);
+            case MAGNETIC -> ExpansionPowerSystem.executeCopiedPower(player, data, copiedClass, copiedPower, now, charged);
+            case VAMPIRE -> VampirePowerSystem.use(player, data, copiedPower, now, charged);
             default -> false;
         };
     }

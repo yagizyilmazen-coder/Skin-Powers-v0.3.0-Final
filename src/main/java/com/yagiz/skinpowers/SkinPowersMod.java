@@ -52,6 +52,7 @@ public final class SkinPowersMod implements ModInitializer {
         ServerLivingEntityEvents.AFTER_DEATH.register(ExpansionPowerSystem::afterDeath);
         ServerLivingEntityEvents.AFTER_DEATH.register(MoonPowerSystem::afterDeath);
         ServerLivingEntityEvents.AFTER_DEATH.register(AnomalySystem::afterDeath);
+        ServerLivingEntityEvents.AFTER_DEATH.register(VampirePowerSystem::afterDeath);
 
         LOGGER.info("Skin Powers 1.3.0 Ay ve Anomali 2.0 yüklendi.");
     }
