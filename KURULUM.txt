@@ -1,24 +1,18 @@
-SKIN POWERS — VampirePowerSystem SİL (derleme kırığı)
-=====================================================
+SKIN POWERS — UI + DENGE PAKETİ
+================================
 
-SON LOG HATASI
-  VampirePowerSystem.java: cannot find symbol vampireStolenHearts / VAMPIRE
+1. Bu ZIP'i ayıkla.
+2. İçindeki "src" klasörünü projenin ana klasörüne kopyala.
+3. Sorulunca "Değiştir / Replace" seç.
+4. (İsteğe bağlı) BALANCE_1.3.0.md dosyasını proje köküne koy.
+5. GitHub Desktop: Commit to main → Push origin.
 
-NEDEN
-  PowerClass ve PlayerPowerData güncellendi (SAND), ama
-  VampirePowerSystem.java dosyası repoda KALDI.
-  Bu dosya silinmeden derleme YEŞİL olmaz.
-
-ZORUNLU ADIM (en önemlisi)
-  1. GitHub Desktop > Repository > Show in Explorer
-  2. Şu dosyayı SİL:
-     src\main\java\com\yagiz\skinpowers\VampirePowerSystem.java
-  3. Veya bu paketteki SIL_VAMPIRE.bat dosyasını proje kökünde çalıştır.
-
-EK (önerilir)
-  Bu ZIP içindeki .github klasörünü proje köküne kopyala.
-  Actions, derlemeden önce Vampire dosyasını otomatik siler;
-  unutursan bile build kırılmaz.
-
-Sonra:
-  Commit to main → Push origin
+İçerik:
+- src/client/.../SkinSelectionScreen.java  (seçim ekranı animasyon)
+- src/client/.../PowerMenuScreen.java      (O menüsü)
+- src/client/.../HudOverlay.java           (sol üst HUD)
+- src/main/.../PowerCatalog.java           (eşit XP)
+- src/main/.../MoonPowerSystem.java        (Ay CD)
+- src/main/.../AnomalySystem.java          (Anomali CD)
+- src/main/.../PowerSystem.java            (Ateş ultimate CD)
+- BALANCE_1.3.0.md

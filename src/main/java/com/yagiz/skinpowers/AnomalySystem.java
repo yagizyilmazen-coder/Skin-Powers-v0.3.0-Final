@@ -101,7 +101,7 @@ public final class AnomalySystem {
         player.hurtMarked = true;
         player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 18 + stage * 4, charged ? 4 : 2, false, false, true));
         level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0F, 0.55F);
-        data.setCooldown(1, now, Math.max(70, 130 - stage * 15));
+        data.setCooldown(1, now, Math.max(100, 160 - stage * 14)); // mobilite, spam değil
         return true;
     }
 
@@ -119,7 +119,7 @@ public final class AnomalySystem {
         spawnVisibleRing(level, player.getUUID(), target.position().add(0.0, 1.0, 0.0), new Item[]{Items.REDSTONE, Items.ENDER_EYE}, charged ? 12 : 8, 1.25, now + duration);
         if (target instanceof ServerPlayer reversedPlayer) reversedPlayer.sendSystemMessage(Component.literal("REVERSED"));
         level.playSound(null, target.blockPosition(), SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.PLAYERS, 1.0F, 0.65F);
-        data.setCooldown(2, now, Math.max(260, 420 - stage * 40));
+        data.setCooldown(2, now, Math.max(300, 420 - stage * 30));
         return true;
     }
 
@@ -161,7 +161,7 @@ public final class AnomalySystem {
         level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getY() + 1.0, player.getZ(), 55, 0.8, 1.0, 0.8, 0.04);
         drawAnomalyShield(level, player.position().add(0.0, 1.0, 0.0), charged, now * 0.28);
         player.sendSystemMessage(Component.literal("Hasar Mevcut Değil: " + String.format(java.util.Locale.ROOT, "%.1f", duration / 20.0) + " saniye boyunca hasar depolanıyor."));
-        data.setCooldown(4, now, Math.max(700, 980 - stage * 70));
+        data.setCooldown(4, now, Math.max(720, 960 - stage * 55));
         return true;
     }
 
@@ -191,7 +191,7 @@ public final class AnomalySystem {
         drawGlitchCage(level, target.position(), charged ? 1.55 : 1.30, charged ? 2.9 : 2.55, now * 0.22, charged);
         spawnGlitchFigure(level, player.getUUID(), target.position(), now + duration, 0.0);
         level.playSound(null, target.blockPosition(), SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 0.8F, 1.55F);
-        data.setCooldown(5, now, Math.max(700, 980 - stage * 70));
+        data.setCooldown(5, now, Math.max(760, 1000 - stage * 55));
         return true;
     }
 
@@ -211,7 +211,7 @@ public final class AnomalySystem {
         player.sendSystemMessage(Component.literal("404 ALANI: GERÇEKLİK BULUNAMADI"));
         level.playSound(null, player.blockPosition(), SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 1.7F, 0.45F);
         ServerNetworking.sendScreenShake(level, center, 42.0, 1.7F, 24);
-        data.setCooldown(6, now, Math.max(1900, 2600 - stage * 170));
+        data.setCooldown(6, now, Math.max(1600, 2000 - stage * 100)); // 404: Warden ultimate bandı (~80-100 sn)
         return true;
     }
 

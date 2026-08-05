@@ -1212,12 +1212,12 @@ public final class PowerSystem {
             }
             case 5 -> {
                 scheduleMeteors(player, data, stage, charged);
-                data.setCooldown(5, now, Math.max(1800, 2400 - stage * 120));
+                data.setCooldown(5, now, Math.max(1500, 2000 - stage * 100)); // Meteor: ~75-100 sn
                 return true;
             }
             case 6 -> {
                 infernoRay(player, stage, charged);
-                data.setCooldown(6, now, Math.max(1700, 2300 - stage * 140));
+                data.setCooldown(6, now, Math.max(1500, 2000 - stage * 100)); // Cehennem Işını: ultimate bandı
                 return true;
             }
             default -> { return false; }

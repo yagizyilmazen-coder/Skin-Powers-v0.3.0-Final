@@ -1,10 +1,15 @@
 package com.yagiz.skinpowers;
 
 public final class PowerCatalog {
+    /**
+     * Tüm sınıflar aynı XP eğrisini kullanır.
+     * Amaç: hiçbir sınıf “daha ucuza güç açma” avantajı taşımasın.
+     * S1=5, S2=15, S3=30, S4=40, S5=50, S6=70
+     */
     public static final int[] XP_COSTS = {5, 15, 30, 40, 50, 70};
-    public static final int[] DRAGON_XP_COSTS = {10, 20, 30, 40, 55, 70};
-    public static final int[] ANOMALY_XP_COSTS = {10, 20, 30, 40, 50, 70};
-    public static final int[] EXPANSION_XP_COSTS = {10, 20, 30, 40, 55, 70};
+    public static final int[] DRAGON_XP_COSTS = XP_COSTS;
+    public static final int[] ANOMALY_XP_COSTS = XP_COSTS;
+    public static final int[] EXPANSION_XP_COSTS = XP_COSTS;
     public static final int WARDEN_ANCIENT_CHARGE_XP = 70;
 
     private static final String[][] NAMES = {

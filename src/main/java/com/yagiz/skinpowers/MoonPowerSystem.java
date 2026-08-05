@@ -99,7 +99,7 @@ public final class MoonPowerSystem {
         CRESCENTS.add(new CrescentAttack(level, player.getUUID(), ids, start, direction,
             now, now + (empowered ? 62L : 50L), stage, empowered, new HashSet<>(), false));
         level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW.value(), SoundSource.PLAYERS, 1.1F, 1.55F);
-        data.setCooldown(1, now, Math.max(100, 170 - stage * 14));
+        data.setCooldown(1, now, Math.max(180, 260 - stage * 16)); // Warden Sonik bandı (~9-12 sn)
         return true;
     }
 
@@ -111,7 +111,7 @@ public final class MoonPowerSystem {
         drawWhiteGroundRing(level, center.add(0.0, 0.18, 0.0), radius, empowered ? 64 : 48);
         level.playSound(null, BlockPos.containing(center), SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 0.85F, 1.55F);
         player.sendSystemMessage(Component.literal("Ay Mührü hedefe kilitlendi."));
-        data.setCooldown(2, now, Math.max(300, 430 - stage * 28));
+        data.setCooldown(2, now, Math.max(320, 420 - stage * 24)); // Yer Sarsıntısı bandı
         return true;
     }
 
@@ -122,7 +122,7 @@ public final class MoonPowerSystem {
             new Item[]{Items.ENDER_EYE, Items.QUARTZ, Items.IRON_NUGGET, Items.AMETHYST_SHARD}, empowered ? 20 : 14, true, player.getUUID());
         GRAVITY_FIELDS.add(new GravityField(level, player.getUUID(), center, ids, now, now + (empowered ? 150L : 110L), radius, stage, empowered));
         level.playSound(null, BlockPos.containing(center), SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.PLAYERS, 1.0F, 0.55F);
-        data.setCooldown(3, now, Math.max(420, 650 - stage * 45));
+        data.setCooldown(3, now, Math.max(400, 580 - stage * 40));
         return true;
     }
 
@@ -159,7 +159,7 @@ public final class MoonPowerSystem {
         player.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, empowered ? 340 : 270, empowered ? 2 : 1, false, true, true));
         level.playSound(null, BlockPos.containing(center), SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 1.25F, 0.72F);
         ServerNetworking.sendScreenShake(level, center, 28.0, 0.75F, 10);
-        data.setCooldown(5, now, Math.max(820, 1160 - stage * 70));
+        data.setCooldown(5, now, Math.max(900, 1200 - stage * 60)); // Uyanış altı ultimate bandı
         return true;
     }
 
@@ -173,7 +173,7 @@ public final class MoonPowerSystem {
             now + (empowered ? 112L : 92L), stage, empowered, 0));
         level.playSound(null, player.blockPosition(), SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 1.5F, 0.48F);
         ServerNetworking.sendScreenShake(level, center, 34.0, 1.0F, 14);
-        data.setCooldown(6, now, Math.max(980, 1380 - stage * 80));
+        data.setCooldown(6, now, Math.max(1400, 1800 - stage * 80)); // Warden S6 bandına yakın (~70-90 sn)
         return true;
     }
 
