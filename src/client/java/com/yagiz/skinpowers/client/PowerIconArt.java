@@ -19,7 +19,7 @@ public final class PowerIconArt {
         CHAIN, FIST, STORM, CAGE, PROJECTILE, STATUE
     }
 
-    // Sıra: WARDEN, FLIGHT (Kadim Ejderha), FIRE, MOON, ANOMALY, MAGNETIC, SAND — PowerClass ordinal() - 1 ile eşleşir.
+    // Sıra: WARDEN, FLIGHT (Kadim Ejderha), FIRE, MOON, ANOMALY, MAGNETIC, SPIDER — PowerClass ordinal() - 1 ile eşleşir.
     private static final Archetype[][] ARCHETYPES = {
         {Archetype.ARMOR, Archetype.SHOCKWAVE, Archetype.BEAM, Archetype.TENTACLES, Archetype.AURA, Archetype.PILLAR},
         {Archetype.WHIRL, Archetype.BEAM, Archetype.SHIELD_STACK, Archetype.CLAW, Archetype.AURA, Archetype.CREATURE},
@@ -92,12 +92,12 @@ public final class PowerIconArt {
             "Kafes kapanır, kaçış yok."
         },
         {
-            "Kum taneleri hedefi gözünden vurur.",
-            "Çölün dalgası her şeyi sürükler.",
-            "Heykeller senin yerine darbe alır.",
-            "Kum zırhı darbe aldıkça kırılır.",
-            "Kumtaşı duvarları hedefi gömer.",
-            "Devler seni yere çakar."
+            "Ağ mermisi hedefi yavaşlatır.",
+            "Ağ çekişi düşmanı sana getirir.",
+            "Örümcek hissi tehlikeyi gösterir.",
+            "Ağ zırhı darbe aldıkça çözülür.",
+            "Ağ tuzağı hedefi kilitler.",
+            "Örümcek fırtınası her şeyi sarar."
         },
         {
             "Buz zırhı soğuğu kalkan yapar.",

@@ -49,10 +49,10 @@ public final class SkinAnalyzer {
         {38, 43, 48}, {72, 82, 91}, {118, 132, 143}, {181, 193, 202},
         {166, 91, 48}, {205, 123, 63}, {116, 31, 28}
     };
-    private static final int[][] SAND_COLORS = {
-        {232, 210, 152}, {216, 184, 106}, {193, 151, 73}, {151, 105, 54},
-        {239, 221, 170}, {181, 126, 67}, {220, 164, 78}
-    };
+    private static final int[][] SPIDER_COLORS = {
+        {180, 20, 30}, {220, 30, 40}, {120, 10, 15}, {30, 30, 40}, {20, 20, 28},
+        {40, 60, 160}, {50, 80, 200}, {200, 200, 210}, {15, 15, 20}, {90, 15, 20}
+    }
 
     private static final int[][] ICE_COLORS = {
         {0x8FD4FF, 0xE8F6FF, 0x4A90B8, 0xB8DFF0, 0xD0EFFF},
@@ -150,7 +150,7 @@ public final class SkinAnalyzer {
         int redGlitchPixels = 0;
         int whitePixels = 0;
         int metallicPixels = 0;
-        int sandPixels = 0;
+        int spiderPixels = 0;
         Map<Integer, Integer> quantized = new HashMap<>();
 
         int width = image.getWidth();
@@ -189,7 +189,7 @@ public final class SkinAnalyzer {
                 if ((hue <= 12 || hue >= 348) && saturation > 0.55 && max > 0.55) redGlitchPixels++;
                 if (max > 0.82 && saturation < 0.16) whitePixels++;
                 if (saturation < 0.24 && max > 0.18 && max < 0.86 || hue >= 12.0 && hue <= 32.0 && saturation > 0.30 && max > 0.32) metallicPixels++;
-                if (hue >= 28.0 && hue <= 58.0 && saturation > 0.16 && saturation < 0.72 && max > 0.38) sandPixels++;
+                if (((hue <= 15.0 || hue >= 345.0) && saturation > 0.45 && max > 0.40) || (hue >= 200.0 && hue <= 250.0 && saturation > 0.30 && max > 0.25) || (max < 0.18 && saturation < 0.25)) spiderPixels++;
 
                 int qr = (red / 24) * 24;
                 int qg = (green / 24) * 24;
@@ -212,9 +212,9 @@ public final class SkinAnalyzer {
             + (whitePixels > counted * 0.012 ? 1 : 0);
         double diversityBonus = Math.max(0, activeGroups - 1) * 0.035;
         totals[4] += (pairFraction * 2.8 + diversityBonus) * weightedCount;
-        // Manyetik, metalik gri + bakır/koyu kırmızı birlikteliğini; Kum ise bej/altın/kahverengi paleti ödüllendirir.
+        // Manyetik, metalik gri + bakır/koyu kırmızı birlikteliğini; Örümcek Adam kırmızı-mavi-siyah paleti ödüllendirir.
         totals[5] += Math.min(0.32, metallicPixels / (double) counted * 0.72) * weightedCount;
-        totals[6] += Math.min(0.34, sandPixels / (double) counted * 0.78) * weightedCount;
+        totals[6] += Math.min(0.34, spiderPixels / (double) counted * 0.78) * weightedCount;
 
         double sum = 0.0;
         for (int i = 0; i < totals.length; i++) {
@@ -253,7 +253,7 @@ public final class SkinAnalyzer {
         double moon = nearestSimilarity(r, g, b, MOON_COLORS, 62.0) * 0.90;
         double anomaly = nearestSimilarity(r, g, b, ANOMALY_COLORS, 54.0) * 0.72;
         double magnetic = nearestSimilarity(r, g, b, MAGNETIC_COLORS, 62.0) * 0.86;
-        double sand = nearestSimilarity(r, g, b, SAND_COLORS, 58.0) * 0.90;
+        double spider = nearestSimilarity(r, g, b, SPIDER_COLORS, 58.0) * 0.90;
         double ice = nearestSimilarity(r, g, b, ICE_COLORS, 55.0) * 0.92;
 
         double max = Math.max(r, Math.max(g, b)) / 255.0;
@@ -274,13 +274,13 @@ public final class SkinAnalyzer {
         if (max < 0.15 || max > 0.88 && saturation < 0.10) anomaly = Math.min(anomaly, 0.38);
         if (saturation < 0.22 && max > 0.20 && max < 0.82) magnetic = Math.max(magnetic, 0.67);
         if (hue >= 12.0 && hue <= 30.0 && saturation > 0.28 && max > 0.30) magnetic = Math.max(magnetic, 0.62);
-        if (hue >= 30.0 && hue <= 58.0 && saturation > 0.16 && saturation < 0.70 && max > 0.40) sand = Math.max(sand, 0.76);
+        if (((hue <= 15.0 || hue >= 345.0) && saturation > 0.45 && max > 0.35) || (hue >= 200.0 && hue <= 250.0 && saturation > 0.35 && max > 0.25)) spider = Math.max(spider, 0.76);
         if (max < 0.16 || saturation < 0.06 && max > 0.88) {
             magnetic *= 0.72;
-            sand *= 0.55;
+            spider *= 0.55;
         }
 
-        return new double[]{clamp01(warden), clamp01(flight), clamp01(fire), clamp01(moon), clamp01(anomaly), clamp01(magnetic), clamp01(sand), ice};
+        return new double[]{clamp01(warden), clamp01(flight), clamp01(fire), clamp01(moon), clamp01(anomaly), clamp01(magnetic), clamp01(spider), clamp01(ice)};
     }
 
     private static String normalizeSkinUrl(String url) {

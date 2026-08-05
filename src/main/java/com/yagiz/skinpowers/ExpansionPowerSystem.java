@@ -74,16 +74,20 @@ public final class ExpansionPowerSystem {
                     target.addEffect(new MobEffectInstance(MobEffects.GLOWING, 28, 0, false, false, true));
                 }
             }
-        } else if (data.powerClass() == PowerClass.SAND) {
-            // Kum üzerinde akıcı hareket; görsel spam oluşturmaz.
-            BlockState below = level.getBlockState(player.blockPosition().below());
-            if (data.unlockedLevel() >= 1 && (below.is(net.minecraft.tags.BlockTags.SAND)
-                || below.is(Blocks.SANDSTONE) || below.is(Blocks.RED_SANDSTONE)
-                || below.is(Blocks.TERRACOTTA) || below.is(Blocks.WHITE_TERRACOTTA)
-                || below.is(Blocks.ORANGE_TERRACOTTA) || below.is(Blocks.YELLOW_TERRACOTTA)
-                || below.is(Blocks.BROWN_TERRACOTTA) || below.is(Blocks.RED_TERRACOTTA))) {
-                player.addEffect(new MobEffectInstance(MobEffects.SPEED, 24, 0, false, false, true));
-                player.fallDistance = Math.min(player.fallDistance, 3.0F);
+        } else if (data.powerClass() == PowerClass.SPIDER) {
+            // Örümcek pasifi: düşük düşüş hasarı ve hafif hız; duvara yakınken sıçrama.
+            if (data.unlockedLevel() >= 1) {
+                player.fallDistance = Math.min(player.fallDistance, 2.5F);
+                if (now % 20L == 0L) {
+                    player.addEffect(new MobEffectInstance(MobEffects.JUMP_BOOST, 28, 0, false, false, true));
+                }
+                // Duvar / tavan yakınında kısa hız
+                BlockPos pos = player.blockPosition();
+                boolean nearWall = !level.getBlockState(pos.north()).isAir() || !level.getBlockState(pos.south()).isAir()
+                    || !level.getBlockState(pos.east()).isAir() || !level.getBlockState(pos.west()).isAir();
+                if (nearWall) {
+                    player.addEffect(new MobEffectInstance(MobEffects.SPEED, 24, 0, false, false, true));
+                }
             }
         }
     }
@@ -143,13 +147,19 @@ public final class ExpansionPowerSystem {
                 return true;
             }
             case 3 -> {
-                Vec3 start = player.getEyePosition().add(player.getLookAngle().normalize().scale(0.8));
-                Vec3 velocity = player.getLookAngle().normalize().scale(0.88 + stage * 0.06 + (awakened ? 0.22 : 0.0));
-                MOVING_ATTACKS.add(createMovingAttack(level, player.getUUID(), MovingType.IRON_FIST,
-                    start, velocity, now + 34L, 12.0F + stage * 1.8F, 2.25 + stage * 0.12, 1,
-                    new Item[]{Items.IRON_BLOCK, Items.ANVIL, Items.IRON_INGOT, Items.COPPER_INGOT}, 10));
-                level.playSound(null, player.blockPosition(), SoundEvents.TRIDENT_THROW.value(), SoundSource.PLAYERS, 1.1F, 0.42F);
-                data.setCooldown(3, now, Math.max(290, 440 - stage * 35));
+                // Örümcek Hissi: hız, sıçrama, direnç; yakındaki düşmanlar parlar
+                int dur = awakened ? 160 : 120;
+                player.addEffect(new MobEffectInstance(MobEffects.SPEED, dur, 1 + (awakened ? 1 : 0), false, false, true));
+                player.addEffect(new MobEffectInstance(MobEffects.JUMP_BOOST, dur, 1, false, false, true));
+                player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, dur, 0, false, false, true));
+                for (LivingEntity target : nearby(player, 16.0 + stage)) {
+                    if (target == player || PowerSystem.isProtectedAlly(player, target)) continue;
+                    target.addEffect(new MobEffectInstance(MobEffects.GLOWING, dur, 0, false, false, true));
+                    target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 40, 0, false, false, true));
+                }
+                level.sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY() + 1.0, player.getZ(), 40, 1.2, 0.8, 1.2, 0.02);
+                level.playSound(null, player.blockPosition(), SoundEvents.SPIDER_AMBIENT, SoundSource.PLAYERS, 1.0F, 1.2F);
+                data.setCooldown(3, now, Math.max(280, 420 - stage * 30));
                 return true;
             }
             case 4 -> {
@@ -199,7 +209,7 @@ public final class ExpansionPowerSystem {
         }
     }
 
-    public static boolean useSand(ServerPlayer player, PlayerPowerData data, int power, long now, boolean awakened) {
+    public static boolean useSpider(ServerPlayer player, PlayerPowerData data, int power, long now, boolean awakened) {
         ServerLevel level = (ServerLevel) player.level();
         int stage = data.masteryStage(power);
         switch (power) {
@@ -209,18 +219,36 @@ public final class ExpansionPowerSystem {
                 MOVING_ATTACKS.add(createMovingAttack(level, player.getUUID(), MovingType.SAND_SHOT,
                     start, velocity, now + 48L, 7.0F + stage * 1.25F, 1.55 + stage * 0.10, 1,
                     sandItems(), awakened ? 11 : 8));
-                level.playSound(null, player.blockPosition(), SoundEvents.GRASS_BREAK, SoundSource.PLAYERS, 1.0F, 0.65F);
+                level.playSound(null, player.blockPosition(), SoundEvents.SPIDER_HURT, SoundSource.PLAYERS, 0.9F, 1.35F);
                 data.setCooldown(1, now, Math.max(130, 210 - stage * 18));
                 return true;
             }
             case 2 -> {
-                Vec3 direction = horizontal(player.getLookAngle()).normalize();
-                Vec3 start = ground(level, player.position().add(direction.scale(1.2)));
-                List<UUID> ids = spawnVisualItems(level, start.add(0.0, 0.55, 0.0), sandItems(), awakened ? 26 : 20, false);
-                SAND_WAVES.add(new SandWave(level, player.getUUID(), ids, start, direction, now,
-                    now + (awakened ? 40L : 34L), stage, awakened));
-                level.playSound(null, player.blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.7F, 1.45F);
-                data.setCooldown(2, now, Math.max(230, 360 - stage * 28));
+                LivingEntity target = findTarget(player, 20.0 + stage * 1.5, 2.4);
+                if (target == null) {
+                    player.sendSystemMessage(Component.literal("Ağ Çekişi için nişangâhında bir hedef olmalı."));
+                    return false;
+                }
+                // Görünür ağ hattı + hedefi oyuncuya çek
+                Vec3 start = player.getEyePosition();
+                Vec3 end = target.position().add(0.0, target.getBbHeight() * 0.5, 0.0);
+                List<UUID> ids = spawnVisualItems(level, start, sandItems(), awakened ? 14 : 10, false);
+                SAND_WAVES.add(new SandWave(level, player.getUUID(), ids, start, end.subtract(start).normalize(), now,
+                    now + 18L, stage, awakened));
+                Vec3 pull = player.position().subtract(target.position());
+                if (pull.lengthSqr() > 0.01) {
+                    double strength = (awakened ? 1.85 : 1.35) + stage * 0.12;
+                    pull = pull.normalize().scale(strength);
+                    target.setDeltaMovement(pull.x, Math.max(0.35, pull.y * 0.45 + 0.35), pull.z);
+                    target.hurtMarked = true;
+                }
+                target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 40 + stage * 6, 1, false, false, true));
+                if (target.distanceTo(player) < 4.5) {
+                    target.hurtServer(level, level.damageSources().playerAttack(player), 6.0F + stage * 1.2F + (awakened ? 3.0F : 0.0F));
+                }
+                if (target instanceof ServerPlayer targetPlayer) ServerNetworking.sendSandScreen(targetPlayer, 40);
+                level.playSound(null, player.blockPosition(), SoundEvents.FISHING_BOBBER_RETRIEVE, SoundSource.PLAYERS, 1.1F, 0.75F);
+                data.setCooldown(2, now, Math.max(200, 320 - stage * 24));
                 return true;
             }
             case 3 -> {
@@ -252,7 +280,7 @@ public final class ExpansionPowerSystem {
             case 5 -> {
                 LivingEntity target = findTarget(player, 16.0 + stage, 2.0);
                 if (target == null) {
-                    player.sendSystemMessage(Component.literal("Kum Mezarı için nişangâhında bir hedef olmalı."));
+                    player.sendSystemMessage(Component.literal("Ağ Tuzağı için nişangâhında bir hedef olmalı."));
                     return false;
                 }
                 List<UUID> ids = spawnVisualItems(level, target.position().add(0.0, 0.45, 0.0), sandItems(), awakened ? 28 : 22, false);
@@ -275,7 +303,7 @@ public final class ExpansionPowerSystem {
                     SAND_GIANT_ARMS.add(new SandGiantArm(level, player.getUUID(), target == null ? null : target.getUUID(), ids,
                         start, impact.add(0.0, 1.0, 0.0), now + arm * 9L, now + 34L + arm * 9L, arm, stage, awakened));
                 }
-                level.playSound(null, BlockPos.containing(impact), SoundEvents.WITHER_SPAWN, SoundSource.PLAYERS, 0.9F, 1.45F);
+                level.playSound(null, BlockPos.containing(impact), SoundEvents.SPIDER_DEATH, SoundSource.PLAYERS, 1.1F, 0.55F);
                 data.setCooldown(6, now, Math.max(960, 1340 - stage * 72));
                 return true;
             }
@@ -289,7 +317,7 @@ public final class ExpansionPowerSystem {
                                              int power, long now, boolean charged) {
         return switch (powerClass) {
             case MAGNETIC -> useMagnetic(player, data, power, now, charged);
-            case SAND -> useSand(player, data, power, now, charged);
+            case SPIDER -> useSpider(player, data, power, now, charged);
             default -> false;
         };
     }
@@ -338,7 +366,7 @@ public final class ExpansionPowerSystem {
             if (armor.charges <= 0) {
                 discardAll(armor.level, armor.ids);
                 SAND_ARMORS.remove(player.getUUID());
-                player.sendSystemMessage(Component.literal("Kum Zırhın parçalandı."));
+                player.sendSystemMessage(Component.literal("Ağ Zırhın parçalandı."));
             }
             return false;
         }
@@ -364,7 +392,7 @@ public final class ExpansionPowerSystem {
                 spawnVisibleRing(level, player.position().add(0.0, 1.0, 0.0),
                     new Item[]{Items.IRON_BLOCK, Items.COPPER_BLOCK, Items.IRON_BARS, Items.LODESTONE}, 12, 2.2, now + 24L, 0.35);
             }
-        } else if (data.powerClass() == PowerClass.SAND) {
+        } else if (data.powerClass() == PowerClass.SPIDER) {
             player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 30, 2, false, false, true));
             player.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, 2, false, false, true));
             for (LivingEntity target : nearby(player, 10.0)) {
@@ -395,7 +423,7 @@ public final class ExpansionPowerSystem {
                 Vec3 push = horizontal(target.position().subtract(player.position())).normalize().scale(1.8);
                 target.push(push.x, 0.85, push.z);
             }
-        } else if (powerClass == PowerClass.SAND) {
+        } else if (powerClass == PowerClass.SPIDER) {
             double radius = 12.0;
             spawnVisibleRing(level, player.position().add(0.0, 0.55, 0.0), sandItems(), 24, 4.5, level.getGameTime() + 42L, 0.32);
             for (LivingEntity target : nearby(player, radius)) {
@@ -492,11 +520,11 @@ public final class ExpansionPowerSystem {
     }
 
     private static boolean isSandVisualItem(ItemStack stack) {
-        return stack.is(Items.SAND)
-            || stack.is(Items.SANDSTONE)
-            || stack.is(Items.CUT_SANDSTONE)
-            || stack.is(Items.CHISELED_SANDSTONE)
-            || stack.is(Items.SMOOTH_SANDSTONE);
+        return stack.is(Items.STRING)
+            || stack.is(Items.COBWEB)
+            || stack.is(Items.STRING)
+            || stack.is(Items.WHITE_WOOL)
+            || stack.is(Items.COBWEB);
     }
 
     public static void handleDisconnect(ServerPlayer player) {
@@ -1034,7 +1062,7 @@ public final class ExpansionPowerSystem {
 
     private static List<UUID> spawnSandStatue(ServerLevel level, Vec3 base, long expireTick) {
         List<UUID> ids = spawnVisualItems(level, base,
-            new Item[]{Items.CHISELED_SANDSTONE, Items.SANDSTONE, Items.CUT_SANDSTONE, Items.SMOOTH_SANDSTONE, Items.SAND}, 15, false);
+            new Item[]{Items.WHITE_WOOL, Items.COBWEB, Items.STRING, Items.COBWEB, Items.STRING}, 15, false);
         for (UUID id : ids) STATIC_VISUALS.add(new StaticVisual(level, id, expireTick));
         updateSandStatue(level, ids, base, 0L);
         return ids;
@@ -1068,7 +1096,7 @@ public final class ExpansionPowerSystem {
     }
 
     private static Item[] sandItems() {
-        return new Item[]{Items.SAND, Items.SANDSTONE, Items.CUT_SANDSTONE, Items.CHISELED_SANDSTONE, Items.SMOOTH_SANDSTONE};
+        return new Item[]{Items.STRING, Items.COBWEB, Items.STRING, Items.WHITE_WOOL, Items.COBWEB};
     }
 
     private static void burstSand(ServerLevel level, Vec3 center, double radius, int particles) {

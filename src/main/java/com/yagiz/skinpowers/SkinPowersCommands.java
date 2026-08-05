@@ -33,7 +33,9 @@ public final class SkinPowersCommands {
             .then(selfClass("ay", PowerClass.MOON))
             .then(selfClass("anomali", PowerClass.ANOMALY))
             .then(selfClass("manyetik", PowerClass.MAGNETIC))
-            .then(selfClass("kum", PowerClass.SAND))
+            .then(selfClass("orumcek", PowerClass.SPIDER))
+            .then(selfClass("spider", PowerClass.SPIDER))
+            .then(selfClass("spiderman", PowerClass.SPIDER))
             .then(selfClass("buz", PowerClass.ICE)));
 
         // Dünya olaylarını yalnızca yetkili oyuncular elle başlatabilir.
@@ -120,7 +122,9 @@ public final class SkinPowersCommands {
                     .then(targetClass("ay", PowerClass.MOON))
                     .then(targetClass("anomali", PowerClass.ANOMALY))
                     .then(targetClass("manyetik", PowerClass.MAGNETIC))
-                    .then(targetClass("kum", PowerClass.SAND))
+                    .then(targetClass("orumcek", PowerClass.SPIDER))
+                    .then(targetClass("spider", PowerClass.SPIDER))
+                    .then(targetClass("spiderman", PowerClass.SPIDER))
                     .then(targetClass("buz", PowerClass.ICE))))
             .then(Commands.literal("reset")
                 .then(Commands.argument("oyuncu", EntityArgument.player())

@@ -1,6 +1,6 @@
 # Skin Powers 1.3.0
 
-Minecraft 26.1.2 için Fabric güç modu. Skin renklerini inceleyerek Warden, Kadim Ejderha, Ateş, Ay, Anomali, Manyetik ve Kum sınıflarını önerir.
+Minecraft 26.1.2 için Fabric güç modu. Skin renklerini inceleyerek Warden, Kadim Ejderha, Ateş, Ay, Anomali, Manyetik ve Örümcek Adam sınıflarını önerir.
 
 ## 1.3.0 — Ay ve Anomali 2.0
 
@@ -40,7 +40,7 @@ Minecraft 26.1.2 için Fabric güç modu. Skin renklerini inceleyerek Warden, Ka
 - Ay
 - Anomali
 - Manyetik
-- Kum
+- Örümcek Adam
 
 ## Ay sınıf büyüleri
 
@@ -63,7 +63,7 @@ Kitaplar survival sandık ganimetlerinde ve kütüphaneci takaslarında bulunabi
 ## Temel komutlar
 
 ```text
-/skinpower degistir <warden|ejderha|ates|ay|anomali|manyetik|kum>
+/skinpower degistir <warden|ejderha|ates|ay|anomali|manyetik|orumcek>
 /skinpower olay <sculk|meteor|gok|ay|anomali|rastgele>
 /skinpower olay durum
 /skinpower olay durdur

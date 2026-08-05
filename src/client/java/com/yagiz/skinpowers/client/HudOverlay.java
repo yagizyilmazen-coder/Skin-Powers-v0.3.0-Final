@@ -45,7 +45,7 @@ public final class HudOverlay {
             case MOON -> 0xFFDCE6FF;
             case ANOMALY -> 0xFFB65CFF;
             case MAGNETIC -> 0xFFB8C5D1;
-            case SAND -> 0xFFE0B85A;
+            case SPIDER -> 0xFFE02030;
             case ICE -> 0xFF8FD4FF;
             default -> 0xFFBFC9D2;
         };
@@ -200,7 +200,7 @@ public final class HudOverlay {
                 yield ClientState.copiedPowerName().isBlank() ? "?: Bekleniyor" : "?: " + ClientState.copiedPowerName();
             }
             case MAGNETIC -> ClientState.selectedPower() == 4 ? "Metal Fırtınası" : "Metal alanı";
-            case SAND -> ClientState.sandScreenTicks() > 0 ? "Kum görüşü" : "Çöl akışı";
+            case SPIDER -> ClientState.sandScreenTicks() > 0 ? "Ağ görüşü" : "Örümcek ağı";
             case ICE -> ClientState.iceScreenTicks() > 0 ? "DONDU" : "Buz akışı";
             default -> "";
         };
@@ -399,7 +399,7 @@ public final class HudOverlay {
             case MOON -> 0x00DCE6FF;
             case ANOMALY -> 0x005CE5E5;
             case MAGNETIC -> 0x00B8C5D1;
-            case SAND -> 0x00E0B85A;
+            case SPIDER -> 0x00E02030;
             case ICE -> 0x008FD4FF;
             default -> 0x00FFFFFF;
         };

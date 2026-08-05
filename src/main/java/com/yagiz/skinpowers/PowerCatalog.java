@@ -20,7 +20,7 @@ public final class PowerCatalog {
         {"Ay Halkası", "Ay Mührü", "Yerçekimi Baskısı", "Ay Aynası", "Tutulma Hükmü", "Dolunay Canavarı"},
         {"Kırık Adım", "Tersine Çevir", "?", "Hasar Mevcut Değil", "Varlıktan Çıkar", "404: Gerçeklik Bulunamadı"},
         {"Manyetik Çekim", "Kutup İtişi", "Demir Yumruk", "Metal Fırtınası", "Ray Topu", "Manyetik Kafes"},
-        {"Kum Mermisi", "Kum Dalgası", "Çöl Aynası", "Kum Zırhı", "Kum Mezarı", "Kum Devleri"},
+        {"Ağ Atışı", "Ağ Çekişi", "Örümcek Hissi", "Ağ Zırhı", "Ağ Tuzağı", "Örümcek Fırtınası"},
         {"Buz Zırhı", "Donma Dalgası", "Buz Mızrağı", "Buz Kafesi", "Tipi", "Mutlak Sıfır"}
     };
 
@@ -75,12 +75,12 @@ public final class PowerCatalog {
             "Hedefi hareket eden demir parmaklık ve zincir halkalarına kapatır; süre sonunda kafes çöker."
         },
         {
-            "Kum ve kumtaşından oluşan görünür bir mermi fırlatır; isabet eden hedefin görüşünü kısa süre kumla kapatır.",
-            "İki sıralı büyük kum ve kumtaşı duvarı ileri sürükler, düşmanları iter ve yavaşlatır.",
-            "15 parçalı kum muhafız heykelleri oluşturur; darbeleri senin yerine emer ve seni kaydırır.",
-            "Oyuncuya bağlı yumuşak takip eden kum zırhı; yükleri bitene veya süre dolana kadar hasarı emer.",
-            "Hedefi kumtaşı duvarlarıyla gömer; suya girerek veya süre bitince kaçılabilir.",
-            "Kalın kum dev kolları hedefi kaldırır, yere çarpar, alan hasarı verir ve savurur."
+            "İp ve örümcek ağından görünür bir ağ mermisi fırlatır; isabet edeni yavaşlatır ve kısa süre görüşünü bozar.",
+            "Hedefi ağlarla kendine doğru çeker; yakın mesafede kısa sersemletme uygular.",
+            "Örümcek hissi uyanır: hız, sıçrama ve kısa direnç; yakındaki düşmanlar parlar.",
+            "Oyuncuya bağlı takip eden ağ zırhı; yükleri bitene veya süre dolana kadar hasarı emer.",
+            "Hedefi örümcek ağı kafesine kilitler; süre bitince veya yeterli hasarla kaçılabilir.",
+            "Çoklu ağ kolları hedefi sarar, yere çarpar, alan hasarı verir ve savurur."
         },
         {
             "Buz plakalar vücudunu kaplar; direnç ve soğurma kazanırsın.",
@@ -97,7 +97,7 @@ public final class PowerCatalog {
     public static int maxLevel(PowerClass powerClass) {
         return powerClass == PowerClass.WARDEN || powerClass == PowerClass.FLIGHT || powerClass == PowerClass.FIRE
             || powerClass == PowerClass.MOON || powerClass == PowerClass.ANOMALY
-            || powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.SAND
+            || powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.SPIDER
             || powerClass == PowerClass.ICE ? 6 : 5;
     }
 
@@ -120,7 +120,7 @@ public final class PowerCatalog {
         if (powerClass == PowerClass.WARDEN && level == 6) return WARDEN_ANCIENT_CHARGE_XP;
         if (powerClass == PowerClass.ANOMALY) return ANOMALY_XP_COSTS[level - 1];
         if (powerClass == PowerClass.FLIGHT) return DRAGON_XP_COSTS[level - 1];
-        if (powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.SAND) return EXPANSION_XP_COSTS[level - 1];
+        if (powerClass == PowerClass.MAGNETIC || powerClass == PowerClass.SPIDER) return EXPANSION_XP_COSTS[level - 1];
         if (powerClass == PowerClass.MOON || powerClass == PowerClass.ICE) return EXPANSION_XP_COSTS[level - 1];
         return XP_COSTS[level - 1];
     }
@@ -132,7 +132,7 @@ public final class PowerCatalog {
             case FIRE -> 4;
             case MOON -> 3;
             case MAGNETIC -> 4;
-            case SAND -> 1;
+            case SPIDER -> 1;
             case ICE -> 2;
             default -> 0;
         };
@@ -145,7 +145,7 @@ public final class PowerCatalog {
             case FIRE -> 5;
             case MOON -> 1;
             case MAGNETIC -> 5;
-            case SAND -> 6;
+            case SPIDER -> 6;
             case ICE -> 5;
             default -> 0;
         };
@@ -158,7 +158,7 @@ public final class PowerCatalog {
             case FIRE -> "Cehennem Felaketi";
             case MOON -> "Tutulma Hükmü";
             case MAGNETIC -> "Kutup Kıyameti";
-            case SAND -> "Çöl Ezicisi";
+            case SPIDER -> "Örümcek Ezicisi";
             case ICE -> "Buzul Fırtınası";
             default -> "-";
         };

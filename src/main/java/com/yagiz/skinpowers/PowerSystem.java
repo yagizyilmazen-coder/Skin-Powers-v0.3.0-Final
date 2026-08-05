@@ -166,7 +166,7 @@ public final class PowerSystem {
             case FLIGHT -> tickFlight(player, data, level, now);
             case FIRE -> tickFire(player, data, level, now);
             case MOON -> MoonPowerSystem.tickPlayer(player, data, level, now);
-            case MAGNETIC, SAND -> ExpansionPowerSystem.tickPlayer(player, data, level, now);
+            case MAGNETIC, SPIDER -> ExpansionPowerSystem.tickPlayer(player, data, level, now);
             case ICE -> IcePowerSystem.tickPlayer(player, data, level, now);
             case ANOMALY -> {
                 AnomalySystem.tickPlayer(player, data, level, now);
@@ -499,7 +499,7 @@ public final class PowerSystem {
             case FIRE -> useFire(player, data, power, now, normalCharged, comboStarter);
             case MOON -> MoonPowerSystem.use(player, data, power, now, normalCharged);
             case MAGNETIC -> ExpansionPowerSystem.useMagnetic(player, data, power, now, normalCharged);
-            case SAND -> ExpansionPowerSystem.useSand(player, data, power, now, normalCharged);
+            case SPIDER -> ExpansionPowerSystem.useSpider(player, data, power, now, normalCharged);
             case ICE -> IcePowerSystem.use(player, data, power, now, normalCharged);
                         case ANOMALY -> AnomalySystem.use(player, data, power, now, normalCharged);
             default -> false;
@@ -642,8 +642,8 @@ public final class PowerSystem {
             player.sendSystemMessage(Component.literal("Anomali: güçleri R ile kullan. Hasar seçimi hazırken V kalbe, X hedefe dönüştürür."));
         } else if (data.powerClass() == PowerClass.MAGNETIC) {
             player.sendSystemMessage(Component.literal("Manyetik güçleri R ile kullan. Metal Fırtınasını ikinci R basışıyla fırlat."));
-        } else if (data.powerClass() == PowerClass.SAND) {
-            player.sendSystemMessage(Component.literal("Kum güçleri R ile kullan. Kum görüş etkisi 4 saniye veya suya girene kadar sürer."));
+        } else if (data.powerClass() == PowerClass.SPIDER) {
+            player.sendSystemMessage(Component.literal("Örümcek Adam güçleri R ile kullan. Ağ görüş etkisi 4 saniye veya suya girene kadar sürer."));
         }
         if (changed) {
             PlayerDataStore.markDirty();
@@ -1469,8 +1469,8 @@ public final class PowerSystem {
                 }
                 yield used;
             }
-            case SAND -> {
-                boolean used = ExpansionPowerSystem.useSand(player, data, 6, now, true);
+            case SPIDER -> {
+                boolean used = ExpansionPowerSystem.useSpider(player, data, 6, now, true);
                 if (used) {
                     data.setCooldown(6, now, Math.max(900, 1200 - stage * 65));
                     player.sendSystemMessage(Component.literal("ÇÖL EZİCİSİ!"));
@@ -1491,7 +1491,7 @@ public final class PowerSystem {
             case FLIGHT -> useFlight(player, data, copiedPower, now, charged);
             case FIRE -> useFire(player, data, copiedPower, now, charged, false);
             case MOON -> MoonPowerSystem.use(player, data, copiedPower, now, charged);
-            case MAGNETIC, SAND -> ExpansionPowerSystem.executeCopiedPower(player, data, copiedClass, copiedPower, now, charged);
+            case MAGNETIC, SPIDER -> ExpansionPowerSystem.executeCopiedPower(player, data, copiedClass, copiedPower, now, charged);
             case ICE -> IcePowerSystem.use(player, data, copiedPower, now, charged);
             default -> false;
         };

@@ -351,7 +351,7 @@ public final class PowerMenuScreen extends Screen {
             graphics.fill(x + 21, y + 5, x + 34, y + 25, 0xFF65737F);
             graphics.fill(x + 15, y + 1, x + 21, y + 29, 0xFFC67B42);
             graphics.outline(x + 1, y + 4, 34, 22, accent);
-        } else if (powerClass == PowerClass.SAND) {
+        } else if (powerClass == PowerClass.SPIDER) {
             graphics.fill(x + 3, y + 17, x + 33, y + 29, 0xFFD0A454);
             graphics.fill(x + 8, y + 8, x + 28, y + 23, 0xFFE7CE88);
             graphics.fill(x + 13, y + 1, x + 23, y + 12, 0xFFF2DC9D);
@@ -371,7 +371,7 @@ public final class PowerMenuScreen extends Screen {
         if (powerClass == PowerClass.MOON && level == 4) return "R: ayna • tekrar R: ay halkası fırlat";
         if (powerClass == PowerClass.MOON && level == 5) return "R: Tutulma Hükmü";
         if (powerClass == PowerClass.MAGNETIC && level == 4) return "R: hazırla • tekrar R: fırlat";
-        if (powerClass == PowerClass.SAND && level == 5) return "R: göm • suyla kaçış";
+        if (powerClass == PowerClass.SPIDER && level == 5) return "R: tuzak • süre bitince kaçış";
         return "R: kullan";
     }
 
@@ -453,7 +453,7 @@ public final class PowerMenuScreen extends Screen {
                 int y = 74 + (i * 41) % Math.max(90, height - 130);
                 g.fill(x, y, x + 9, y + 5, withAlpha(i % 2 == 0 ? 0xFFC5D2DE : 0xFFC67B42, 58 + (i % 4) * 20));
             }
-        } else if (powerClass == PowerClass.SAND) {
+        } else if (powerClass == PowerClass.SPIDER) {
             for (int i = 0; i < 24; i++) {
                 int x = (i * 83 + drift * 2) % Math.max(1, width);
                 int y = 72 + (i * 37) % Math.max(90, height - 130);
@@ -593,7 +593,7 @@ public final class PowerMenuScreen extends Screen {
             case MOON -> new int[]{0xFF030714, 0xFF27385E, 0xFFDCE6FF};
             case ANOMALY -> new int[]{0xFF05010B, 0xFF261044, 0xFFB65CFF};
             case MAGNETIC -> new int[]{0xFF080D12, 0xFF3B4954, 0xFFC5D2DE};
-            case SAND -> new int[]{0xFF2E1C0C, 0xFF9B6D30, 0xFFFFD273};
+            case SPIDER -> new int[]{0xFF1A0508, 0xFF8B1520, 0xFFE02030};
             case ICE -> new int[]{0xFF0A1A28, 0xFF4A90B8, 0xFF8FD4FF};
             default -> new int[]{0xFF080A0E, 0xFF1D2630, 0xFF93A5B2};
         };
