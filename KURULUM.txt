@@ -1,0 +1,18 @@
+SKIN POWERS — Sınıf seçim GUI animasyon yenilemesi
+==================================================
+
+1. ZIP'i ayıkla.
+2. src klasörünü proje köküne kopyala (üzerine yaz).
+3. Commit → Push → Actions.
+
+Özellikler:
+- Animasyonlu arka plan (yıldızlar, vignette, öneri renk ambient)
+- Başlık alt çizgi nabzı
+- Tarama progress çubuğu + tarama çizgileri
+- Büyük kartlar yandan kayarak giriş
+- Hover'da gölge + yörünge parçacık halkası
+- Fare ile hafif parallax (ayar açıksa)
+- Seçimde genişleyen halka flaşı
+- Vampir etiketi KUM olarak düzeltildi
+
+ClientConfig > menü animasyonları / performans modu ile kapatılabilir.
