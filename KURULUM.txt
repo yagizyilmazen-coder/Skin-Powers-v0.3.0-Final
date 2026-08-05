@@ -1,5 +1,8 @@
-Sadece SkinSelectionScreen.java dosyasını:
-src/client/java/com/yagiz/skinpowers/client/
-üzerine yaz → Commit → Push.
+SkinSelectionScreen.java → src/client/java/com/yagiz/skinpowers/client/
 
-Eksik metod: drawIceRealm (Buz kartı görseli)
+Düzeltme:
+- Buz eklenince 6 kilitli kart oldu; lockedHover dizisi hâlâ 5 elemandı → Index 5 hatası
+- lockedHover artık CLASSES.length - 2
+- Güvenli erişim + hafif optimizasyon
+
+Commit → Push → jar güncelle → dene

@@ -13,7 +13,7 @@ import net.minecraft.util.Util;
 /**
  * Sınıf seçim ekranı (vitrin düzeni):
  * - Ortada skin'in 1. ve 2. önerisi büyük kartlar (yalnızca bunlar seçilebilir)
- * - Altta kalan 5 sınıf küçük ve kilitli
+ * - Altta kalan sınıflar küçük ve kilitli
  * - Skin okunamazsa yine 2 sınıf büyük/seçilebilir; diğerleri kilitli (rastgele sabit çift)
  */
 public final class SkinSelectionScreen extends Screen {
@@ -46,7 +46,7 @@ public final class SkinSelectionScreen extends Screen {
     private int hoveredSlot = 0;
     private float primaryHover;
     private float secondaryHover;
-    private final float[] lockedHover = new float[5];
+    private final float[] lockedHover = new float[Math.max(1, CLASSES.length - 2)];
     private int lockShakeSlot = -1;
     private long lockShakeAt;
 
@@ -297,11 +297,12 @@ public final class SkinSelectionScreen extends Screen {
                 float t = (now - lockShakeAt) / 320.0F;
                 lockShake = (int) Math.round(Math.sin(t * Math.PI * 4.0) * (1.0 - t) * 4.0);
             }
-            int hoverLift = Math.round(lockedHover[i] * 2.0F);
+            float lh = i < lockedHover.length ? lockedHover[i] : 0.0F;
+            int hoverLift = Math.round(lh * 2.0F);
             int x = baseX + lockShake;
             int y = layout.smallY() + (int) ((1.0F - p) * 18.0F) - hoverLift;
             drawSmallCard(graphics, classIndex, x, y, layout.smallWidth(), layout.smallHeight() + hoverLift / 2,
-                p, now, mouseX, mouseY, lockedHover[i], lockShakeSlot == i && now - lockShakeAt < 320L);
+                p, now, mouseX, mouseY, lh, lockShakeSlot == i && now - lockShakeAt < 320L);
         }
 
         // Seçim flaşı — tek halka, daha kısa
@@ -577,11 +578,10 @@ public final class SkinSelectionScreen extends Screen {
             int sh = Math.round((6 + (i % 3) * 5) * s);
             g.fill(sx, ground - sh, sx + Math.max(2, Math.round(3 * s)), ground, 0xFFA8D4E8);
         }
-        // hafif kar parçacığı
-        for (int i = 0; i < 6; i++) {
-            double a = (now * 0.04 + i * 1.1) % 6.28;
-            int px = x + 6 + (int) ((w - 12) * ((Math.sin(a + i) + 1) * 0.5));
-            int py = y + 4 + (int) ((ground - y - 8) * ((i * 17 + now / 8) % 100) / 100.0);
+        // Hafif kar — az nokta (performans)
+        for (int i = 0; i < 4; i++) {
+            int px = x + 6 + ((i * 37 + (int) (now / 40)) % Math.max(1, w - 12));
+            int py = y + 4 + ((i * 53 + (int) (now / 55)) % Math.max(1, ground - y - 8));
             g.fill(px, py, px + 1, py + 1, 0xE0FFFFFF);
         }
     }
