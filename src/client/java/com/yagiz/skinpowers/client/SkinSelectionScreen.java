@@ -17,18 +17,18 @@ import net.minecraft.util.Util;
  * - Skin okunamazsa yine 2 sınıf büyük/seçilebilir; diğerleri kilitli (rastgele sabit çift)
  */
 public final class SkinSelectionScreen extends Screen {
-    private static final String[] TITLES = {"WARDEN", "KADİM EJDERHA", "ATEŞ", "AY", "ANOMALİ", "MANYETİK", "KUM"};
+    private static final String[] TITLES = {"WARDEN", "KADİM EJDERHA", "ATEŞ", "AY", "ANOMALİ", "MANYETİK", "KUM", "BUZ"};
     private static final String[] SUBTITLES = {
         "Derinliğin gücü", "Mor kıyametin kanatları", "Alevin hâkimiyeti",
-        "Tutulmanın hükmü", "Gerçekliğin hatası", "Metalin kutupları", "Çölün akışı"
+        "Tutulmanın hükmü", "Gerçekliğin hatası", "Metalin kutupları", "Çölün akışı", "Buzun hâkimiyeti"
     };
     private static final PowerClass[] CLASSES = {
         PowerClass.WARDEN, PowerClass.FLIGHT, PowerClass.FIRE, PowerClass.MOON,
-        PowerClass.ANOMALY, PowerClass.MAGNETIC, PowerClass.SAND
+        PowerClass.ANOMALY, PowerClass.MAGNETIC, PowerClass.SAND, PowerClass.ICE
     };
-    private static final int[] TOP_COLORS = {0xFF07111C, 0xFF08020F, 0xFF5B0B08, 0xFF060A1C, 0xFF05010B, 0xFF121820, 0xFF4C2F13};
-    private static final int[] BOTTOM_COLORS = {0xFF16384B, 0xFF451070, 0xFFFF6B18, 0xFF596B9E, 0xFF291248, 0xFF586875, 0xFFD2A34D};
-    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFCE72FF, 0xFFFFC22E, 0xFFD9E4FF, 0xFFB65CFF, 0xFFC5D2DE, 0xFFE0B85A};
+    private static final int[] TOP_COLORS = {0xFF07111C, 0xFF08020F, 0xFF5B0B08, 0xFF060A1C, 0xFF05010B, 0xFF121820, 0xFF4C2F13, 0xFF0A1A28};
+    private static final int[] BOTTOM_COLORS = {0xFF16384B, 0xFF451070, 0xFFFF6B18, 0xFF596B9E, 0xFF291248, 0xFF586875, 0xFFD2A34D, 0xFF7EC8E8};
+    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFCE72FF, 0xFFFFC22E, 0xFFD9E4FF, 0xFFB65CFF, 0xFFC5D2DE, 0xFFE0B85A, 0xFF8FD4FF};
 
     private final long openedAt = Util.getMillis();
     private SkinAnalyzer.Result result = SkinAnalyzer.Result.unavailable();
@@ -554,6 +554,7 @@ public final class SkinSelectionScreen extends Screen {
             case 4 -> drawAnomalyGlitch(graphics, x, y, w, h, now);
             case 5 -> drawMagneticForge(graphics, x, y, w, h, now);
             case 6 -> drawDesertTemple(graphics, x, y, w, h, now);
+            case 7 -> drawIceRealm(graphics, x, y, w, h, now);
             default -> { }
         }
     }
@@ -850,7 +851,7 @@ public final class SkinSelectionScreen extends Screen {
         int bigLeftX = Math.max(side, (width - totalBig) / 2);
         int bigRightX = bigLeftX + bigWidth + gap;
 
-        int smallCount = 5;
+        int smallCount = Math.max(5, CLASSES.length - 2);
         int smallGap = compact ? 5 : 8;
         int smallHeight = compact ? 64 : 78;
         int smallWidth = Math.max(56, Math.min(110, (width - side * 2 - smallGap * (smallCount - 1)) / smallCount));

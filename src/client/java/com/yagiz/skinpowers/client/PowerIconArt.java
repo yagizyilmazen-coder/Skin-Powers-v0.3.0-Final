@@ -27,7 +27,8 @@ public final class PowerIconArt {
         {Archetype.RING, Archetype.SEAL, Archetype.WAVE, Archetype.MIRROR, Archetype.ECLIPSE, Archetype.CREATURE},
         {Archetype.GLITCH_STEP, Archetype.MIRROR, Archetype.QUESTION, Archetype.ERROR, Archetype.VOID_RIFT, Archetype.ERROR_BLOCK},
         {Archetype.CHAIN, Archetype.RING, Archetype.FIST, Archetype.STORM, Archetype.BEAM, Archetype.CAGE},
-        {Archetype.PROJECTILE, Archetype.WAVE, Archetype.STATUE, Archetype.ARMOR, Archetype.CAGE, Archetype.CREATURE}
+        {Archetype.PROJECTILE, Archetype.WAVE, Archetype.STATUE, Archetype.ARMOR, Archetype.CAGE, Archetype.CREATURE},
+        {Archetype.ARMOR, Archetype.WAVE, Archetype.PROJECTILE, Archetype.CAGE, Archetype.STORM, Archetype.CREATURE}
     };
 
     private static final String[][] TAGS = {
@@ -37,7 +38,8 @@ public final class PowerIconArt {
         {"SALDIRI", "TUZAK", "ALAN", "SAVUNMA", "ALAN", "ULTRA"},
         {"HAREKET", "KONTROL", "ÇALMA", "DEPOLAMA", "SÜRGÜN", "ULTRA"},
         {"ÇEKME", "İTME", "SALDIRI", "MERMİ", "SALDIRI", "TUZAK"},
-        {"MERMİ", "ALAN", "SAVUNMA", "SAVUNMA", "TUZAK", "ULTRA"}
+        {"MERMİ", "ALAN", "SAVUNMA", "SAVUNMA", "TUZAK", "ULTRA"},
+        {"SAVUNMA", "ALAN", "MERMİ", "TUZAK", "ALAN", "ULTRA"}
     };
 
     private static final String[][] FLAVOR = {
@@ -96,6 +98,14 @@ public final class PowerIconArt {
             "Kum zırhı darbe aldıkça kırılır.",
             "Kumtaşı duvarları hedefi gömer.",
             "Devler seni yere çakar."
+        },
+        {
+            "Buz zırhı soğuğu kalkan yapar.",
+            "Donma dalgası adımları kilitler.",
+            "Mızrak hedefi buzla deler.",
+            "Kafes kapanır, hareket biter.",
+            "Tipi her şeyi yavaşlatır.",
+            "Mutlak sıfır: her şey donar."
         }
     };
 

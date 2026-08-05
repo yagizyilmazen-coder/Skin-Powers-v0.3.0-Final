@@ -121,6 +121,7 @@ public final class AncientChargeSystem {
             case FLIGHT -> true;
             case FIRE -> power != 1;
             case MOON -> true;
+            case ICE -> true;
             case WARDEN, ANOMALY -> true;
             default -> false;
         };
@@ -492,6 +493,7 @@ public final class AncientChargeSystem {
             case FIRE -> ParticleTypes.FLAME;
             case FLIGHT -> ParticleTypes.REVERSE_PORTAL;
             case MOON -> ParticleTypes.END_ROD;
+            case ICE -> ParticleTypes.SNOWFLAKE;
             case ANOMALY -> ParticleTypes.END_ROD;
             default -> ParticleTypes.SCULK_SOUL;
         };
@@ -522,6 +524,7 @@ public final class AncientChargeSystem {
             case FIRE -> ParticleTypes.FLAME;
             case FLIGHT -> ParticleTypes.REVERSE_PORTAL;
             case MOON -> ParticleTypes.END_ROD;
+            case ICE -> ParticleTypes.SNOWFLAKE;
             case ANOMALY -> ParticleTypes.END_ROD;
             default -> ParticleTypes.SONIC_BOOM;
         };

@@ -27,7 +27,7 @@ import java.util.concurrent.Executors;
 
 /** Gerçek skin piksellerini analiz eder; uydurma eşit puan üretmez. */
 public final class SkinAnalyzer {
-    private static final int CLASS_COUNT = 7;
+    private static final int CLASS_COUNT = 8;
     private static final int[][] WARDEN_COLORS = {
         {6, 12, 18}, {17, 29, 48}, {31, 26, 67}, {63, 27, 88}, {15, 61, 78}, {25, 126, 132}
     };
@@ -52,6 +52,11 @@ public final class SkinAnalyzer {
     private static final int[][] SAND_COLORS = {
         {232, 210, 152}, {216, 184, 106}, {193, 151, 73}, {151, 105, 54},
         {239, 221, 170}, {181, 126, 67}, {220, 164, 78}
+    };
+
+    private static final int[][] ICE_COLORS = {
+        {0x8FD4FF, 0xE8F6FF, 0x4A90B8, 0xB8DFF0, 0xD0EFFF},
+        {0xA0E0FF, 0xFFFFFF, 0x6BB8D8, 0xC8EAF5, 0x7EC8E8}
     };
 
     private static final java.util.concurrent.ConcurrentHashMap<UUID, CachedResult> CACHE = new java.util.concurrent.ConcurrentHashMap<>();
@@ -249,6 +254,7 @@ public final class SkinAnalyzer {
         double anomaly = nearestSimilarity(r, g, b, ANOMALY_COLORS, 54.0) * 0.72;
         double magnetic = nearestSimilarity(r, g, b, MAGNETIC_COLORS, 62.0) * 0.86;
         double sand = nearestSimilarity(r, g, b, SAND_COLORS, 58.0) * 0.90;
+        double ice = nearestSimilarity(r, g, b, ICE_COLORS, 55.0) * 0.92;
 
         double max = Math.max(r, Math.max(g, b)) / 255.0;
         double min = Math.min(r, Math.min(g, b)) / 255.0;
@@ -274,7 +280,7 @@ public final class SkinAnalyzer {
             sand *= 0.55;
         }
 
-        return new double[]{clamp01(warden), clamp01(flight), clamp01(fire), clamp01(moon), clamp01(anomaly), clamp01(magnetic), clamp01(sand)};
+        return new double[]{clamp01(warden), clamp01(flight), clamp01(fire), clamp01(moon), clamp01(anomaly), clamp01(magnetic), clamp01(sand), ice};
     }
 
     private static String normalizeSkinUrl(String url) {

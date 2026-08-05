@@ -135,6 +135,7 @@ public final class AwakeningSystem {
                 if (now % 18L == 0L) pulseEnemies(player, level, 9.0, 7.0F, 0.8, 0.35, ParticleTypes.WITCH);
             }
             case MAGNETIC, SAND -> ExpansionPowerSystem.tickAwakening(player, data, level, now);
+            case ICE -> IcePowerSystem.tickAwakening(player, data, level, now);
             case FLIGHT -> {
                 if (!player.isCreative() && !player.isSpectator() && !player.getAbilities().mayfly) {
                     player.getAbilities().mayfly = true;
@@ -187,6 +188,7 @@ public final class AwakeningSystem {
                 case MOON -> 20.0F;
                 case ANOMALY -> 18.0F;
                 case FLIGHT -> 18.0F;
+                case ICE -> 17.0F;
                 default -> 0.0F;
             };
             if (damage > 0.0F) target.hurtServer(level, level.damageSources().playerAttack(player), damage);
@@ -251,6 +253,7 @@ public final class AwakeningSystem {
             case FLIGHT -> ParticleTypes.REVERSE_PORTAL;
             case MAGNETIC -> ParticleTypes.CRIT;
             case SAND -> ParticleTypes.CLOUD;
+            case ICE -> ParticleTypes.SNOWFLAKE;
             default -> ParticleTypes.END_ROD;
         };
     }
@@ -264,6 +267,7 @@ public final class AwakeningSystem {
             case FLIGHT -> ParticleTypes.WITCH;
             case MAGNETIC -> ParticleTypes.END_ROD;
             case SAND -> ParticleTypes.ASH;
+            case ICE -> ParticleTypes.ITEM_SNOWBALL;
             default -> ParticleTypes.END_ROD;
         };
     }
@@ -277,6 +281,7 @@ public final class AwakeningSystem {
             case FLIGHT -> "Mor Kıyamet";
             case MAGNETIC -> "Manyetik Çekirdek";
             case SAND -> "Çölün Kalbi";
+            case ICE -> "Buzul Hükmü";
             default -> "Uyanış";
         };
     }
@@ -290,6 +295,7 @@ public final class AwakeningSystem {
             case FLIGHT -> 0.72F;
             case MAGNETIC -> 0.48F;
             case SAND -> 0.92F;
+            case ICE -> 1.15F;
             default -> 1.0F;
         };
     }

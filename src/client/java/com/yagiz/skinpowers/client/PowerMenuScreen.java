@@ -594,6 +594,7 @@ public final class PowerMenuScreen extends Screen {
             case ANOMALY -> new int[]{0xFF05010B, 0xFF261044, 0xFFB65CFF};
             case MAGNETIC -> new int[]{0xFF080D12, 0xFF3B4954, 0xFFC5D2DE};
             case SAND -> new int[]{0xFF2E1C0C, 0xFF9B6D30, 0xFFFFD273};
+            case ICE -> new int[]{0xFF0A1A28, 0xFF4A90B8, 0xFF8FD4FF};
             default -> new int[]{0xFF080A0E, 0xFF1D2630, 0xFF93A5B2};
         };
     }

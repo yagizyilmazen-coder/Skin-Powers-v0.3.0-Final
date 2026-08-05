@@ -30,6 +30,7 @@ public final class SkinPowersMod implements ModInitializer {
             PowerCollisionSystem.clearAll();
             WorldEventSystem.clearAll();
             ExpansionPowerSystem.clearAll();
+            IcePowerSystem.clearAll();
             ClassEnchantmentSystem.clearAll();
             PlayerDataStore.save();
         });
@@ -50,6 +51,7 @@ public final class SkinPowersMod implements ModInitializer {
         // Tick tabanlı isAlive kontrolü hızlı yeniden doğmada yetersiz kalır.
         // Oyuncu öldüğü kesinleştiği anda bağlı kum/metal görsellerini sil.
         ServerLivingEntityEvents.AFTER_DEATH.register(ExpansionPowerSystem::afterDeath);
+        ServerLivingEntityEvents.AFTER_DEATH.register(IcePowerSystem::afterDeath);
         ServerLivingEntityEvents.AFTER_DEATH.register(MoonPowerSystem::afterDeath);
         ServerLivingEntityEvents.AFTER_DEATH.register(AnomalySystem::afterDeath);
 

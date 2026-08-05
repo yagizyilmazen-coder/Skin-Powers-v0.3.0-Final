@@ -139,6 +139,7 @@ public final class PowerSystem {
         tickWardenArmStrikes();
         MoonPowerSystem.tickServer(server);
         ExpansionPowerSystem.tickServer(server);
+        IcePowerSystem.tickServer(server);
         AnomalySystem.tickServer(server);
         AncientChargeSystem.tick(server);
         PowerCollisionSystem.tick(server);
@@ -166,6 +167,7 @@ public final class PowerSystem {
             case FIRE -> tickFire(player, data, level, now);
             case MOON -> MoonPowerSystem.tickPlayer(player, data, level, now);
             case MAGNETIC, SAND -> ExpansionPowerSystem.tickPlayer(player, data, level, now);
+            case ICE -> IcePowerSystem.tickPlayer(player, data, level, now);
             case ANOMALY -> {
                 AnomalySystem.tickPlayer(player, data, level, now);
                 tickBorrowedClassEffects(player, data, level, now);
@@ -498,6 +500,7 @@ public final class PowerSystem {
             case MOON -> MoonPowerSystem.use(player, data, power, now, normalCharged);
             case MAGNETIC -> ExpansionPowerSystem.useMagnetic(player, data, power, now, normalCharged);
             case SAND -> ExpansionPowerSystem.useSand(player, data, power, now, normalCharged);
+            case ICE -> IcePowerSystem.use(player, data, power, now, normalCharged);
                         case ANOMALY -> AnomalySystem.use(player, data, power, now, normalCharged);
             default -> false;
         };
@@ -929,6 +932,7 @@ public final class PowerSystem {
         WardenAmbushState state = WARDEN_AMBUSHES.remove(player.getUUID());
         if (state != null) restoreAfterAmbush(player, state);
         ExpansionPowerSystem.handleDisconnect(player);
+        IcePowerSystem.handleDisconnect(player);
     }
 
     private static void spawnBurrowCore(ServerLevel level, ServerPlayer player, long now, long duration) {
@@ -1488,6 +1492,7 @@ public final class PowerSystem {
             case FIRE -> useFire(player, data, copiedPower, now, charged, false);
             case MOON -> MoonPowerSystem.use(player, data, copiedPower, now, charged);
             case MAGNETIC, SAND -> ExpansionPowerSystem.executeCopiedPower(player, data, copiedClass, copiedPower, now, charged);
+            case ICE -> IcePowerSystem.use(player, data, copiedPower, now, charged);
             default -> false;
         };
     }
@@ -2845,6 +2850,7 @@ public final class PowerSystem {
     /** Güç çarpışmasında kaybeden oyuncunun havada/zeminde devam eden saldırılarını güvenle temizler. */
     public static void cancelActiveOffense(UUID ownerId) {
         ExpansionPowerSystem.cancelOwner(ownerId);
+        IcePowerSystem.clearOwner(ownerId);
         Iterator<PendingMeteor> meteorIterator = METEORS.iterator();
         while (meteorIterator.hasNext()) {
             PendingMeteor meteor = meteorIterator.next();
