@@ -31,8 +31,10 @@ public final class HudOverlay {
         }
 
         float scale = config.hudScalePercent() / 100.0F;
-        int panelWidth = Math.max(132, Math.round(190 * scale));
-        int panelHeight = config.compactHud() ? Math.max(40, Math.round(48 * scale)) : Math.max(46, Math.round(56 * scale));
+        boolean compact = config.compactHud();
+        int panelWidth = Math.max(148, Math.round(204 * scale));
+        // Slot satırı için biraz daha yüksek
+        int panelHeight = compact ? Math.max(52, Math.round(58 * scale)) : Math.max(68, Math.round(76 * scale));
         int x = config.hudRight() ? screenWidth - panelWidth - 6 : 6;
         int y = 6 + config.hudVerticalOffset();
         int accent = switch (powerClass) {
@@ -47,10 +49,10 @@ public final class HudOverlay {
         };
 
         int powerAccent = PowerIconArt.shade(accent, ClientState.selectedPower());
-        drawPowerPanel(graphics, client, powerClass, x, y, panelWidth, panelHeight, powerAccent);
-        int awakeningHeight = drawAwakeningStatus(graphics, client, powerClass, x, y + panelHeight + 4, panelWidth, accent, config);
-        int comboHeight = drawComboStatus(graphics, client, x, y + panelHeight + awakeningHeight + 4, panelWidth, accent);
-        drawAncientStatus(graphics, client, screenWidth, screenHeight, x, y, panelWidth, panelHeight + awakeningHeight + comboHeight + 4);
+        drawPowerPanel(graphics, client, powerClass, x, y, panelWidth, panelHeight, powerAccent, accent, compact);
+        int awakeningHeight = drawAwakeningStatus(graphics, client, powerClass, x, y + panelHeight + 3, panelWidth, accent, config);
+        int comboHeight = drawComboStatus(graphics, client, x, y + panelHeight + awakeningHeight + 3, panelWidth, accent);
+        drawAncientStatus(graphics, client, screenWidth, screenHeight, x, y, panelWidth, panelHeight + awakeningHeight + comboHeight + 3);
         drawAnomalyChoice(graphics, client, screenWidth, screenHeight);
     }
 
@@ -62,50 +64,115 @@ public final class HudOverlay {
         int y,
         int panelWidth,
         int panelHeight,
-        int accent
+        int accent,
+        int classAccent,
+        boolean compact
     ) {
-        // Sade koyu panel + sol accent şerit (cobble tile loop yok)
-        drawPanel(graphics, x, y, panelWidth, panelHeight, accent);
+        drawPanel(graphics, x, y, panelWidth, panelHeight, classAccent);
 
-        int iconSize = 12;
-        int iconX = x + 10;
+        // Üst ince gradient şerit (sınıf rengi)
+        graphics.fill(x + 3, y + 1, x + panelWidth - 1, y + 2, withAlpha(classAccent, 90));
+
+        int iconSize = compact ? 14 : 18;
+        int iconBox = iconSize + 6;
+        int iconX = x + 8;
         int iconY = y + 6;
-        graphics.fill(iconX - 2, iconY - 2, iconX + iconSize + 2, iconY + iconSize + 2, 0xCC0A0A0A);
-        graphics.outline(iconX - 2, iconY - 2, iconSize + 4, iconSize + 4, withAlpha(accent, 200));
-        PowerIconArt.draw(graphics, powerClass, ClientState.selectedPower(), iconX, iconY, iconSize, accent);
+        graphics.fill(iconX, iconY, iconX + iconBox, iconY + iconBox, 0xEE06080E);
+        graphics.outline(iconX, iconY, iconBox, iconBox, withAlpha(accent, 210));
+        graphics.fill(iconX + 1, iconY + 1, iconX + iconBox - 1, iconY + 2, withAlpha(accent, 70));
+        PowerIconArt.draw(graphics, powerClass, ClientState.selectedPower(),
+            iconX + 3, iconY + 3, iconSize, accent);
 
-        int textX = iconX + iconSize + 6;
-        int stage = ClientState.masteryStage(ClientState.selectedPower());
+        int textX = iconX + iconBox + 6;
+        int selected = ClientState.selectedPower();
+        int stage = ClientState.masteryStage(selected);
         String mastery = PowerCatalog.masteryStageName(stage);
-        String title = powerClass.displayName() + " · S" + ClientState.selectedPower();
 
+        // Sağ üst: ustalık rozeti
         int masteryW = client.font.width(mastery) + 8;
-        int mx = x + panelWidth - masteryW - 6;
-        graphics.fill(mx, y + 5, mx + masteryW, y + 16, 0xCC0A0A0A);
-        graphics.outline(mx, y + 5, masteryW, 11, withAlpha(accent, 180));
-        graphics.text(client.font, mastery, mx + 4, y + 7, accent, false);
+        int mx = x + panelWidth - masteryW - 5;
+        graphics.fill(mx, y + 5, mx + masteryW, y + 16, 0xDD06080E);
+        graphics.outline(mx, y + 5, masteryW, 11, withAlpha(classAccent, 190));
+        graphics.text(client.font, mastery, mx + 4, y + 7, classAccent, false);
 
-        int titleMax = Math.max(20, mx - textX - 6);
-        graphics.text(client.font, fit(client, title, titleMax), textX, y + 7, 0xFFF5F0E6, true);
+        // Satır 1: sınıf · seviye
+        String title = powerClass.displayName() + "  S" + selected;
+        int titleMax = Math.max(24, mx - textX - 4);
+        graphics.text(client.font, fit(client, title, titleMax), textX, y + 6, 0xFFF4F0E8, true);
 
-        String powerLine = ClientState.powerName() + " · " + PowerIconArt.tag(powerClass, ClientState.selectedPower());
-        graphics.text(client.font, fit(client, powerLine, panelWidth - 20), x + 8, y + 20, 0xFFC8C0B0, false);
+        // Satır 2: güç adı
+        String powerLine = ClientState.powerName();
+        graphics.text(client.font, fit(client, powerLine, panelWidth - (textX - x) - 8), textX, y + 17, 0xFFD0C8B8, false);
 
+        // Etiket chip
+        String tag = PowerIconArt.tag(powerClass, selected);
+        int tagW = client.font.width(tag) + 6;
+        int tagY = y + 28;
+        graphics.fill(textX, tagY, textX + tagW, tagY + 10, withAlpha(accent, 55));
+        graphics.outline(textX, tagY, tagW, 10, withAlpha(accent, 150));
+        graphics.text(client.font, tag, textX + 3, tagY + 1, 0xFFE8E0D0, false);
+
+        // R / cooldown
         int cooldown = ClientState.cooldownTicks();
-        String ready = cooldown <= 0 ? "R HAZIR" : String.format(java.util.Locale.ROOT, "R %.1fs", cooldown / 20.0);
-        int readyColor = cooldown <= 0 ? 0xFF7DFFB0 : 0xFFFFC86A;
-        int readyW = client.font.width(ready) + 8;
-        graphics.fill(x + 8, y + 30, x + 8 + readyW, y + 40, 0xCC0A0A0A);
-        graphics.outline(x + 8, y + 30, readyW, 10, withAlpha(readyColor, 180));
-        graphics.text(client.font, ready, x + 12, y + 32, readyColor, false);
+        boolean ready = cooldown <= 0;
+        String readyText = ready ? "R HAZIR" : String.format(java.util.Locale.ROOT, "R %.1fs", cooldown / 20.0);
+        int readyColor = ready ? 0xFF7DFFB0 : 0xFFFFC86A;
+        int readyW = client.font.width(readyText) + 8;
+        int readyX = textX + tagW + 4;
+        graphics.fill(readyX, tagY, readyX + readyW, tagY + 10, 0xDD06080E);
+        graphics.outline(readyX, tagY, readyW, 10, withAlpha(readyColor, 180));
+        graphics.text(client.font, readyText, readyX + 4, tagY + 1, readyColor, false);
 
+        // Durum metni (chip'lerin sağı veya altı)
         String status = statusLine(powerClass);
-        int statusX = x + 8 + readyW + 6;
-        int statusMax = panelWidth - (statusX - x) - 8;
-        if (statusMax < 40) {
-            graphics.text(client.font, fit(client, status, panelWidth - 16), x + 8, y + 42, 0xFFA8A090, false);
-        } else {
-            graphics.text(client.font, fit(client, status, statusMax), statusX, y + 32, 0xFFA8A090, false);
+        int statusX = readyX + readyW + 5;
+        int statusMax = panelWidth - (statusX - x) - 6;
+        if (statusMax >= 36) {
+            graphics.text(client.font, fit(client, status, statusMax), statusX, tagY + 1, 0xFF9A9288, false);
+        }
+
+        // Güç slotları: 1..max — açık / seçili / kilitli
+        if (!compact) {
+            int max = PowerCatalog.maxLevel(powerClass);
+            int unlocked = ClientState.unlockedLevel();
+            int slotSize = 7;
+            int gap = 3;
+            int totalSlotsW = max * slotSize + (max - 1) * gap;
+            int slotX = x + 8;
+            int slotY = y + panelHeight - slotSize - 6;
+            // Sol: "GÜÇ" etiketi
+            graphics.text(client.font, "GÜÇ", slotX, slotY - 1, 0xFF6A655C, false);
+            slotX += client.font.width("GÜÇ") + 5;
+            for (int i = 1; i <= max; i++) {
+                boolean isUnlocked = i <= unlocked;
+                boolean isSelected = i == selected;
+                int sx = slotX + (i - 1) * (slotSize + gap);
+                int fill;
+                if (isSelected) fill = accent;
+                else if (isUnlocked) fill = withAlpha(classAccent, 120);
+                else fill = 0xFF2A2E34;
+                graphics.fill(sx, slotY, sx + slotSize, slotY + slotSize, fill);
+                if (isSelected) {
+                    graphics.outline(sx - 1, slotY - 1, slotSize + 2, slotSize + 2, withAlpha(0xFFFFFFFF, 180));
+                } else {
+                    graphics.outline(sx, slotY, slotSize, slotSize, isUnlocked ? withAlpha(classAccent, 160) : 0xFF1A1E24);
+                }
+            }
+
+            // Cooldown ince bar (slotların sağında kalan alan)
+            int barLeft = slotX + totalSlotsW + 6;
+            int barRight = x + panelWidth - 8;
+            if (barRight - barLeft > 20) {
+                graphics.fill(barLeft, slotY + 1, barRight, slotY + slotSize - 1, 0xFF0A0C10);
+                if (!ready) {
+                    // Yaklaşık kalan oran: 0..1 ters (süre bilmiyoruz; dolu=beklemede hissi)
+                    float pulse = Math.min(1.0F, cooldown / 200.0F);
+                    int fillW = Math.max(2, Math.round((barRight - barLeft) * pulse));
+                    graphics.fill(barLeft, slotY + 1, barLeft + fillW, slotY + slotSize - 1, withAlpha(readyColor, 160));
+                } else {
+                    graphics.fill(barLeft, slotY + 1, barRight, slotY + slotSize - 1, withAlpha(0xFF7DFFB0, 90));
+                }
+            }
         }
     }
 
