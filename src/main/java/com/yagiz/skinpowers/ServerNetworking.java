@@ -167,6 +167,11 @@ public final class ServerNetworking {
         ServerPlayNetworking.send(player, new ClientEffectPayload("SAND_SCREEN", 1.0F, durationTicks));
     }
 
+    public static void sendIceScreen(ServerPlayer player, int durationTicks) {
+        if (player == null || durationTicks <= 0) return;
+        ServerPlayNetworking.send(player, new ClientEffectPayload("ICE_SCREEN", 1.0F, durationTicks));
+    }
+
     public static void sendScreenShake(ServerLevel level, Vec3 center, double radius, float strength, int durationTicks) {
         double radiusSquared = radius * radius;
         for (ServerPlayer player : level.players()) {

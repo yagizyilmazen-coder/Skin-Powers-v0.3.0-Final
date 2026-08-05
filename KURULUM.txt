@@ -1,8 +1,9 @@
-SkinSelectionScreen.java → src/client/java/com/yagiz/skinpowers/client/
+BUZ DONDURMA İYİLEŞTİRMESİ
+==========================
+src klasörünü proje köküne kopyala (Replace) → Commit → Push
 
-Düzeltme:
-- Buz eklenince 6 kilitli kart oldu; lockedHover dizisi hâlâ 5 elemandı → Index 5 hatası
-- lockedHover artık CLASSES.length - 2
-- Güvenli erişim + hafif optimizasyon
-
-Commit → Push → jar güncelle → dene
+Değişiklikler:
+- Yavaşlık (Slowness) efekti KALDIRILDI
+- Hedef tamamen kilitlenir: hareket + zıplama yok
+- Vurulan oyuncunun ekranı buz cam görünümü alır
+- Karakter etrafında kar/buz parçacığı aurası

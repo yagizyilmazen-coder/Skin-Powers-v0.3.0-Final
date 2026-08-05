@@ -17,6 +17,7 @@ public final class HudOverlay {
         int screenHeight = client.getWindow().getGuiScaledHeight();
         ClientConfig config = ClientConfig.get();
         drawSandScreenOverlay(graphics, screenWidth, screenHeight);
+        drawIceScreenOverlay(graphics, screenWidth, screenHeight);
         if (ClientState.powerClass() == PowerClass.NONE) return;
         PowerClass powerClass = ClientState.powerClass();
 
@@ -200,7 +201,7 @@ public final class HudOverlay {
             }
             case MAGNETIC -> ClientState.selectedPower() == 4 ? "Metal Fırtınası" : "Metal alanı";
             case SAND -> ClientState.sandScreenTicks() > 0 ? "Kum görüşü" : "Çöl akışı";
-            case ICE -> "Buz akışı";
+            case ICE -> ClientState.iceScreenTicks() > 0 ? "DONDU" : "Buz akışı";
             default -> "";
         };
     }
@@ -349,6 +350,40 @@ public final class HudOverlay {
         graphics.fill(0, height - edge, width, height, edgeColor);
         graphics.fill(0, edge, edge, height - edge, edgeColor);
         graphics.fill(width - edge, edge, width, height - edge, edgeColor);
+    }
+
+    private static void drawIceScreenOverlay(GuiGraphicsExtractor graphics, int width, int height) {
+        int ticks = ClientState.iceScreenTicks();
+        if (ticks <= 0) return;
+        float fade = Math.min(1.0F, ticks / 20.0F);
+        // Buzlu cam: soğuk mavi katman
+        int a = Math.max(40, Math.round(130 * fade));
+        graphics.fill(0, 0, width, height, (a << 24) | 0x007EC8E8);
+        // Kenar buz çerçevesi
+        int edge = Math.max(12, Math.min(36, width / 14));
+        int edgeA = Math.max(50, Math.round(180 * fade));
+        int edgeC = (edgeA << 24) | 0x00D0EFFF;
+        graphics.fill(0, 0, width, edge, edgeC);
+        graphics.fill(0, height - edge, width, height, edgeC);
+        graphics.fill(0, edge, edge, height - edge, edgeC);
+        graphics.fill(width - edge, edge, width, height - edge, edgeC);
+        // Köşe kristal lekeleri
+        int crystals = Math.min(18, 6 + (width * height) / 50000);
+        int seed = ticks * 2654435761 + width;
+        for (int i = 0; i < crystals; i++) {
+            seed = seed * 1664525 + 1013904223;
+            int x = Math.floorMod(seed, Math.max(1, width));
+            seed = seed * 1664525 + 1013904223;
+            int y = Math.floorMod(seed, Math.max(1, height));
+            int s = 2 + Math.floorMod(seed >>> 8, 5);
+            int ca = Math.max(35, Math.round((90 + Math.floorMod(seed >>> 16, 80)) * fade));
+            graphics.fill(x, y, Math.min(width, x + s), Math.min(height, y + s), (ca << 24) | 0x00E8F6FF);
+        }
+        // Ortaya ince çatlak çizgileri (az)
+        if (ticks > 5) {
+            int midY = height / 2;
+            graphics.fill(width / 5, midY, width * 4 / 5, midY + 1, (Math.round(70 * fade) << 24) | 0x00FFFFFF);
+        }
     }
 
     private static void drawCastOverlay(GuiGraphicsExtractor graphics, int width, int height, ClientConfig config) {

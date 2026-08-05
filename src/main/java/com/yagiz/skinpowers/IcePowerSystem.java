@@ -29,6 +29,7 @@ public final class IcePowerSystem {
     private static final List<IceSpear> SPEARS = new ArrayList<>();
     private static final List<IceCage> CAGES = new ArrayList<>();
     private static final List<BlizzardField> BLIZZARDS = new ArrayList<>();
+    private static final List<FrozenRoot> FROZEN_ROOTS = new ArrayList<>();
 
     private IcePowerSystem() {}
 
@@ -36,6 +37,7 @@ public final class IcePowerSystem {
         tickSpears();
         tickCages();
         tickBlizzards();
+        tickFrozenRoots();
     }
 
     public static void tickPlayer(ServerPlayer player, PlayerPowerData data, ServerLevel level, long now) {
@@ -183,12 +185,93 @@ public final class IcePowerSystem {
         return true;
     }
 
+    /**
+     * Gerçek dondurma: yavaşlık efekti YOK.
+     * Hareket/zıplama sıfırlanır, oyuncuya buz ekranı gider, etrafta buz parçacığı.
+     */
     private static void applyFreeze(LivingEntity target, int ticks, int amp) {
-        target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, ticks, Math.min(4, amp + 1), false, true, true));
-        target.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, ticks, Math.min(2, amp), false, true, true));
+        if (target == null || !target.isAlive() || ticks <= 0) return;
+        int duration = Math.max(20, ticks);
+        // Eski yavaşlık/mining efektlerini temizle (önceki vuruşlardan kalmasın)
+        target.removeEffect(MobEffects.SLOWNESS);
+        target.removeEffect(MobEffects.MINING_FATIGUE);
         try {
-            target.setTicksFrozen(Math.min(200, target.getTicksFrozen() + ticks / 2));
+            target.setTicksFrozen(Math.min(target.getTicksRequiredToFreeze() + 60, 200));
         } catch (Throwable ignored) {
+        }
+        // Anında kilitle
+        target.setDeltaMovement(Vec3.ZERO);
+        target.hurtMarked = true;
+        try { target.setJumping(false); } catch (Throwable ignored) {}
+        target.hasImpulse = true;
+
+        long now = target.level().getGameTime();
+        long until = now + duration;
+        // Aynı hedefte süreyi uzat
+        boolean found = false;
+        for (FrozenRoot root : FROZEN_ROOTS) {
+            if (root.targetId.equals(target.getUUID())) {
+                root.endsAt = Math.max(root.endsAt, until);
+                root.amp = Math.max(root.amp, amp);
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            ServerLevel level = (ServerLevel) target.level();
+            FROZEN_ROOTS.add(new FrozenRoot(level, target.getUUID(), now, until, amp));
+        }
+
+        // Hedef oyuncuysa buz ekranı
+        if (target instanceof ServerPlayer victim) {
+            ServerNetworking.sendIceScreen(victim, duration);
+        }
+        // Görsel buz aurası
+        ServerLevel level = (ServerLevel) target.level();
+        level.sendParticles(ParticleTypes.SNOWFLAKE, target.getX(), target.getY() + 1.0, target.getZ(),
+            28 + amp * 6, 0.45, 0.9, 0.45, 0.02);
+        level.sendParticles(ParticleTypes.ITEM_SNOWBALL, target.getX(), target.getY() + 0.4, target.getZ(),
+            12, 0.35, 0.5, 0.35, 0.01);
+        level.playSound(null, target.blockPosition(), SoundEvents.PLAYER_HURT_FREEZE, SoundSource.PLAYERS, 0.9F, 0.65F);
+    }
+
+    private static void tickFrozenRoots() {
+        Iterator<FrozenRoot> it = FROZEN_ROOTS.iterator();
+        while (it.hasNext()) {
+            FrozenRoot root = it.next();
+            long now = root.level.getGameTime();
+            if (now > root.endsAt) {
+                it.remove();
+                continue;
+            }
+            Entity entity = root.level.getEntity(root.targetId);
+            if (!(entity instanceof LivingEntity living) || !living.isAlive()) {
+                it.remove();
+                continue;
+            }
+            // Tam kilit: hız yok, zıplama yok
+            living.setDeltaMovement(Vec3.ZERO);
+            living.hurtMarked = true;
+            try { living.setJumping(false); } catch (Throwable ignored) {}
+            living.fallDistance = 0.0F;
+            // Oyuncuysa istemciyi de bastır
+            if (living instanceof ServerPlayer player) {
+                player.setDeltaMovement(Vec3.ZERO);
+                // Her 10 tikte ekranı yenile (süre uzadıysa)
+                if (now % 10L == 0L) {
+                    int remain = (int) Math.max(1, root.endsAt - now);
+                    ServerNetworking.sendIceScreen(player, remain);
+                }
+            }
+            // Etrafında buz görünümü
+            if (now % 5L == 0L) {
+                root.level.sendParticles(ParticleTypes.SNOWFLAKE,
+                    living.getX(), living.getY() + 1.0, living.getZ(),
+                    10 + root.amp * 2, 0.5, 0.85, 0.5, 0.015);
+                root.level.sendParticles(ParticleTypes.ITEM_SNOWBALL,
+                    living.getX(), living.getY() + 0.3, living.getZ(),
+                    4, 0.4, 0.45, 0.4, 0.008);
+            }
         }
     }
 
@@ -238,7 +321,7 @@ public final class IcePowerSystem {
             living.hurtMarked = true;
             if (now % 8L == 0L) {
                 cage.level.sendParticles(ParticleTypes.SNOWFLAKE, living.getX(), living.getY() + 1.0, living.getZ(), 10, 0.4, 0.6, 0.4, 0.02);
-                applyFreeze(living, 20, 2);
+                // Kilit FrozenRoot ile sürer; her tik spam yok
             }
         }
     }
@@ -260,7 +343,7 @@ public final class IcePowerSystem {
             AABB area = new AABB(field.center, field.center).inflate(field.radius, 6.0, field.radius);
             for (LivingEntity target : field.level.getEntitiesOfClass(LivingEntity.class, area)) {
                 if (owner != null && (target == owner || PowerSystem.isProtectedAlly(owner, target))) continue;
-                applyFreeze(target, 30, 1);
+                applyFreeze(target, 25, 1);
                 float dmg = 4.0F + field.stage * 0.7F + (field.charged ? 1.5F : 0.0F);
                 if (owner != null) {
                     target.hurtServer(field.level, field.level.damageSources().playerAttack(owner), dmg);
@@ -310,10 +393,14 @@ public final class IcePowerSystem {
         SPEARS.clear();
         CAGES.clear();
         BLIZZARDS.clear();
+        FROZEN_ROOTS.clear();
     }
 
     public static void afterDeath(LivingEntity entity, DamageSource source) {
         if (entity instanceof ServerPlayer player) clearOwner(player.getUUID());
+        if (entity != null) {
+            FROZEN_ROOTS.removeIf(r -> r.targetId.equals(entity.getUUID()));
+        }
     }
 
     private static final class IceSpear {
@@ -358,6 +445,22 @@ public final class IcePowerSystem {
             this.endsAt = endsAt;
             this.stage = stage;
             this.charged = charged;
+        }
+    }
+
+    private static final class FrozenRoot {
+        private final ServerLevel level;
+        private final UUID targetId;
+        private final long startedAt;
+        private long endsAt;
+        private int amp;
+
+        private FrozenRoot(ServerLevel level, UUID targetId, long startedAt, long endsAt, int amp) {
+            this.level = level;
+            this.targetId = targetId;
+            this.startedAt = startedAt;
+            this.endsAt = endsAt;
+            this.amp = amp;
         }
     }
 
