@@ -64,29 +64,29 @@ public final class PowerMenuScreen extends Screen {
         int[] colors = theme(powerClass);
         Layout layout = layout();
         long now = Util.getMillis();
-        float appear = smoothStep(clamp01((now - openedAt) / 420.0F));
+        boolean anim = ClientConfig.get().menuAnimations() && !ClientConfig.get().performanceMode();
+        float appear = smoothStep(clamp01((now - openedAt) / (anim ? 280.0F : 1.0F)));
 
-        // Masa + açık kitap
-        graphics.fillGradient(0, 0, width, height, 0xFF1A120C, 0xFF0C0806);
+        // Koyu zemin + açık kitap (ağır parçacık yok)
+        graphics.fillGradient(0, 0, width, height, 0xFF12100C, 0xFF080604);
         drawOpenBook(graphics, layout, colors);
-        drawBackgroundDetails(graphics, powerClass, colors[2], now);
         drawHeader(graphics, layout, powerClass, colors);
 
         int maximum = PowerCatalog.maxLevel(powerClass);
         int contentBottom = layout.rowTop() + maximum * layout.rowHeight() + (maximum - 1) * layout.gap();
-        graphics.fill(layout.listLeft() - 8, layout.rowTop() - 8, layout.listLeft() + layout.listWidth() + 8, contentBottom + 8, 0xC9070B11);
-        graphics.outline(layout.listLeft() - 8, layout.rowTop() - 8, layout.listWidth() + 16, contentBottom - layout.rowTop() + 16, withAlpha(colors[2], 165));
+        // Liste çerçevesi — sınıf rengine göre ince kenar
+        graphics.fill(layout.listLeft() - 6, layout.rowTop() - 6, layout.listLeft() + layout.listWidth() + 6, contentBottom + 6, 0xD0080A10);
+        graphics.outline(layout.listLeft() - 6, layout.rowTop() - 6, layout.listWidth() + 12, contentBottom - layout.rowTop() + 12, withAlpha(colors[2], 140));
 
         for (int level = 1; level <= maximum; level++) {
-            float rowProgress = ClientUiRules.staggeredProgress(appear, level - 1, maximum, 0.30F);
+            float rowProgress = ClientUiRules.staggeredProgress(appear, level - 1, maximum, anim ? 0.18F : 0.0F);
             int baseY = layout.rowTop() + (level - 1) * (layout.rowHeight() + layout.gap());
-            int y = baseY + (int) ((1.0F - rowProgress) * (32 + level * 5));
+            int y = baseY + (int) ((1.0F - rowProgress) * 14.0F);
             drawPowerRow(graphics, layout, powerClass, colors, level, y, now);
             Button button = powerButtons[level - 1];
             if (button != null) {
                 int buttonHeight = Math.max(16, Math.min(22, layout.rowHeight() - 4));
                 button.setY(y + (layout.rowHeight() - buttonHeight) / 2);
-                // Altıncı Warden satırı da animasyon bittiğinde kesin olarak aktif olur.
                 button.active = rowProgress >= 0.85F;
             }
         }
@@ -144,26 +144,39 @@ public final class PowerMenuScreen extends Screen {
         boolean veryCompact = layout.rowHeight() < 30;
         int powerAccent = PowerIconArt.shade(colors[2], level);
 
-        // Kitap satırı: parşömen kartı
-        int rowColor = selected ? 0xF0B89060 : (unlocked ? 0xE8D4C098 : 0xD0B8A070);
+        // Net durum renkleri: seçili / açık / kilitli
+        int rowColor;
+        if (selected) {
+            rowColor = 0xF0C9A878;
+        } else if (unlocked) {
+            rowColor = 0xE8D8C4A0;
+        } else {
+            rowColor = 0xC08A7A60;
+        }
         graphics.fill(layout.listLeft(), y, layout.listLeft() + layout.listWidth(), y + layout.rowHeight(), rowColor);
-        graphics.fill(layout.listLeft(), y, layout.listLeft() + 5, y + layout.rowHeight(), selected ? powerAccent : (unlocked ? withAlpha(powerAccent, 160) : 0xFF4A3820));
-        graphics.outline(layout.listLeft(), y, layout.listWidth(), layout.rowHeight(), selected ? powerAccent : 0x99604A30);
+        // Sol şerit: seçili = tam accent, açık = yarı, kilitli = koyu
+        int strip = selected ? powerAccent : (unlocked ? withAlpha(powerAccent, 170) : 0xFF3A3020);
+        graphics.fill(layout.listLeft(), y, layout.listLeft() + 4, y + layout.rowHeight(), strip);
+        graphics.outline(layout.listLeft(), y, layout.listWidth(), layout.rowHeight(),
+            selected ? powerAccent : (unlocked ? 0xAA6A5040 : 0x66403020));
 
         int badgeSize = Math.max(18, Math.min(34, layout.rowHeight() - 6));
         int badgeX = layout.listLeft() + 10;
         int badgeY = y + (layout.rowHeight() - badgeSize) / 2;
-        graphics.fill(badgeX, badgeY, badgeX + badgeSize, badgeY + badgeSize, unlocked ? withAlpha(powerAccent, selected ? 90 : 55) : 0xFF222A31);
-        graphics.outline(badgeX, badgeY, badgeSize, badgeSize, unlocked ? powerAccent : 0xFF59636C);
+        graphics.fill(badgeX, badgeY, badgeX + badgeSize, badgeY + badgeSize,
+            unlocked ? withAlpha(powerAccent, selected ? 100 : 50) : 0xFF1A1E24);
+        graphics.outline(badgeX, badgeY, badgeSize, badgeSize, unlocked ? powerAccent : 0xFF4A5058);
         int iconInset = Math.max(2, badgeSize / 9);
-        PowerIconArt.draw(graphics, powerClass, level, badgeX + iconInset, badgeY + iconInset, badgeSize - iconInset * 2, unlocked ? powerAccent : 0xFF59636C);
+        PowerIconArt.draw(graphics, powerClass, level, badgeX + iconInset, badgeY + iconInset,
+            badgeSize - iconInset * 2, unlocked ? powerAccent : 0xFF5A6068);
         if (badgeSize >= 22) {
             String roman = roman(level);
             int tagSize = Math.max(9, badgeSize / 3);
             int tagX = badgeX + badgeSize - tagSize;
             int tagY = badgeY + badgeSize - tagSize;
             graphics.fill(tagX, tagY, badgeX + badgeSize, badgeY + badgeSize, 0xE0060A0F);
-            graphics.text(font, roman, tagX + Math.max(1, (tagSize - font.width(roman)) / 2), tagY + Math.max(1, (tagSize - 7) / 2), 0xFF1A1008, true);
+            graphics.text(font, roman, tagX + Math.max(1, (tagSize - font.width(roman)) / 2),
+                tagY + Math.max(1, (tagSize - 7) / 2), unlocked ? 0xFFE8E0D0 : 0xFF7A8088, true);
         }
 
         int buttonReserve = layout.listWidth() < 330 ? 96 : 118;
@@ -172,36 +185,36 @@ public final class PowerMenuScreen extends Screen {
         int textWidth = Math.max(42, textRight - textX);
         String name = fit(displayName(powerClass, level), textWidth);
         int nameY = y + (veryCompact ? Math.max(4, (layout.rowHeight() - 8) / 2) : 6);
-        graphics.text(font, name, textX, nameY, unlocked ? 0xFF2A1808 : 0xFF6A5640, true);
+        graphics.text(font, name, textX, nameY, unlocked ? 0xFF1A1008 : 0xFF5A5040, true);
 
         String description = displayDescription(powerClass, level);
         if (!veryCompact) {
-            // Ekran yüksekliği azalsa bile bütün sınıflarda güç açıklaması görünür kalır.
-            graphics.text(font, fit(description, textWidth), textX, y + 18, unlocked ? 0xFF5C3D1E : 0xFF7A6550, false);
+            graphics.text(font, fit(description, textWidth), textX, y + 18,
+                unlocked ? 0xFF4A3820 : 0xFF6A6050, false);
         }
 
-        if (layout.rowHeight() >= 46) {
+        if (layout.rowHeight() >= 46 && unlocked) {
             String stageName = PowerCatalog.masteryStageName(stage);
             String chipText = PowerIconArt.tag(powerClass, level) + "  •  " + stageName;
             int chipWidth = font.width(chipText) + 10;
             int chipX = Math.max(textX, textRight - chipWidth);
-            graphics.fill(chipX, y + 5, chipX + chipWidth, y + 18, unlocked ? withAlpha(powerAccent, 50 + stage * 28) : 0x332B3238);
-            graphics.outline(chipX, y + 5, chipWidth, 13, unlocked ? withAlpha(powerAccent, 180) : 0x5559636B);
-            graphics.text(font, chipText, chipX + 5, y + 8, unlocked ? 0xFF2A1808 : 0xFF6A5640, false);
+            graphics.fill(chipX, y + 5, chipX + chipWidth, y + 18, withAlpha(powerAccent, 45 + stage * 20));
+            graphics.outline(chipX, y + 5, chipWidth, 13, withAlpha(powerAccent, 160));
+            graphics.text(font, chipText, chipX + 5, y + 8, 0xFF1A1008, false);
         }
 
         if (layout.rowHeight() >= 44) {
             int barY = y + layout.rowHeight() - 6;
-            graphics.fill(textX, barY, textX + textWidth, barY + 3, 0xFF202933);
+            graphics.fill(textX, barY, textX + textWidth, barY + 3, 0xFF1A1E24);
             if (unlocked) {
                 int filled = Math.max(2, (int) (textWidth * PowerCatalog.masteryProgress(uses)));
                 graphics.fill(textX, barY, textX + Math.min(textWidth, filled), barY + 3, powerAccent);
             }
         }
 
+        // Seçili satır: sabit (nabızsız) dış çerçeve
         if (selected) {
-            float pulse = (float) ((Math.sin(now / 210.0) + 1.0) * 0.5);
-            graphics.outline(layout.listLeft() - 2, y - 2, layout.listWidth() + 4, layout.rowHeight() + 4, withAlpha(powerAccent, 80 + (int) (90 * pulse)));
+            graphics.outline(layout.listLeft() - 1, y - 1, layout.listWidth() + 2, layout.rowHeight() + 2, withAlpha(powerAccent, 200));
         }
     }
 
@@ -286,9 +299,7 @@ public final class PowerMenuScreen extends Screen {
         int barWidth = width - 30;
         graphics.fill(left + 15, masteryY + 36, left + 15 + barWidth, masteryY + 42, 0xFF202933);
         graphics.fill(left + 15, masteryY + 36, left + 15 + Math.max(2, (int) (barWidth * PowerCatalog.masteryProgress(uses))), masteryY + 42, colors[2]);
-
-        float pulse = (float) ((Math.sin(now / 300.0) + 1.0) * 0.5);
-        graphics.outline(left + 7, top + 7, width - 14, height - 14, withAlpha(colors[2], 35 + (int) (45 * pulse)));
+        graphics.outline(left + 7, top + 7, width - 14, height - 14, withAlpha(colors[2], 55));
     }
 
     private void drawCompactFooter(GuiGraphicsExtractor graphics, Layout layout, PowerClass powerClass, int[] colors, int contentBottom) {
@@ -567,20 +578,11 @@ public final class PowerMenuScreen extends Screen {
         g.fill(left + bookW - 16, top + 6, left + bookW - 6, top + 9, withAlpha(colors[2], 180));
     }
 
-    /** Parşömen kağıdı. */
+    /** Parşömen kağıdı — sade gradient, nokta gürültüsü yok. */
     private static void drawParchment(GuiGraphicsExtractor g, int x, int y, int w, int h) {
-        g.fillGradient(x, y, x + w, y + h, 0xFFE2D2A8, 0xFFC4B088);
-        g.fill(x, y, x + w, y + 2, 0x33A08050);
-        g.fill(x, y + h - 2, x + w, y + h, 0x44806040);
-        g.fill(x, y, x + 2, y + h, 0x33A08050);
-        g.fill(x + w - 2, y, x + w, y + h, 0x44806040);
-        int maxW = Math.max(1, w - 12);
-        int maxH = Math.max(1, h - 12);
-        for (int i = 0; i < 14; i++) {
-            int sx = x + 6 + ((i * 37 + 11) % maxW);
-            int sy = y + 6 + ((i * 53 + 7) % maxH);
-            g.fill(sx, sy, sx + 2, sy + 2, 0x22A08040);
-        }
+        g.fillGradient(x, y, x + w, y + h, 0xFFE4D4AA, 0xFFC8B48C);
+        g.fill(x, y, x + w, y + 1, 0x33A08050);
+        g.fill(x, y + h - 1, x + w, y + h, 0x44806040);
     }
 
     private static int[] theme(PowerClass powerClass) {
