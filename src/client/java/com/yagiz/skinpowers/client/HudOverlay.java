@@ -223,7 +223,9 @@ public final class HudOverlay {
                 ? String.format(java.util.Locale.ROOT, "G UYANIŞ · %%%.0f", ClientState.awakeningEnergy())
                 : String.format(java.util.Locale.ROOT, "UYANIŞ · %%%.0f", ClientState.awakeningEnergy());
         }
-        graphics.text(client.font, fit(client, label, width - 16), x + 8, y + 3, 0xFFF0E8D8, false);
+        // Ay sınıfında Uyanış metni mavi (0xFF4FA8FF) — diğer sınıflarda krem
+        int labelColor = powerClass == PowerClass.MOON ? 0xFF4FA8FF : 0xFFF0E8D8;
+        graphics.text(client.font, fit(client, label, width - 16), x + 8, y + 3, labelColor, false);
         int barLeft = x + 8;
         int barRight = x + width - 8;
         int barTop = y + 12;
@@ -369,7 +371,8 @@ public final class HudOverlay {
         graphics.fill(width - edge, edge, width, height - edge, edgeC);
         // Köşe kristal lekeleri
         int crystals = Math.min(18, 6 + (width * height) / 50000);
-        int seed = ticks * 2654435761 + width;
+        // Knuth multiplicative hash (0x9E3779B9); decimal form exceeds Java int literal range
+        int seed = ticks * 0x9E3779B9 + width;
         for (int i = 0; i < crystals; i++) {
             seed = seed * 1664525 + 1013904223;
             int x = Math.floorMod(seed, Math.max(1, width));
