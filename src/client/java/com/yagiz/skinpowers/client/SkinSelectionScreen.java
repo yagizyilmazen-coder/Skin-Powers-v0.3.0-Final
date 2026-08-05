@@ -559,6 +559,33 @@ public final class SkinSelectionScreen extends Screen {
         }
     }
 
+
+    private void drawIceRealm(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
+        float s = artScale(w, h);
+        g.fillGradient(x, y, x + w, y + h, 0xFF0A1A28, 0xFF4A90B8);
+        int ground = y + h - Math.max(4, Math.round(8 * s));
+        g.fill(x, ground, x + w, y + h, 0xFFB8DFF0);
+        int cx = x + w / 2;
+        int cy = y + Math.max(Math.round(16 * s), h / 2);
+        int r = Math.max(7, Math.round(12 * s));
+        g.fill(cx - r, cy - r, cx + r, cy + r, 0xCC8FD4FF);
+        g.fill(cx - r / 2, cy - r / 2, cx + r / 2, cy + r / 2, 0xE0E8F6FF);
+        g.outline(cx - r, cy - r, r * 2, r * 2, 0xFFD0EFFF);
+        int spikes = Math.max(3, Math.min(6, w / 18));
+        for (int i = 0; i < spikes; i++) {
+            int sx = x + 4 + i * Math.max(8, w / Math.max(1, spikes));
+            int sh = Math.round((6 + (i % 3) * 5) * s);
+            g.fill(sx, ground - sh, sx + Math.max(2, Math.round(3 * s)), ground, 0xFFA8D4E8);
+        }
+        // hafif kar parçacığı
+        for (int i = 0; i < 6; i++) {
+            double a = (now * 0.04 + i * 1.1) % 6.28;
+            int px = x + 6 + (int) ((w - 12) * ((Math.sin(a + i) + 1) * 0.5));
+            int py = y + 4 + (int) ((ground - y - 8) * ((i * 17 + now / 8) % 100) / 100.0);
+            g.fill(px, py, px + 1, py + 1, 0xE0FFFFFF);
+        }
+    }
+
     private void drawAvatarCorner(GuiGraphicsExtractor graphics, long now, int left, int top) {
         int x = left + 19;
         graphics.fill(x - 20, top + 58, x + 20, top + 62, 0x44000000);

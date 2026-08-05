@@ -1,22 +1,5 @@
-SKIN POWERS — BUZ SINIFI PAKETİ
-================================
+Sadece SkinSelectionScreen.java dosyasını:
+src/client/java/com/yagiz/skinpowers/client/
+üzerine yaz → Commit → Push.
 
-1. ZIP'i ayıkla.
-2. İçindeki "src" klasörünü projenin ana klasörüne kopyala (Replace).
-3. Commit → Push → Actions derlesin.
-
-Yeni sınıf: BUZ (Ice)
-Komut: /skinpower degistir buz
-
-Güçler:
-1 Buz Zırhı — direnç + soğurma
-2 Donma Dalgası — alan yavaşlat/dondur
-3 Buz Mızrağı — mermi + dondurma
-4 Buz Kafesi — hedefi kilitle
-5 Tipi — sürekli alan
-6 Mutlak Sıfır — ultimate
-
-Uyanış: Buzul Hükmü
-Kombo: Donma Dalgası → Tipi (Buzul Fırtınası)
-
-Not: Skin tarayıcı açık mavi/beyaz skinleri Buz'a yaklaştırır.
+Eksik metod: drawIceRealm (Buz kartı görseli)
