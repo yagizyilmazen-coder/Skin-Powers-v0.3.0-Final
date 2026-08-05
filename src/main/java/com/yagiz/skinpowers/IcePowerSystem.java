@@ -203,7 +203,6 @@ public final class IcePowerSystem {
         target.setDeltaMovement(Vec3.ZERO);
         target.hurtMarked = true;
         try { target.setJumping(false); } catch (Throwable ignored) {}
-        target.hasImpulse = true;
 
         long now = target.level().getGameTime();
         long until = now + duration;

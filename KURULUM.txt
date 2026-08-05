@@ -1,9 +1,4 @@
-BUZ DONDURMA İYİLEŞTİRMESİ
-==========================
-src klasörünü proje köküne kopyala (Replace) → Commit → Push
+IcePowerSystem.java → src/main/java/com/yagiz/skinpowers/
+Commit → Push
 
-Değişiklikler:
-- Yavaşlık (Slowness) efekti KALDIRILDI
-- Hedef tamamen kilitlenir: hareket + zıplama yok
-- Vurulan oyuncunun ekranı buz cam görünümü alır
-- Karakter etrafında kar/buz parçacığı aurası
+Düzeltme: hasImpulse alanı bu sürümde yok, satır kaldırıldı.
