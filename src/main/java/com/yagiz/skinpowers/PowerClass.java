@@ -8,7 +8,7 @@ public enum PowerClass {
     MOON("Ay"),
     ANOMALY("Anomali"),
     MAGNETIC("Manyetik"),
-    VAMPIRE("Vampir");
+    SAND("Kum");
 
     private final String displayName;
 
@@ -28,7 +28,9 @@ public enum PowerClass {
         if (normalized.equals("DRAGON") || normalized.equals("EJDERHA") || normalized.equals("KADIM_EJDERHA")) return FLIGHT;
         if (normalized.equals("NATURE") || normalized.equals("DOGA") || normalized.equals("DOĞA") || normalized.equals("AY") || normalized.equals("MOON")) return MOON;
         if (normalized.equals("MAGNET") || normalized.equals("MANYETIK") || normalized.equals("MANYETİK")) return MAGNETIC;
-        if (normalized.equals("KUM") || normalized.equals("SAND") || normalized.equals("COL") || normalized.equals("VAMPIR") || normalized.equals("VAMPIRE") || normalized.equals("BLOOD")) return VAMPIRE;
+        // Eski Vampir denemesi ve Kum takma adları -> Kum
+        if (normalized.equals("KUM") || normalized.equals("SAND") || normalized.equals("COL")
+            || normalized.equals("VAMPIR") || normalized.equals("VAMPIRE") || normalized.equals("BLOOD")) return SAND;
         try {
             return PowerClass.valueOf(normalized);
         } catch (IllegalArgumentException ignored) {

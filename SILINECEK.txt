@@ -1,0 +1,2 @@
+ZORUNLU: Bu dosyayı projenin ana klasöründen SİL
+src/main/java/com/yagiz/skinpowers/VampirePowerSystem.java
