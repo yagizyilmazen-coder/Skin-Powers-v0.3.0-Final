@@ -52,11 +52,11 @@ public final class SkinAnalyzer {
     private static final int[][] SPIDER_COLORS = {
         {180, 20, 30}, {220, 30, 40}, {120, 10, 15}, {30, 30, 40}, {20, 20, 28},
         {40, 60, 160}, {50, 80, 200}, {200, 200, 210}, {15, 15, 20}, {90, 15, 20}
-    }
+    };
 
     private static final int[][] ICE_COLORS = {
-        {0x8FD4FF, 0xE8F6FF, 0x4A90B8, 0xB8DFF0, 0xD0EFFF},
-        {0xA0E0FF, 0xFFFFFF, 0x6BB8D8, 0xC8EAF5, 0x7EC8E8}
+        {143, 212, 255}, {232, 246, 255}, {74, 144, 184}, {184, 223, 240}, {208, 239, 255},
+        {160, 224, 255}, {255, 255, 255}, {107, 184, 216}, {200, 234, 245}, {126, 200, 232}
     };
 
     private static final java.util.concurrent.ConcurrentHashMap<UUID, CachedResult> CACHE = new java.util.concurrent.ConcurrentHashMap<>();

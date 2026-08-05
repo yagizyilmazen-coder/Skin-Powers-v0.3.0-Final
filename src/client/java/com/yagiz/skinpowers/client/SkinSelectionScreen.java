@@ -28,7 +28,7 @@ public final class SkinSelectionScreen extends Screen {
     };
     private static final int[] TOP_COLORS = {0xFF07111C, 0xFF08020F, 0xFF5B0B08, 0xFF060A1C, 0xFF05010B, 0xFF121820, 0xFF2A0508, 0xFF0A1A28};
     private static final int[] BOTTOM_COLORS = {0xFF16384B, 0xFF451070, 0xFFFF6B18, 0xFF596B9E, 0xFF291248, 0xFF586875, 0xFFE02030, 0xFF7EC8E8};
-    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFCE72FF, 0xFFFFC22E, 0xFFD9E4FF, 0xFFB65CFF, 0xFFC5D2DE, 0xFFE0B85A, 0xFF8FD4FF};
+    private static final int[] ACCENTS = {0xFF35D7D0, 0xFFCE72FF, 0xFFFFC22E, 0xFFD9E4FF, 0xFFB65CFF, 0xFFC5D2DE, 0xFFE02030, 0xFF8FD4FF};
 
     private final long openedAt = Util.getMillis();
     private SkinAnalyzer.Result result = SkinAnalyzer.Result.unavailable();
@@ -554,7 +554,7 @@ public final class SkinSelectionScreen extends Screen {
             case 3 -> drawMoon(graphics, x, y, w, h, now);
             case 4 -> drawAnomalyGlitch(graphics, x, y, w, h, now);
             case 5 -> drawMagneticForge(graphics, x, y, w, h, now);
-            case 6 -> drawDesertTemple(graphics, x, y, w, h, now);
+            case 6 -> drawSpiderEmblem(graphics, x, y, w, h, now);
             case 7 -> drawIceRealm(graphics, x, y, w, h, now);
             default -> { }
         }
@@ -804,31 +804,61 @@ public final class SkinSelectionScreen extends Screen {
         g.fill(x + w - Math.max(3, Math.round(4 * s)), y + 4, x + w - 2, ground, 0x55FF6E4A);
     }
 
-    private void drawDesertTemple(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
+    private void drawSpiderEmblem(GuiGraphicsExtractor g, int x, int y, int w, int h, long now) {
+        // Kırmızı zemin + beyaz örümcek amblemi (klasik logo silüeti)
+        g.fillGradient(x, y, x + w, y + h, 0xFF6A0C14, 0xFFB01420);
         float s = artScale(w, h);
-        g.fillGradient(x, y, x + w, y + h, 0xFF5A3814, 0xFFE0B55D);
-        int ground = y + h - Math.max(4, Math.round(8 * s));
-        g.fill(x, ground, x + w, y + h, 0xFFD6AA51);
         int cx = x + w / 2;
-        int templeW = Math.max(16, Math.min(w - 8, Math.round(w * 0.55F)));
-        int left = cx - templeW / 2;
-        int bodyH = Math.max(12, Math.round(22 * s));
-        int roofH = Math.max(6, Math.round(10 * s));
-        g.fill(left, ground - bodyH, left + templeW, ground, 0xFFE7CF8A);
-        g.fill(left + Math.round(3 * s), ground - bodyH - roofH, left + templeW - Math.round(3 * s), ground - bodyH, 0xFFF1DB9B);
-        // Door
-        int doorW = Math.max(4, Math.round(6 * s));
-        g.fill(cx - doorW / 2, ground - Math.round(14 * s), cx + doorW / 2, ground, 0xFF76502A);
-        // Pillars
-        int pw = Math.max(2, Math.round(3 * s));
-        g.fill(left + 2, ground - bodyH, left + 2 + pw, ground, 0xFFC4A86A);
-        g.fill(left + templeW - 2 - pw, ground - bodyH, left + templeW - 2, ground, 0xFFC4A86A);
-        // 3 sabit kum tanesi, yavaş drift
-        int drift = ClientConfig.get().animatedBackgrounds() ? (int) ((now / 120L) % Math.max(1, w + 12)) : 0;
-        for (int i = 0; i < 3; i++) {
-            int sx = x + ((i * 29 + drift) % Math.max(1, w + 8)) - 4;
-            int sy = y + 8 + (i * 13) % Math.max(8, Math.max(1, h - 16));
-            g.fill(sx, sy, sx + Math.max(2, Math.round(4 * s)), sy + Math.max(1, Math.round(2 * s)), i % 2 == 0 ? 0xFFDDB96B : 0xFFEAD28C);
+        int cy = y + Math.max(Math.round(18 * s), h * 45 / 100);
+        int white = 0xFFF5F5F5;
+        int soft = 0xCCFFFFFF;
+
+        // Gövde
+        int bodyW = Math.max(6, Math.round(14 * s));
+        int bodyH = Math.max(10, Math.round(20 * s));
+        g.fill(cx - bodyW / 2, cy - bodyH / 2, cx + bodyW / 2, cy + bodyH / 2, white);
+        // Kafa
+        int headW = Math.max(5, Math.round(10 * s));
+        int headH = Math.max(5, Math.round(9 * s));
+        g.fill(cx - headW / 2, cy - bodyH / 2 - headH + Math.round(2 * s), cx + headW / 2, cy - bodyH / 2 + Math.round(2 * s), white);
+        // Üst çene / diş
+        int fang = Math.max(2, Math.round(3 * s));
+        g.fill(cx - headW / 2, cy - bodyH / 2 - headH, cx - headW / 2 + fang, cy - bodyH / 2 - headH + fang + 1, white);
+        g.fill(cx + headW / 2 - fang, cy - bodyH / 2 - headH, cx + headW / 2, cy - bodyH / 2 - headH + fang + 1, white);
+
+        // 4 çift bacak — uzun, aşağı kıvrımlı
+        int legSpread = Math.max(10, Math.round(22 * s));
+        int legLen = Math.max(12, Math.round(28 * s));
+        int thick = Math.max(2, Math.round(2.5f * s));
+        for (int side = -1; side <= 1; side += 2) {
+            for (int i = 0; i < 4; i++) {
+                float t = i / 3.0F;
+                int ox = Math.round(side * (4 + t * legSpread) * s);
+                int oy = Math.round((-6 + t * 4) * s);
+                int ex = Math.round(side * (10 + t * legSpread) * s);
+                int ey = Math.round((8 + t * legLen * 0.55F) * s);
+                // iki segment
+                drawThickLine(g, cx + ox / 4, cy + oy / 3, cx + ox, cy + oy, thick, white);
+                drawThickLine(g, cx + ox, cy + oy, cx + ex, cy + ey, thick, white);
+                // uç incelme
+                g.fill(cx + ex - 1, cy + ey, cx + ex + 1, cy + ey + Math.max(2, thick), soft);
+            }
+        }
+
+        // Hafif web ışıltısı
+        if (ClientConfig.get().animatedBackgrounds() && h >= 40) {
+            int pulse = (int) ((now / 80L) % Math.max(1, w));
+            g.fill(x + (pulse % Math.max(1, w)), y + 4, x + (pulse % Math.max(1, w)) + 2, y + h - 4, 0x22FFFFFF);
+        }
+    }
+
+    private void drawThickLine(GuiGraphicsExtractor g, int x0, int y0, int x1, int y1, int thickness, int color) {
+        int steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+        steps = Math.max(1, steps);
+        for (int i = 0; i <= steps; i++) {
+            int px = x0 + (x1 - x0) * i / steps;
+            int py = y0 + (y1 - y0) * i / steps;
+            g.fill(px - thickness / 2, py - thickness / 2, px + (thickness + 1) / 2, py + (thickness + 1) / 2, color);
         }
     }
 
