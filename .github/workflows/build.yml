@@ -36,6 +36,8 @@ jobs:
           rm -f src/main/resources/data/skinpowers/enchantment/can_filizi.json
           rm -f src/main/resources/data/skinpowers/enchantment/orman_sicrayisi.json
           rm -f src/main/resources/data/skinpowers/enchantment/dikenli_savunma.json
+          # Vampir denemesi kaldırıldı; dosya kalırsa SAND geçişi derlemeyi kırar
+          rm -f src/main/java/com/yagiz/skinpowers/VampirePowerSystem.java
 
       - name: JSON ve proje yapısını denetle
         continue-on-error: true

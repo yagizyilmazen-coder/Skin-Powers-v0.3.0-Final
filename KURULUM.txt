@@ -1,22 +1,24 @@
-SKIN POWERS — Derleme düzeltmesi (SAND / VAMPIRE tutarsızlığı)
-==============================================================
+SKIN POWERS — VampirePowerSystem SİL (derleme kırığı)
+=====================================================
 
-SORUN
-GitHub Actions hatası:
-  cannot find symbol: variable SAND (location: class PowerClass)
+SON LOG HATASI
+  VampirePowerSystem.java: cannot find symbol vampireStolenHearts / VAMPIRE
 
-Neden: İstemci PowerClass.SAND kullanıyor; sunucu enum'unda hâlâ VAMPIRE var.
+NEDEN
+  PowerClass ve PlayerPowerData güncellendi (SAND), ama
+  VampirePowerSystem.java dosyası repoda KALDI.
+  Bu dosya silinmeden derleme YEŞİL olmaz.
 
-ÇÖZÜM
-1. ZIP'i ayıkla.
-2. İçindeki src klasörünü proje köküne kopyala (üzerine yaz).
-3. ŞU DOSYAYI SİL:
-   src/main/java/com/yagiz/skinpowers/VampirePowerSystem.java
-4. Commit to main → Push origin
-5. Actions yeşil olmalı.
+ZORUNLU ADIM (en önemlisi)
+  1. GitHub Desktop > Repository > Show in Explorer
+  2. Şu dosyayı SİL:
+     src\main\java\com\yagiz\skinpowers\VampirePowerSystem.java
+  3. Veya bu paketteki SIL_VAMPIRE.bat dosyasını proje kökünde çalıştır.
 
-Bu paket:
-- PowerClass.SAND (Kum) geri yükler
-- Vampir sunucu kodunu devre dışı bırakır
-- PowerCatalog / PowerSystem / Expansion / Awakening / Anomaly / komutlar uyumlu
-- GUI animasyonlu SkinSelectionScreen dahil
+EK (önerilir)
+  Bu ZIP içindeki .github klasörünü proje köküne kopyala.
+  Actions, derlemeden önce Vampire dosyasını otomatik siler;
+  unutursan bile build kırılmaz.
+
+Sonra:
+  Commit to main → Push origin
