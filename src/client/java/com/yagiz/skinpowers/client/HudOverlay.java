@@ -18,6 +18,7 @@ public final class HudOverlay {
         ClientConfig config = ClientConfig.get();
         drawSandScreenOverlay(graphics, screenWidth, screenHeight);
         drawIceScreenOverlay(graphics, screenWidth, screenHeight);
+        drawSpiderSenseOverlay(graphics, screenWidth, screenHeight);
         if (ClientState.powerClass() == PowerClass.NONE) return;
         PowerClass powerClass = ClientState.powerClass();
 
@@ -200,7 +201,7 @@ public final class HudOverlay {
                 yield ClientState.copiedPowerName().isBlank() ? "?: Bekleniyor" : "?: " + ClientState.copiedPowerName();
             }
             case MAGNETIC -> ClientState.selectedPower() == 4 ? "Metal Fırtınası" : "Metal alanı";
-            case SPIDER -> ClientState.sandScreenTicks() > 0 ? "Ağ görüşü" : "Örümcek ağı";
+            case SPIDER -> ClientState.spiderSenseTicks() > 0 ? "ÖRÜMCEK HİSSİ" : "Örümcek ağı";
             case ICE -> ClientState.iceScreenTicks() > 0 ? "DONDU" : "Buz akışı";
             default -> "";
         };
@@ -327,6 +328,40 @@ public final class HudOverlay {
         graphics.text(client.font, fitted, left + (width - client.font.width(fitted)) / 2, top + 5, 0xFFF0E8FF, false);
     }
 
+
+    private static void drawSpiderSenseOverlay(GuiGraphicsExtractor graphics, int width, int height) {
+        int ticks = ClientState.spiderSenseTicks();
+        if (ticks <= 0) return;
+        float fade = Math.min(1.0F, ticks / 12.0F);
+        int edge = Math.max(3, Math.min(10, width / 48));
+        int alpha = Math.max(40, Math.round(200 * fade));
+        int yellow = (alpha << 24) | 0x00FFD400;
+        // Dış sarı çerçeve
+        graphics.fill(0, 0, width, edge, yellow);
+        graphics.fill(0, height - edge, width, height, yellow);
+        graphics.fill(0, edge, edge, height - edge, yellow);
+        graphics.fill(width - edge, edge, width, height - edge, yellow);
+        // İç ince ikinci çizgi
+        int inner = edge + 3;
+        int a2 = Math.max(20, Math.round(110 * fade));
+        int y2 = (a2 << 24) | 0x00FFE66A;
+        graphics.fill(edge, edge, width - edge, edge + 2, y2);
+        graphics.fill(edge, height - edge - 2, width - edge, height - edge, y2);
+        graphics.fill(edge, edge, edge + 2, height - edge, y2);
+        graphics.fill(width - edge - 2, edge, width - edge, height - edge, y2);
+        // Köşe vurguları
+        int c = Math.max(18, edge * 3);
+        int ac = Math.max(50, Math.round(230 * fade));
+        int corner = (ac << 24) | 0x00FFCC00;
+        graphics.fill(0, 0, c, 3, corner);
+        graphics.fill(0, 0, 3, c, corner);
+        graphics.fill(width - c, 0, width, 3, corner);
+        graphics.fill(width - 3, 0, width, c, corner);
+        graphics.fill(0, height - 3, c, height, corner);
+        graphics.fill(0, height - c, 3, height, corner);
+        graphics.fill(width - c, height - 3, width, height, corner);
+        graphics.fill(width - 3, height - c, width, height, corner);
+    }
     private static void drawSandScreenOverlay(GuiGraphicsExtractor graphics, int width, int height) {
         int ticks = ClientState.sandScreenTicks();
         if (ticks <= 0) return;

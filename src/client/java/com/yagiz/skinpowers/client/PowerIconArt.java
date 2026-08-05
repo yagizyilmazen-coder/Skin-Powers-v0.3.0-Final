@@ -94,7 +94,7 @@ public final class PowerIconArt {
         {
             "Ağ mermisi hedefi yavaşlatır.",
             "Ağ çekişi düşmanı sana getirir.",
-            "Örümcek hissi tehlikeyi gösterir.",
+            "Ağ sıçraması seni ileri fırlatır.",
             "Ağ zırhı darbe aldıkça çözülür.",
             "Ağ tuzağı hedefi kilitler.",
             "Örümcek fırtınası her şeyi sarar."

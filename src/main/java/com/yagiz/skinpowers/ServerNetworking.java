@@ -172,6 +172,12 @@ public final class ServerNetworking {
         ServerPlayNetworking.send(player, new ClientEffectPayload("ICE_SCREEN", 1.0F, durationTicks));
     }
 
+    public static void sendSpiderSenseScreen(ServerPlayer player, int durationTicks) {
+        if (player == null) return;
+        // 0 = çerçeveyi kapat
+        ServerPlayNetworking.send(player, new ClientEffectPayload("SPIDER_SENSE", 1.0F, Math.max(0, durationTicks)));
+    }
+
     public static void sendScreenShake(ServerLevel level, Vec3 center, double radius, float strength, int durationTicks) {
         double radiusSquared = radius * radius;
         for (ServerPlayer player : level.players()) {

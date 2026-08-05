@@ -46,6 +46,7 @@ public final class ClientState {
     private static String castPulseClass = "NONE";
     private static int sandScreenTicks;
     private static int iceScreenTicks;
+    private static int spiderSenseTicks;
 
     private ClientState() {}
 
@@ -116,6 +117,7 @@ public final class ClientState {
     public static void clearSandScreen() {
         sandScreenTicks = 0;
         iceScreenTicks = 0;
+        spiderSenseTicks = 0;
     }
 
     public static void startIceScreen(int durationTicks) {
@@ -124,6 +126,18 @@ public final class ClientState {
 
     public static void clearIceScreen() {
         iceScreenTicks = 0;
+    }
+
+    public static void startSpiderSense(int durationTicks) {
+        if (durationTicks <= 0) {
+            spiderSenseTicks = 0;
+            return;
+        }
+        spiderSenseTicks = Math.max(spiderSenseTicks, durationTicks);
+    }
+
+    public static void clearSpiderSense() {
+        spiderSenseTicks = 0;
     }
 
     public static void clientTick() {
@@ -142,6 +156,7 @@ public final class ClientState {
         if (classAwakeningTicks > 0) classAwakeningTicks--;
         if (sandScreenTicks > 0) sandScreenTicks--;
         if (iceScreenTicks > 0) iceScreenTicks--;
+        if (spiderSenseTicks > 0) spiderSenseTicks--;
         if (comboTicks <= 0) { comboName = ""; comboNextPowerName = ""; }
         if (ancientChargeTicks <= 0) ancientChargeAvailable = false;
         if (castPulseTicks > 0) {
@@ -194,6 +209,7 @@ public final class ClientState {
         castPulseClass = "NONE";
         sandScreenTicks = 0;
         iceScreenTicks = 0;
+        spiderSenseTicks = 0;
     }
 
     public static PowerClass powerClass() { return powerClass; }
@@ -234,6 +250,7 @@ public final class ClientState {
     public static PowerClass castPulseClass() { return PowerClass.safeValueOf(castPulseClass); }
     public static int sandScreenTicks() { return sandScreenTicks; }
     public static int iceScreenTicks() { return iceScreenTicks; }
+    public static int spiderSenseTicks() { return spiderSenseTicks; }
 
     public static int masteryUses(int level) {
         return masteryUses[Math.max(0, Math.min(5, level - 1))];

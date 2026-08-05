@@ -20,7 +20,7 @@ public final class PowerCatalog {
         {"Ay Halkası", "Ay Mührü", "Yerçekimi Baskısı", "Ay Aynası", "Tutulma Hükmü", "Dolunay Canavarı"},
         {"Kırık Adım", "Tersine Çevir", "?", "Hasar Mevcut Değil", "Varlıktan Çıkar", "404: Gerçeklik Bulunamadı"},
         {"Manyetik Çekim", "Kutup İtişi", "Demir Yumruk", "Metal Fırtınası", "Ray Topu", "Manyetik Kafes"},
-        {"Ağ Atışı", "Ağ Çekişi", "Örümcek Hissi", "Ağ Zırhı", "Ağ Tuzağı", "Örümcek Fırtınası"},
+        {"Ağ Atışı", "Ağ Çekişi", "Ağ Sıçraması", "Ağ Zırhı", "Ağ Tuzağı", "Örümcek Fırtınası"},
         {"Buz Zırhı", "Donma Dalgası", "Buz Mızrağı", "Buz Kafesi", "Tipi", "Mutlak Sıfır"}
     };
 
@@ -77,7 +77,7 @@ public final class PowerCatalog {
         {
             "İp ve örümcek ağından görünür bir ağ mermisi fırlatır; isabet edeni yavaşlatır ve kısa süre görüşünü bozar.",
             "Hedefi ağlarla kendine doğru çeker; yakın mesafede kısa sersemletme uygular.",
-            "Örümcek hissi uyanır: hız, sıçrama ve kısa direnç; yakındaki düşmanlar parlar.",
+            "Bakış yönüne ağ ile sıçrar; yoldaki düşmanlara çarpar ve itilir. Örümcek Hissi 1. güçle pasif açılır.",
             "Oyuncuya bağlı takip eden ağ zırhı; yükleri bitene veya süre dolana kadar hasarı emer.",
             "Hedefi örümcek ağı kafesine kilitler; süre bitince veya yeterli hasarla kaçılabilir.",
             "Çoklu ağ kolları hedefi sarar, yere çarpar, alan hasarı verir ve savurur."

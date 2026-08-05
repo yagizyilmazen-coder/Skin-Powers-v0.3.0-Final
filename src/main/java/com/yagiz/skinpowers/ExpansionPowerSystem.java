@@ -52,6 +52,10 @@ public final class ExpansionPowerSystem {
 
     private ExpansionPowerSystem() {}
 
+    /** Örümcek Hissi: 1. güç açılınca pasif. Tehditte 5 sn, oyuncu hariç %80 yavaşlatma. */
+    private static final Map<UUID, Long> SPIDER_SENSE_UNTIL = new HashMap<>();
+    private static final Map<UUID, Long> SPIDER_SENSE_COOLDOWN = new HashMap<>();
+
     public static void tickServer(MinecraftServer server) {
         tickStaticVisuals();
         tickMovingAttacks();
@@ -75,19 +79,16 @@ public final class ExpansionPowerSystem {
                 }
             }
         } else if (data.powerClass() == PowerClass.SPIDER) {
-            // Örümcek pasifi: düşük düşüş hasarı ve hafif hız; duvara yakınken sıçrama.
             if (data.unlockedLevel() >= 1) {
                 player.fallDistance = Math.min(player.fallDistance, 2.5F);
-                if (now % 20L == 0L) {
-                    player.addEffect(new MobEffectInstance(MobEffects.JUMP_BOOST, 28, 0, false, false, true));
-                }
-                // Duvar / tavan yakınında kısa hız
                 BlockPos pos = player.blockPosition();
                 boolean nearWall = !level.getBlockState(pos.north()).isAir() || !level.getBlockState(pos.south()).isAir()
                     || !level.getBlockState(pos.east()).isAir() || !level.getBlockState(pos.west()).isAir();
                 if (nearWall) {
                     player.addEffect(new MobEffectInstance(MobEffects.SPEED, 24, 0, false, false, true));
+                    player.addEffect(new MobEffectInstance(MobEffects.JUMP_BOOST, 24, 0, false, false, true));
                 }
+                tickSpiderSense(player, level, now);
             }
         }
     }
@@ -147,19 +148,15 @@ public final class ExpansionPowerSystem {
                 return true;
             }
             case 3 -> {
-                // Örümcek Hissi: hız, sıçrama, direnç; yakındaki düşmanlar parlar
-                int dur = awakened ? 160 : 120;
-                player.addEffect(new MobEffectInstance(MobEffects.SPEED, dur, 1 + (awakened ? 1 : 0), false, false, true));
-                player.addEffect(new MobEffectInstance(MobEffects.JUMP_BOOST, dur, 1, false, false, true));
-                player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, dur, 0, false, false, true));
-                for (LivingEntity target : nearby(player, 16.0 + stage)) {
-                    if (target == player || PowerSystem.isProtectedAlly(player, target)) continue;
-                    target.addEffect(new MobEffectInstance(MobEffects.GLOWING, dur, 0, false, false, true));
-                    target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 40, 0, false, false, true));
-                }
-                level.sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY() + 1.0, player.getZ(), 40, 1.2, 0.8, 1.2, 0.02);
-                level.playSound(null, player.blockPosition(), SoundEvents.SPIDER_AMBIENT, SoundSource.PLAYERS, 1.0F, 1.2F);
-                data.setCooldown(3, now, Math.max(280, 420 - stage * 30));
+                // Demir Yumruk
+                Vec3 start = player.getEyePosition().add(player.getLookAngle().normalize().scale(0.8));
+                Vec3 velocity = player.getLookAngle().normalize().scale(1.35 + stage * 0.08 + (awakened ? 0.25 : 0.0));
+                MOVING_ATTACKS.add(createMovingAttack(level, player.getUUID(), MovingType.IRON_FIST,
+                    start, velocity, now + 28L, 14.0F + stage * 2.0F + (awakened ? 4.0F : 0.0F), 1.8 + stage * 0.12, 1,
+                    new Item[]{Items.IRON_BLOCK, Items.IRON_INGOT, Items.IRON_NUGGET, Items.COPPER_BLOCK}, awakened ? 12 : 9));
+                level.playSound(null, player.blockPosition(), SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.85F, 0.72F);
+                ServerNetworking.sendScreenShake(level, player.position(), 16.0, 0.55F, 7);
+                data.setCooldown(3, now, Math.max(200, 320 - stage * 22));
                 return true;
             }
             case 4 -> {
@@ -252,18 +249,23 @@ public final class ExpansionPowerSystem {
                 return true;
             }
             case 3 -> {
-                DesertMirrors previous = DESERT_MIRRORS.remove(player.getUUID());
-                if (previous != null) discardAll(previous.level, previous.allIds());
-                Vec3 forward = horizontal(player.getLookAngle()).normalize();
-                Vec3 right = new Vec3(-forward.z, 0.0, forward.x);
-                List<UUID> left = spawnSandStatue(level, player.position().add(right.scale(-1.2)), now + 130L);
-                List<UUID> rightIds = spawnSandStatue(level, player.position().add(right.scale(1.2)), now + 130L);
-                DESERT_MIRRORS.put(player.getUUID(), new DesertMirrors(level, player.getUUID(), left, rightIds,
-                    player.position(), forward.add(right.scale(-0.8)).normalize().scale(0.15),
-                    forward.add(right.scale(0.8)).normalize().scale(0.15), now, now + (awakened ? 150L : 120L), awakened ? 3 : 2));
-                player.addEffect(new MobEffectInstance(MobEffects.SPEED, awakened ? 90 : 65, awakened ? 2 : 1, false, false, true));
-                level.playSound(null, player.blockPosition(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.75F, 1.55F);
-                data.setCooldown(3, now, Math.max(480, 680 - stage * 42));
+                // Ağ Sıçraması: bakış yönüne güçlü ağ hamlesi (mobilite)
+                Vec3 look = player.getLookAngle().normalize();
+                double boost = (awakened ? 2.35 : 1.85) + stage * 0.12;
+                player.setDeltaMovement(look.x * boost, Math.max(0.55, look.y * boost * 0.85 + 0.45), look.z * boost);
+                player.hurtMarked = true;
+                player.fallDistance = 0.0F;
+                List<UUID> trail = spawnVisualItems(level, player.position().add(0.0, 0.8, 0.0), sandItems(), 8, false);
+                SAND_WAVES.add(new SandWave(level, player.getUUID(), trail, player.position(), look, now, now + 12L, stage, awakened));
+                // Yol üzerindeki düşmanlara hafif hasar / itme
+                AABB path = player.getBoundingBox().expandTowards(look.scale(4.0)).inflate(1.2);
+                for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, path)) {
+                    if (target == player || PowerSystem.isProtectedAlly(player, target)) continue;
+                    target.hurtServer(level, level.damageSources().playerAttack(player), 5.0F + stage * 1.1F + (awakened ? 2.5F : 0.0F));
+                    target.push(look.x * 0.9, 0.35, look.z * 0.9);
+                }
+                level.playSound(null, player.blockPosition(), SoundEvents.FISHING_BOBBER_THROW, SoundSource.PLAYERS, 1.0F, 0.55F);
+                data.setCooldown(3, now, Math.max(160, 260 - stage * 18));
                 return true;
             }
             case 4 -> {
@@ -438,6 +440,8 @@ public final class ExpansionPowerSystem {
     }
 
     public static void cancelOwner(UUID ownerId) {
+        SPIDER_SENSE_UNTIL.remove(ownerId);
+        SPIDER_SENSE_COOLDOWN.remove(ownerId);
         MagneticStorm storm = MAGNETIC_STORMS.remove(ownerId);
         if (storm != null) discardAll(storm.level, storm.ids);
         SandArmor armor = SAND_ARMORS.remove(ownerId);
@@ -473,6 +477,8 @@ public final class ExpansionPowerSystem {
     }
 
     public static void clearAll() {
+        SPIDER_SENSE_UNTIL.clear();
+        SPIDER_SENSE_COOLDOWN.clear();
         for (StaticVisual visual : STATIC_VISUALS) {
             Entity entity = visual.level.getEntity(visual.entityId);
             if (entity != null) entity.discard();
@@ -1092,6 +1098,134 @@ public final class ExpansionPowerSystem {
         for (UUID id : new ArrayList<>(ids)) {
             Entity entity = level.getEntity(id);
             if (entity != null) entity.discard();
+        }
+    }
+
+
+    private static final double SPIDER_SENSE_RADIUS = 30.0;
+    private static final int SPIDER_SENSE_DURATION = 100; // 5 saniye
+    private static final int SPIDER_SENSE_RETRIGGER = 40; // bitince kısa bekleme
+
+    private static void tickSpiderSense(ServerPlayer player, ServerLevel level, long now) {
+        UUID id = player.getUUID();
+        Long until = SPIDER_SENSE_UNTIL.get(id);
+        if (until != null && until > now) {
+            applySpiderSenseSlowdown(player, level, now);
+            // Tehdit kalmadıysa erken bitir
+            if (!hasSpiderThreat(player, level)) {
+                endSpiderSense(player, now, true);
+            }
+            return;
+        }
+        if (until != null && until <= now) {
+            SPIDER_SENSE_UNTIL.remove(id);
+            SPIDER_SENSE_COOLDOWN.put(id, now + SPIDER_SENSE_RETRIGGER);
+        }
+        Long cd = SPIDER_SENSE_COOLDOWN.get(id);
+        if (cd != null && cd > now) return;
+        if (hasSpiderThreat(player, level)) {
+            startSpiderSense(player, level, now);
+        }
+    }
+
+    private static void startSpiderSense(ServerPlayer player, ServerLevel level, long now) {
+        SPIDER_SENSE_UNTIL.put(player.getUUID(), now + SPIDER_SENSE_DURATION);
+        SPIDER_SENSE_COOLDOWN.remove(player.getUUID());
+        ServerNetworking.sendSpiderSenseScreen(player, SPIDER_SENSE_DURATION);
+        level.playSound(null, player.blockPosition(), SoundEvents.SPIDER_AMBIENT, SoundSource.PLAYERS, 0.9F, 1.6F);
+        player.sendSystemMessage(Component.literal("Örümcek Hissi!"));
+        applySpiderSenseSlowdown(player, level, now);
+    }
+
+    private static void endSpiderSense(ServerPlayer player, long now, boolean early) {
+        SPIDER_SENSE_UNTIL.remove(player.getUUID());
+        SPIDER_SENSE_COOLDOWN.put(player.getUUID(), now + (early ? 10 : SPIDER_SENSE_RETRIGGER));
+        ServerNetworking.sendSpiderSenseScreen(player, 0);
+    }
+
+    private static boolean hasSpiderThreat(ServerPlayer player, ServerLevel level) {
+        Vec3 eye = player.getEyePosition();
+        AABB area = player.getBoundingBox().inflate(SPIDER_SENSE_RADIUS);
+        for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, area)) {
+            if (entity == player || !entity.isAlive()) continue;
+            if (PowerSystem.isProtectedAlly(player, entity)) continue;
+            if (entity.distanceTo(player) > SPIDER_SENSE_RADIUS) continue;
+            if (isMeleeThreatWeapon(entity.getMainHandItem()) || isMeleeThreatWeapon(entity.getOffhandItem())) {
+                if (isLookingAt(entity, player, 0.55)) return true;
+            }
+        }
+        for (Projectile projectile : level.getEntitiesOfClass(Projectile.class, area)) {
+            if (!projectile.isAlive()) continue;
+            if (projectile.getOwner() == player) continue;
+            if (isHostileProjectile(projectile) && isProjectileApproaching(projectile, player)) return true;
+        }
+        return false;
+    }
+
+    private static boolean isMeleeThreatWeapon(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        String key = stack.getItem().toString().toLowerCase(java.util.Locale.ROOT);
+        return key.contains("sword") || key.contains("axe") || key.contains("shovel")
+            || key.contains("pickaxe") || key.contains("mace") || key.contains("trident");
+    }
+
+    private static boolean isLookingAt(LivingEntity attacker, LivingEntity target, double minDot) {
+        Vec3 look = attacker.getLookAngle().normalize();
+        Vec3 to = target.getEyePosition().subtract(attacker.getEyePosition());
+        double len = to.length();
+        if (len < 0.001 || len > SPIDER_SENSE_RADIUS) return false;
+        return look.dot(to.normalize()) >= minDot;
+    }
+
+    private static boolean isHostileProjectile(Projectile projectile) {
+        String name = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(projectile.getType()).getPath().toLowerCase(java.util.Locale.ROOT);
+        return name.contains("arrow") || name.contains("trident") || name.contains("fireball")
+            || name.contains("shulker") || name.contains("llama") || name.contains("snowball")
+            || name.contains("egg") || name.contains("potion") || name.contains("missile");
+    }
+
+    private static boolean isProjectileApproaching(Projectile projectile, ServerPlayer player) {
+        Vec3 motion = projectile.getDeltaMovement();
+        if (motion.lengthSqr() < 0.0004) return false;
+        Vec3 toPlayer = player.getBoundingBox().getCenter().subtract(projectile.position());
+        // Yörünge oyuncuya doğru mu?
+        if (motion.normalize().dot(toPlayer.normalize()) < 0.35) return false;
+        // Basit kesişim: 12 tick ileri projeksiyon
+        Vec3 pos = projectile.position();
+        AABB box = player.getBoundingBox().inflate(1.4);
+        for (int i = 0; i < 16; i++) {
+            pos = pos.add(motion);
+            motion = motion.add(0.0, -0.05, 0.0); // kaba yerçekimi
+            if (box.contains(pos)) return true;
+            if (pos.distanceToSqr(player.position()) > SPIDER_SENSE_RADIUS * SPIDER_SENSE_RADIUS) break;
+        }
+        return projectile.distanceTo(player) < 8.0 && motion.normalize().dot(toPlayer.normalize()) > 0.6;
+    }
+
+    private static void applySpiderSenseSlowdown(ServerPlayer owner, ServerLevel level, long now) {
+        AABB area = owner.getBoundingBox().inflate(SPIDER_SENSE_RADIUS);
+        // Diğer canlılar: %80 yavaş (hız * 0.2)
+        for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, area)) {
+            if (entity == owner || !entity.isAlive()) continue;
+            entity.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 12, 4, false, false, true));
+            entity.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, 12, 2, false, false, true));
+            Vec3 m = entity.getDeltaMovement();
+            entity.setDeltaMovement(m.x * 0.22, m.y * (m.y > 0 ? 0.55 : 0.85), m.z * 0.22);
+            entity.hurtMarked = true;
+        }
+        for (Projectile projectile : level.getEntitiesOfClass(Projectile.class, area)) {
+            if (!projectile.isAlive()) continue;
+            if (projectile.getOwner() == owner) continue;
+            Vec3 m = projectile.getDeltaMovement();
+            projectile.setDeltaMovement(m.scale(0.22));
+        }
+        // Sahibe sarı çerçeveyi yenile
+        if (now % 10L == 0L) {
+            Long until = SPIDER_SENSE_UNTIL.get(owner.getUUID());
+            if (until != null) {
+                int left = (int) Math.max(1L, until - now);
+                ServerNetworking.sendSpiderSenseScreen(owner, left);
+            }
         }
     }
 
